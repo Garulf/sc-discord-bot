@@ -217,14 +217,12 @@ class InventoryCog(commands.Cog):
         user_inv = guild_inv.get(str(interaction.user.id), {})
 
         sets = _complete_sets(user_inv)
-        types_collected = sum(1 for item in ITEMS if user_inv.get(item, 0) > 0)
 
         embed = discord.Embed(
             title=f"{interaction.user.display_name}'s DCHS Inventory",
             description=_format_mine(user_inv) if user_inv else "*Your inventory is empty.*",
             color=_embed_color(user_inv),
         )
-        embed.add_field(name="Types Collected", value=f"{types_collected} / {len(ITEMS)}", inline=True)
         embed.add_field(name="Complete Sets", value=str(sets) if sets else "None", inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
