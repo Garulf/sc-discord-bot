@@ -1,0 +1,18 @@
+services:
+  bot:
+    build: .
+    image: sc-discord-bot
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - bot-data:/app/data
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: ./requirments.txt
+
+volumes:
+  bot-data:
