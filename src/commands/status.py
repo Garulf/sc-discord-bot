@@ -246,8 +246,7 @@ class StatusCog(commands.Cog):
             if previous.get(name) != status
         ]
         if changes:
-            incident = await self._latest_incident(overview)
-            embed = build_overview_embed(overview, changes=changes, incident=incident)
+            embed = build_overview_embed(overview, changes=changes)
             await self._broadcast(subscriptions, embed)
         await self.bot.state.set(SYSTEMS_KEY, current)
 
