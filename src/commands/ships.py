@@ -22,7 +22,6 @@ def _format_number(value: Optional[float], suffix: str = "") -> Optional[str]:
     return f"{rounded:,}{suffix}"
 
 
-
 def _format_armor(vehicle: Vehicle) -> Optional[str]:
     parts = []
     if vehicle.deflection_physical:
@@ -51,7 +50,7 @@ def build_ship_embed(
     title = f"{vehicle.manufacturer} {vehicle.name}" if vehicle.manufacturer else vehicle.name
     embed = discord.Embed(
         title=title,
-        url=vehicle.pledge_url or vehicle.web_url or None,
+        url=vehicle.pledge_url or vehicle.web_url,
         color=0x1B98E0,
     )
     if vehicle.description:
@@ -103,7 +102,7 @@ def build_ship_embed(
 
     armor = _format_armor(vehicle)
     if armor:
-        embed.add_field(name="Armor (resistance)", value=armor, inline=True)
+        embed.add_field(name="Armor (deflection)", value=armor, inline=True)
 
     signals = _format_signals(vehicle)
     if signals:

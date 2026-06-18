@@ -30,17 +30,19 @@ def discord_timestamp(moment: datetime, style: str = "R") -> str:
     return f"<t:{int(moment.timestamp())}:{style}>"
 
 
+def _format_time_of_day(dt: datetime) -> str:
+    hour = dt.hour % 12 or 12
+    ampm = "AM" if dt.hour < 12 else "PM"
+    return f"{hour}:{dt.strftime('%M')} {ampm}"
+
+
 def format_relative_time(dt: datetime, now: datetime) -> str:
     """Format a datetime as a human-readable relative string (Discord-style)."""
     day_diff = (now.date() - dt.date()).days
     if day_diff == 0:
-        hour = dt.hour % 12 or 12
-        ampm = "AM" if dt.hour < 12 else "PM"
-        return f"Today at {hour}:{dt.strftime('%M')} {ampm}"
+        return f"Today at {_format_time_of_day(dt)}"
     if day_diff == 1:
-        hour = dt.hour % 12 or 12
-        ampm = "AM" if dt.hour < 12 else "PM"
-        return f"Yesterday at {hour}:{dt.strftime('%M')} {ampm}"
+        return f"Yesterday at {_format_time_of_day(dt)}"
     if day_diff < 7:
         return f"{day_diff} days ago"
     if day_diff < 14:
