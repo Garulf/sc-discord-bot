@@ -29,9 +29,11 @@ def build_embed(
         description=status["description"],
         color=status["color"],
     )
-    footer = f"State set <t:{int(set_at.timestamp())}:R> • Updated" if set_at else "Updated"
+    _now = now or datetime.now(timezone.utc)
+    updated_str = _now.strftime("%H:%M UTC")
+    footer = f"Synced: {set_at.strftime('%b %d, %Y %H:%M UTC')} • Updated: {updated_str}" if set_at else f"Updated: {updated_str}"
     embed.set_footer(text=footer)
-    embed.timestamp = now or datetime.now(timezone.utc)
+    embed.timestamp = _now
     return embed
 
 
