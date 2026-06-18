@@ -50,7 +50,7 @@ def build_ship_embed(
     title = f"{vehicle.manufacturer} {vehicle.name}" if vehicle.manufacturer else vehicle.name
     embed = discord.Embed(
         title=title,
-        url=vehicle.pledge_url or vehicle.web_url,
+        url=vehicle.web_url or vehicle.pledge_url,
         color=0x1B98E0,
     )
     if vehicle.description:
