@@ -11,7 +11,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from src.exec_hangars import HangarSchedule, build_status
+from src.exec_hangars import HangarSchedule, build_status, format_relative_time
 from src.commands.checks import admin_or_sc_bot
 
 UPDATE_INTERVAL_SECONDS = 30
@@ -30,9 +30,9 @@ def build_embed(
         color=status["color"],
     )
     _now = now or datetime.now(timezone.utc)
-    footer = f"Synced: {set_at.strftime('%b %d, %Y %H:%M UTC')} • Updated:" if set_at else "Updated:"
+    updated_str = format_relative_time(_now, _now)
+    footer = f"Synced: {format_relative_time(set_at, _now)} • Updated: {updated_str}" if set_at else f"Updated: {updated_str}"
     embed.set_footer(text=footer)
-    embed.timestamp = _now
     return embed
 
 

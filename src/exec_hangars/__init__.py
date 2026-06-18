@@ -1,7 +1,7 @@
 from src.exec_hangars.hangar import ExecutiveHangar
 from src.exec_hangars.schedule import HangarSchedule
 from src.exec_hangars.states import HangarPhase, LightState
-from src.exec_hangars.status import build_status, render_lights
+from src.exec_hangars.status import build_status, render_lights, format_relative_time
 
 __all__ = [
     "ExecutiveHangar",
@@ -10,4 +10,5 @@ __all__ = [
     "LightState",
     "build_status",
     "render_lights",
+    "format_relative_time",
 ]

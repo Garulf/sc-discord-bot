@@ -30,6 +30,31 @@ def discord_timestamp(moment: datetime, style: str = "R") -> str:
     return f"<t:{int(moment.timestamp())}:{style}>"
 
 
+def format_relative_time(dt: datetime, now: datetime) -> str:
+    """Format a datetime as a human-readable relative string (Discord-style)."""
+    day_diff = (now.date() - dt.date()).days
+    if day_diff == 0:
+        hour = dt.hour % 12 or 12
+        ampm = "AM" if dt.hour < 12 else "PM"
+        return f"Today at {hour}:{dt.strftime('%M')} {ampm}"
+    if day_diff == 1:
+        hour = dt.hour % 12 or 12
+        ampm = "AM" if dt.hour < 12 else "PM"
+        return f"Yesterday at {hour}:{dt.strftime('%M')} {ampm}"
+    if day_diff < 7:
+        return f"{day_diff} days ago"
+    if day_diff < 14:
+        return "1 week ago"
+    if day_diff < 30:
+        return f"{day_diff // 7} weeks ago"
+    if day_diff < 60:
+        return "1 month ago"
+    if day_diff < 365:
+        return f"{day_diff // 30} months ago"
+    years = day_diff // 365
+    return f"{years} year{'s' if years != 1 else ''} ago"
+
+
 def render_lights(hangar) -> str:
     return " ".join(LIGHT_EMOJI[light] for light in hangar.lights)
 
