@@ -30,8 +30,7 @@ def build_embed(
         color=status["color"],
     )
     _now = now or datetime.now(timezone.utc)
-    updated_str = _now.strftime("%H:%M UTC")
-    footer = f"Synced: {set_at.strftime('%b %d, %Y %H:%M UTC')} • Updated: {updated_str}" if set_at else f"Updated: {updated_str}"
+    footer = f"Synced: {set_at.strftime('%b %d, %Y %H:%M UTC')} • Updated" if set_at else "Updated"
     embed.set_footer(text=footer)
     embed.timestamp = _now
     return embed
