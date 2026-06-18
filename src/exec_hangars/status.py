@@ -6,10 +6,10 @@ from src.exec_hangars.schedule import HangarSchedule
 from src.exec_hangars.states import HangarPhase, LightState
 
 LIGHT_EMOJI = {
-    LightState.GREEN: "🟢",
-    LightState.RED: "🔴",
-    LightState.EXPIRED: "⚫",
-    LightState.ORANGE: "🟠",
+    LightState.GREEN: "🟩",
+    LightState.RED: "🟥",
+    LightState.EXPIRED: "⬛",
+    LightState.ORANGE: "🟧",
 }
 
 PHASE_LABEL = {
