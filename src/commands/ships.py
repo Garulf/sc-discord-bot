@@ -22,16 +22,13 @@ def _format_number(value: Optional[float], suffix: str = "") -> Optional[str]:
     return f"{rounded:,}{suffix}"
 
 
-def _resistance(multiplier: float) -> str:
-    return f"{round((1 - multiplier) * 100)}%"
-
 
 def _format_armor(vehicle: Vehicle) -> Optional[str]:
     parts = []
-    if vehicle.armor_physical is not None:
-        parts.append(f"Physical {_resistance(vehicle.armor_physical)}")
-    if vehicle.armor_energy is not None:
-        parts.append(f"Energy {_resistance(vehicle.armor_energy)}")
+    if vehicle.deflection_physical:
+        parts.append(f"Physical {vehicle.deflection_physical}")
+    if vehicle.deflection_energy:
+        parts.append(f"Energy {vehicle.deflection_energy}")
     return " · ".join(parts) if parts else None
 
 
@@ -40,7 +37,6 @@ def _format_signals(vehicle: Vehicle) -> Optional[str]:
     for label, value in (
         ("IR", vehicle.signal_ir),
         ("EM", vehicle.signal_em),
-        ("CS", vehicle.signal_cs),
     ):
         formatted = _format_number(value)
         if formatted is not None:

@@ -66,6 +66,8 @@ class Vehicle:
     shield_hp: Optional[float]
     armor_physical: Optional[float]
     armor_energy: Optional[float]
+    deflection_physical: Optional[float]
+    deflection_energy: Optional[float]
     signal_ir: Optional[float]
     signal_em: Optional[float]
     signal_cs: Optional[float]
@@ -110,6 +112,8 @@ class Vehicle:
             shield_hp=data.get("shield_hp"),
             armor_physical=armor.get("damage_physical"),
             armor_energy=armor.get("damage_energy"),
+            deflection_physical=(armor.get("deflection") or {}).get("physical"),
+            deflection_energy=(armor.get("deflection") or {}).get("energy"),
             signal_ir=armor.get("signal_infrared"),
             signal_em=armor.get("signal_electromagnetic"),
             signal_cs=armor.get("signal_cross_section"),
