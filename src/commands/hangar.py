@@ -18,14 +18,19 @@ UPDATE_INTERVAL_SECONDS = 30
 _STATE_KEY = "hangar"
 
 
-def build_embed(schedule: Optional[HangarSchedule], now: Optional[datetime] = None) -> discord.Embed:
+def build_embed(
+    schedule: Optional[HangarSchedule],
+    now: Optional[datetime] = None,
+    set_at: Optional[datetime] = None,
+) -> discord.Embed:
     status = build_status(schedule, now)
     embed = discord.Embed(
         title=status["title"],
         description=status["description"],
         color=status["color"],
     )
-    embed.set_footer(text="Updated")
+    footer = f"State set <t:{int(set_at.timestamp())}:R> • Updated" if set_at else "Updated"
+    embed.set_footer(text=footer)
     embed.timestamp = now or datetime.now(timezone.utc)
     return embed
 
@@ -38,6 +43,7 @@ class HangarCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.schedule: Optional[HangarSchedule] = None
+        self.set_at: Optional[datetime] = None
         self.subscriptions: list[dict] = []
 
     async def cog_load(self) -> None:
@@ -56,11 +62,15 @@ class HangarCog(commands.Cog):
         cycle_start = data.get("cycle_start")
         if cycle_start:
             self.schedule = HangarSchedule(datetime.fromisoformat(cycle_start))
+        set_at = data.get("set_at")
+        if set_at:
+            self.set_at = datetime.fromisoformat(set_at)
         self.subscriptions = data.get("subscriptions", [])
 
     async def save_state(self) -> None:
         data = {
             "cycle_start": self.schedule.cycle_start.isoformat() if self.schedule else None,
+            "set_at": self.set_at.isoformat() if self.set_at else None,
             "subscriptions": self.subscriptions,
         }
         await self.bot.state.set(_STATE_KEY, data)
@@ -72,7 +82,7 @@ class HangarCog(commands.Cog):
         if self.schedule is None or not self.subscriptions:
             return
 
-        embed = build_embed(self.schedule)
+        embed = build_embed(self.schedule, set_at=self.set_at)
         survivors: list[dict] = []
         changed = False
         for sub in self.subscriptions:
@@ -113,7 +123,7 @@ class HangarCog(commands.Cog):
                 "Hangar state hasn't been set yet. Use `/hangar set` first.", ephemeral=True
             )
             return
-        await interaction.response.send_message(embed=build_embed(self.schedule), ephemeral=True)
+        await interaction.response.send_message(embed=build_embed(self.schedule, set_at=self.set_at), ephemeral=True)
 
     @hangar.command(name="set", description="Set the current Executive Hangar state")
     @app_commands.describe(
@@ -141,9 +151,10 @@ class HangarCog(commands.Cog):
         else:
             self.schedule = HangarSchedule.from_reset(observed_at=now)
 
+        self.set_at = now
         await self.save_state()
         await interaction.response.send_message(
-            "Hangar state updated.", embed=build_embed(self.schedule, now), ephemeral=True
+            "Hangar state updated.", embed=build_embed(self.schedule, now, set_at=self.set_at), ephemeral=True
         )
         await self.refresh_subscriptions()
 
@@ -159,7 +170,7 @@ class HangarCog(commands.Cog):
             )
             return
 
-        message = await interaction.channel.send(embed=build_embed(self.schedule))
+        message = await interaction.channel.send(embed=build_embed(self.schedule, set_at=self.set_at))
         self.subscriptions.append({"channel_id": message.channel.id, "message_id": message.id})
         await self.save_state()
         await interaction.response.send_message(
