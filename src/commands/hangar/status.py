@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .embed import build_embed
+from .shared import build_embed
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:

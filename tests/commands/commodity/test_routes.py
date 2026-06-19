@@ -1,7 +1,7 @@
 """Unit tests for src.commands.commodity.routes — _commodity_routes, best_routes."""
 
-from src.commands.commodity.constants import MAX_ROUTES
-from src.commands.commodity.routes import _commodity_routes, best_routes
+from src.commands.commodity.shared import MAX_ROUTES
+from src.commands.commodity.route import _commodity_routes, best_routes
 from src.uex_api import CommodityPrice, Terminal
 
 # ── Factories ─────────────────────────────────────────────────────────────────

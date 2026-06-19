@@ -6,7 +6,7 @@ import discord
 
 from src.rsi_status import fetch_status_overview
 
-from .embeds import build_overview_embed
+from .shared import build_overview_embed, latest_incident
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -16,5 +16,5 @@ async def handle(cog, interaction: discord.Interaction) -> None:
     except Exception as e:  # noqa: BLE001 - surface a friendly message
         await interaction.followup.send(f"Couldn't reach the RSI status page right now: {e}", ephemeral=True)
         return
-    incident = await cog._latest_incident(overview)
+    incident = await latest_incident(cog, overview)
     await interaction.followup.send(embed=build_overview_embed(overview, incident=incident))

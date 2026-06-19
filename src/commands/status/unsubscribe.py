@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .constants import SUBSCRIPTIONS_KEY
+from .shared import SUBSCRIPTIONS_KEY
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:

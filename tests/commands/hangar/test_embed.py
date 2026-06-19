@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from src.commands.hangar.embed import build_embed
+from src.commands.hangar.shared import build_embed
 from src.exec_hangars.schedule import HangarSchedule
 from src.exec_hangars.states import HangarPhase
 from src.exec_hangars.status import PHASE_COLOR

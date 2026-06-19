@@ -1,16 +1,14 @@
-"""The /armor command and /find armor subcommand handler."""
+"""Handler for /find armor."""
 
 from __future__ import annotations
 
 import discord
-from discord import app_commands
-from discord.ext import commands
 
-from src.commands.autocomplete import item_choices
 from src.commands.formatting import add_shops_field, truncate
 from src.commands.formatting import format_number as _format_number
-from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.armor import ArmorItem
+
+from .shared import handle_single
 
 
 def build_armor_embed(item: ArmorItem) -> discord.Embed:
@@ -50,43 +48,5 @@ def build_armor_embed(item: ArmorItem) -> discord.Embed:
     return embed
 
 
-class ArmorCog(commands.Cog):
-    """Armor lookups against the Star Citizen Wiki API."""
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-
-    async def armor_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
-        if not current:
-            return []
-        try:
-            results = await self.bot.armor_api.search(current, limit=25)
-        except StarCitizenWikiError:
-            return []
-        results.sort(key=lambda w: len(w.name))
-        return item_choices(results)
-
-    @app_commands.command(name="armor", description="Look up Star Citizen armor and where to buy it")
-    @app_commands.describe(name="Armor name to search for")
-    @app_commands.autocomplete(name=armor_autocomplete)
-    async def armor(self, interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
-        try:
-            item = await self.bot.armor_api.find(name)
-        except StarCitizenWikiError as e:
-            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
-            return
-        if item is None:
-            await interaction.followup.send(f"No armor found matching **{name}**.", ephemeral=True)
-            return
-        await interaction.followup.send(embed=build_armor_embed(item))
-
-
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(ArmorCog(bot))
-
-
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:
-    await cog._handle_single(interaction, name, "armor")
+    await handle_single(cog, interaction, name, "armor_api", build_armor_embed)

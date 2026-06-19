@@ -1,15 +1,13 @@
-"""The /item command and /find item subcommand handler."""
+"""Handler for /find item."""
 
 from __future__ import annotations
 
 import discord
-from discord import app_commands
-from discord.ext import commands
 
-from src.commands.autocomplete import item_choices
 from src.commands.formatting import add_shops_field, truncate
-from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.items import Item
+
+from .shared import handle_single
 
 
 def build_item_embed(item: Item) -> discord.Embed:
@@ -41,41 +39,5 @@ def build_item_embed(item: Item) -> discord.Embed:
     return embed
 
 
-class ItemsCog(commands.Cog):
-    """Miscellaneous item lookups against the Star Citizen Wiki API."""
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-
-    async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        if not current:
-            return []
-        try:
-            results = await self.bot.items_api.search(current, limit=25)
-        except StarCitizenWikiError:
-            return []
-        results.sort(key=lambda w: len(w.name))
-        return item_choices(results)
-
-    @app_commands.command(name="item", description="Look up a Star Citizen item and where to buy it")
-    @app_commands.describe(name="Item name to search for")
-    @app_commands.autocomplete(name=item_autocomplete)
-    async def item(self, interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
-        try:
-            item = await self.bot.items_api.find(name)
-        except StarCitizenWikiError as e:
-            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
-            return
-        if item is None:
-            await interaction.followup.send(f"No item found matching **{name}**.", ephemeral=True)
-            return
-        await interaction.followup.send(embed=build_item_embed(item))
-
-
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(ItemsCog(bot))
-
-
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:
-    await cog._handle_single(interaction, name, "item")
+    await handle_single(cog, interaction, name, "items_api", build_item_embed)

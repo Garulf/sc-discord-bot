@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .helpers import complete_sets, embed_color, format_mine
+from ..shared import complete_sets, embed_color, format_mine, get_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -12,7 +12,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
         return
 
-    guild_inv = await cog._get_guild_inventory(interaction.guild_id)
+    guild_inv = await get_guild_inventory(cog, interaction.guild_id)
     user_inv = guild_inv.get(str(interaction.user.id), {})
     sets = complete_sets(user_inv)
 

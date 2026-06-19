@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .helpers import ITEMS
+from .shared import ITEMS, get_guild_inventory, save_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction, item: str, count: int = 1) -> None:
@@ -18,7 +18,7 @@ async def handle(cog, interaction: discord.Interaction, item: str, count: int = 
         await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
         return
 
-    guild_inv = await cog._get_guild_inventory(interaction.guild_id)
+    guild_inv = await get_guild_inventory(cog, interaction.guild_id)
     user_key = str(interaction.user.id)
     user_inv = dict(guild_inv.get(user_key, {}))
     current_count = user_inv.get(item, 0)
@@ -31,7 +31,7 @@ async def handle(cog, interaction: discord.Interaction, item: str, count: int = 
     if user_inv[item] == 0:
         del user_inv[item]
     guild_inv[user_key] = user_inv
-    await cog._save_guild_inventory(interaction.guild_id, guild_inv)
+    await save_guild_inventory(cog, interaction.guild_id, guild_inv)
 
     remaining = user_inv.get(item, 0)
     await interaction.response.send_message(

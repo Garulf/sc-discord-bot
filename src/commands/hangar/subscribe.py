@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .embed import build_embed
+from .shared import build_embed, save_state
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -16,5 +16,5 @@ async def handle(cog, interaction: discord.Interaction) -> None:
 
     message = await interaction.channel.send(embed=build_embed(cog.schedule, set_at=cog.set_at))
     cog.subscriptions.append({"channel_id": message.channel.id, "message_id": message.id})
-    await cog.save_state()
+    await save_state(cog)
     await interaction.response.send_message("Live status posted — it will keep updating here.", ephemeral=True)

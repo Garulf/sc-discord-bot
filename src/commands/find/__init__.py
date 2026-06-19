@@ -1,22 +1,18 @@
 """The /find command group: cross-category item search across all Star Citizen
-Wiki APIs. Subcommand logic lives in individual files; this module contains
-only the Cog class (autocomplete, command registration)."""
+Wiki APIs. Subcommand logic lives in individual files; shared lookup and
+autocomplete logic lives in shared.py."""
 
 from __future__ import annotations
-
-import asyncio
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL, item_choices
-
 from .all import handle as _handle_all
 from .armor import handle as _handle_armor
 from .clothes import handle as _handle_clothes
-from .dispatch import API_ATTRS, CATEGORIES, DISPATCH
 from .item import handle as _handle_item
+from .shared import autocomplete_all, autocomplete_single
 from .shipweapon import handle as _handle_shipweapon
 from .vehicleitem import handle as _handle_vehicleitem
 from .weapon import handle as _handle_weapon
@@ -31,83 +27,29 @@ class FindCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def _handle_single(self, interaction: discord.Interaction, name: str, category_key: str) -> None:
-        from src.starcitizenwiki_api import StarCitizenWikiError
-        from src.starcitizenwiki_api.client import NotFoundError
-
-        await interaction.response.defer()
-        api_attr, embed_builder = DISPATCH[category_key]
-        api = getattr(self.bot, api_attr)
-        try:
-            try:
-                item = await api.get(name)
-            except NotFoundError:
-                item = await api.find(name)
-        except StarCitizenWikiError as e:
-            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
-            return
-        if item is None:
-            await interaction.followup.send(f"No item found matching **{name}**.", ephemeral=True)
-            return
-        await interaction.followup.send(embed=embed_builder(item))
-
-    async def _single_autocomplete(self, api_attr: str, current: str) -> list[app_commands.Choice[str]]:
-        if not current:
-            return []
-        try:
-            results = await getattr(self.bot, api_attr).search(current, limit=25)
-        except Exception:  # noqa: BLE001 - autocomplete failures are silently dropped
-            return []
-        return item_choices(sorted(results, key=lambda x: len(x.name)), use_slug=True)
-
     async def weapon_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("weapons_api", current)
+        return await autocomplete_single(self, "weapons_api", current)
 
     async def shipweapon_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("ship_weapons_api", current)
+        return await autocomplete_single(self, "ship_weapons_api", current)
 
     async def armor_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("armor_api", current)
+        return await autocomplete_single(self, "armor_api", current)
 
     async def clothes_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("clothes_api", current)
+        return await autocomplete_single(self, "clothes_api", current)
 
     async def vehicleitem_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("vehicle_items_api", current)
+        return await autocomplete_single(self, "vehicle_items_api", current)
 
     async def weaponattachment_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("weapon_attachments_api", current)
+        return await autocomplete_single(self, "weapon_attachments_api", current)
 
     async def item_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self._single_autocomplete("items_api", current)
+        return await autocomplete_single(self, "items_api", current)
 
     async def all_autocomplete(self, interaction: discord.Interaction, current: str):
-        """Autocomplete across all categories; choice value is ``category_key:slug``."""
-        if not current:
-            return []
-        results = await asyncio.gather(
-            *[getattr(self.bot, attr).search(current, limit=5) for attr in API_ATTRS],
-            return_exceptions=True,
-        )
-        choices: list[app_commands.Choice[str]] = []
-        global_seen: set[str] = set()
-        for (category_key, category_label), result in zip(CATEGORIES, results):
-            if isinstance(result, Exception):
-                continue
-            for item in sorted(result, key=lambda x: len(x.name)):
-                if item.name in global_seen:
-                    continue
-                global_seen.add(item.name)
-                identifier = item.slug or item.name
-                choices.append(
-                    app_commands.Choice(
-                        name=f"{item.name} ({category_label})"[:MAX_CHOICE_LABEL],
-                        value=f"{category_key}:{identifier}"[:MAX_CHOICE_LABEL],
-                    )
-                )
-                if len(choices) >= MAX_AUTOCOMPLETE_CHOICES:
-                    return choices
-        return choices
+        return await autocomplete_all(self, current)
 
     @find.command(name="all", description="Search across all item types at once")
     @app_commands.describe(name="Item name to search for")

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import discord
 
+from .shared import save_state
+
 
 async def handle(cog, interaction: discord.Interaction) -> None:
     channel_id = interaction.channel_id
@@ -13,7 +15,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         return
 
     cog.subscriptions[:] = [sub for sub in cog.subscriptions if sub["channel_id"] != channel_id]
-    await cog.save_state()
+    await save_state(cog)
     for sub in removed:
         try:
             message = await interaction.channel.fetch_message(sub["message_id"])

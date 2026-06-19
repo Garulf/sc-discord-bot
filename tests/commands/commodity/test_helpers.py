@@ -2,8 +2,8 @@
 
 from discord import app_commands
 
-from src.commands.commodity.constants import UEX_ROUTES_URL
-from src.commands.commodity.helpers import (
+from src.commands.commodity.shared import (
+    UEX_ROUTES_URL,
     build_uex_url,
     buying_locations,
     capacity,

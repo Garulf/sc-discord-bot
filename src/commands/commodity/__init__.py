@@ -2,31 +2,30 @@
 commodity for aUEC in-game, and rank the most profitable commodity buy→sell
 routes, with optional filters. Uses the shared UEX clients on the bot
 (``bot.commodities_api``, ``bot.commodity_prices_api``, ``bot.terminals_api``
-and ``bot.vehicles_api``)."""
+and ``bot.vehicles_api``).
+
+Subcommand logic lives in individual files; this module contains only the Cog
+class (autocomplete stubs and command registration)."""
 
 from __future__ import annotations
-
-from collections.abc import Callable
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.commands.autocomplete import name_choices
-from src.uex_api import Terminal, UEXError
-
 from .buy import handle as _handle_buy
-from .constants import CONTAINER_CHOICES, PLACE_CHOICES, SYSTEM_CHOICES
-from .embeds import build_commodity_embed
-from .helpers import (
-    buying_locations,
-    commodity_filter_summary,
-    matches_place,
-    selling_locations,
-)
-from .route import RouteFilters
 from .route import handle as _handle_route
 from .sell import handle as _handle_sell
+from .shared import (
+    CONTAINER_CHOICES,
+    PLACE_CHOICES,
+    SYSTEM_CHOICES,
+    autocomplete_commodity,
+    autocomplete_faction,
+    autocomplete_orbit,
+    autocomplete_ship,
+    autocomplete_terminal,
+)
 
 
 class CommodityCog(commands.Cog):
@@ -40,117 +39,25 @@ class CommodityCog(commands.Cog):
     async def commodity_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
-        try:
-            if current:
-                results = await self.bot.commodities_api.search(current, limit=25)
-            else:
-                results = sorted(await self.bot.commodities_api.all(), key=lambda c: c.name)
-        except UEXError:
-            return []
-        return name_choices(commodity.name for commodity in results)
+        return await autocomplete_commodity(self, current)
 
     async def ship_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        try:
-            if current:
-                results = await self.bot.vehicles_api.search(current, limit=25)
-            else:
-                results = sorted(await self.bot.vehicles_api.all(), key=lambda v: v.name)
-        except UEXError:
-            return []
-        return name_choices(vehicle.name for vehicle in results)
+        return await autocomplete_ship(self, current)
 
     async def orbit_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
-        return await self._terminal_attr_choices(lambda t: t.orbit_name, current)
+        return await autocomplete_orbit(self, current)
 
     async def terminal_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
-        return await self._terminal_attr_choices(lambda t: t.name, current)
+        return await autocomplete_terminal(self, current)
 
     async def faction_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
-        return await self._terminal_attr_choices(lambda t: t.faction_name, current)
-
-    async def _respond(
-        self,
-        interaction: discord.Interaction,
-        name: str,
-        *,
-        selling: bool,
-        system: app_commands.Choice[str] | None,
-        place: app_commands.Choice[str] | None,
-        exterior_cargo: bool | None,
-    ) -> None:
-        await interaction.response.defer()
-        commodity = await self._find_commodity(interaction, name)
-        if commodity is None:
-            return
-        prices = await self._collect_prices(
-            interaction, commodity.id, system=system, place=place, exterior_cargo=exterior_cargo
-        )
-        if prices is None:
-            return
-        locations = selling_locations(prices) if selling else buying_locations(prices)
-        filters = commodity_filter_summary(system, place, exterior_cargo)
-        await interaction.followup.send(
-            embed=build_commodity_embed(
-                commodity, locations, selling=selling, filters=filters, show_system=system is None
-            )
-        )
-
-    async def _find_commodity(self, interaction: discord.Interaction, name: str):
-        try:
-            commodity = await self.bot.commodities_api.find(name)
-        except UEXError as e:
-            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
-            return None
-        if commodity is None or commodity.id is None:
-            await interaction.followup.send(f"No commodity found matching **{name}**.", ephemeral=True)
-            return None
-        return commodity
-
-    async def _collect_prices(
-        self,
-        interaction: discord.Interaction,
-        commodity_id: int,
-        *,
-        system: app_commands.Choice[str] | None,
-        place: app_commands.Choice[str] | None,
-        exterior_cargo: bool | None,
-    ):
-        try:
-            prices = await self.bot.commodity_prices_api.for_commodity(commodity_id)
-            if system is not None:
-                target = system.value.lower()
-                prices = [p for p in prices if (p.star_system_name or "").lower() == target]
-            if place is not None:
-                prices = [p for p in prices if matches_place(p, place.value)]
-            if exterior_cargo is not None:
-                docks = await self._exterior_terminal_ids()
-                prices = [p for p in prices if (p.id_terminal in docks) == exterior_cargo]
-            return prices
-        except UEXError as e:
-            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
-            return None
-
-    async def _exterior_terminal_ids(self) -> set[int]:
-        terminals = await self.bot.terminals_api.all(terminal_type="commodity")
-        return {t.id for t in terminals if t.has_loading_dock and t.id is not None}
-
-    async def _terminal_attr_choices(
-        self, getter: Callable[[Terminal], str | None], current: str
-    ) -> list[app_commands.Choice[str]]:
-        try:
-            terminals = await self.bot.terminals_api.all(terminal_type="commodity")
-        except UEXError:
-            return []
-        values = {getter(t) for t in terminals if getter(t)}
-        needle = current.strip().lower()
-        matches = [v for v in sorted(values) if not needle or needle in v.lower()]
-        return name_choices(matches)
+        return await autocomplete_faction(self, current)
 
     @commodity.command(name="buy", description="Find the cheapest terminals to buy a commodity for aUEC")
     @app_commands.describe(
@@ -255,29 +162,27 @@ class CommodityCog(commands.Cog):
         await _handle_route(
             self,
             interaction,
-            RouteFilters(
-                ship=ship,
-                investment=investment,
-                scu=scu,
-                commodity=commodity,
-                star_system_start=star_system_start,
-                star_system_end=star_system_end,
-                orbit_start=orbit_start,
-                orbit_end=orbit_end,
-                terminal_start=terminal_start,
-                container_size=container_size,
-                faction=faction,
-                is_loop=is_loop,
-                has_loading_dock=has_loading_dock,
-                is_auto_load=is_auto_load,
-                safe_commodities=safe_commodities,
-                is_nqa=is_nqa,
-                is_monitored=is_monitored,
-                is_space_station=is_space_station,
-                has_refuel=has_refuel,
-                is_predictable=is_predictable,
-                is_player_owned=is_player_owned,
-            ),
+            ship=ship,
+            investment=investment,
+            scu=scu,
+            commodity=commodity,
+            star_system_start=star_system_start,
+            star_system_end=star_system_end,
+            orbit_start=orbit_start,
+            orbit_end=orbit_end,
+            terminal_start=terminal_start,
+            container_size=container_size,
+            faction=faction,
+            is_loop=is_loop,
+            has_loading_dock=has_loading_dock,
+            is_auto_load=is_auto_load,
+            safe_commodities=safe_commodities,
+            is_nqa=is_nqa,
+            is_monitored=is_monitored,
+            is_space_station=is_space_station,
+            has_refuel=has_refuel,
+            is_predictable=is_predictable,
+            is_player_owned=is_player_owned,
         )
 
 
