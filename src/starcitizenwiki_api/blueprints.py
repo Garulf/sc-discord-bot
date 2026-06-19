@@ -32,6 +32,7 @@ class BlueprintIngredient:
 class Blueprint:
     uuid: str
     name: str
+    web_url: str | None
     key: str | None
     craft_time_seconds: int | None
     craft_time_label: str | None
@@ -54,6 +55,7 @@ class Blueprint:
         return cls(
             uuid=data.get("uuid") or "",
             name=data.get("output_name") or output.get("name") or "Unknown",
+            web_url=data.get("web_url"),
             key=data.get("key"),
             craft_time_seconds=data.get("craft_time_seconds"),
             craft_time_label=data.get("craft_time_label"),
