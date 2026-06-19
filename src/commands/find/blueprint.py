@@ -12,7 +12,7 @@ from src.starcitizenwiki_api.client import NotFoundError
 
 
 def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
-    embed = discord.Embed(title=blueprint.name, color=0xF97316)
+    embed = discord.Embed(title=blueprint.name, url=blueprint.web_url, color=0xF97316)
 
     if blueprint.output_type_label:
         embed.description = blueprint.output_type_label
@@ -20,15 +20,9 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
     if blueprint.craft_time_label:
         embed.add_field(name="Craft Time", value=blueprint.craft_time_label, inline=True)
 
-    if blueprint.ingredient_count is not None:
-        embed.add_field(name="Ingredients", value=str(blueprint.ingredient_count), inline=True)
-
-    if blueprint.is_available_by_default is not None:
-        embed.add_field(name="Default", value="Yes" if blueprint.is_available_by_default else "No", inline=True)
-
     if blueprint.ingredients:
         lines = [
-            f"× {i.quantity_scu:g} SCU  {i.name}" if i.quantity_scu is not None else f"{i.name}"
+            f"× {i.quantity_scu:g} SCU  {i.name}" if i.quantity_scu is not None else i.name
             for i in blueprint.ingredients
         ]
         embed.add_field(name="Components", value="\n".join(lines), inline=False)
