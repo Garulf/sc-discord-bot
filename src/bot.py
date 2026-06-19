@@ -21,6 +21,7 @@ from src.starcitizenwiki_api import (
     WeaponAttachments,
     Weapons,
 )
+from src.starcitizenwiki_api.blueprints import Blueprints
 from src.storage import Database, SqliteCache, StateStore
 from src.uex_api import (
     Commodities,
@@ -78,6 +79,7 @@ class SCBot(commands.Bot):
         self.vehicle_items_api = VehicleItems(self.sc_client)
         self.weapon_attachments_api = WeaponAttachments(self.sc_client)
         self.items_api = Items(self.sc_client)
+        self.blueprints_api = Blueprints(self.sc_client)
 
         self.uex_client = UEXClient(token=os.getenv("UEX_BEARER_TOKEN"), cache=SqliteCache(self.db, namespace="uex"))
         self.commodities_api = Commodities(self.uex_client)
