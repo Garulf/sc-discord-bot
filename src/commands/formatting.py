@@ -1,7 +1,6 @@
 """Shared formatting helpers for Discord embed builders across all commands."""
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 import discord
 
@@ -10,7 +9,7 @@ from src.starcitizenwiki_api.weapons import PurchaseLocation
 MAX_SHOPS_SHOWN = 8
 
 
-def format_number(value: Optional[float], suffix: str = "") -> Optional[str]:
+def format_number(value: float | None, suffix: str = "") -> str | None:
     """Format a float for display, returning None when the value is absent."""
     if value is None:
         return None
@@ -34,7 +33,7 @@ def add_shops_field(
     purchase_locations: list[PurchaseLocation],
     *,
     max_shown: int = MAX_SHOPS_SHOWN,
-    fallback_text: Optional[str] = None,
+    fallback_text: str | None = None,
 ) -> None:
     """Add a 'Where to Buy' embed field, cheapest first.
 

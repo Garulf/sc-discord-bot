@@ -1,13 +1,14 @@
 """The /item command and /find item subcommand handler."""
+
 from __future__ import annotations
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import add_shops_field
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.items import Item
-from src.commands.formatting import add_shops_field, format_number as _format_number
 
 
 def build_item_embed(item: Item) -> discord.Embed:
@@ -46,9 +47,7 @@ class ItemsCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def item_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
+    async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         if not current:
             return []
         try:
@@ -75,9 +74,7 @@ class ItemsCog(commands.Cog):
         try:
             item = await self.bot.items_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if item is None:
             await interaction.followup.send(f"No item found matching **{name}**.", ephemeral=True)

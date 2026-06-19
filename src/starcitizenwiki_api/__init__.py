@@ -1,3 +1,4 @@
+from src.starcitizenwiki_api.armor import Armor, ArmorItem
 from src.starcitizenwiki_api.client import (
     API_BASE_URL,
     APIStatusError,
@@ -6,7 +7,6 @@ from src.starcitizenwiki_api.client import (
     StarCitizenWikiError,
     TTLCache,
 )
-from src.starcitizenwiki_api.armor import Armor, ArmorItem
 from src.starcitizenwiki_api.clothes import Clothes, ClothingItem
 from src.starcitizenwiki_api.items import Item, Items
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon, ShipWeapons

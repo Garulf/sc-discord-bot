@@ -1,6 +1,7 @@
 """Dispatch table for /find subcommands — maps category keys to API attrs and
 embed builders. Subcommand files import nothing from here; the Cog's
 ``_handle_single`` method uses DISPATCH to route lookups."""
+
 from __future__ import annotations
 
 from .armor import build_armor_embed
@@ -8,8 +9,8 @@ from .clothes import build_clothes_embed
 from .item import build_item_embed
 from .shipweapon import build_ship_weapon_embed
 from .vehicleitem import build_vehicle_item_embed
-from .weaponattachment import build_weapon_attachment_embed
 from .weapon import build_weapon_embed
+from .weaponattachment import build_weapon_attachment_embed
 
 DISPATCH = {
     "weapon": ("weapons_api", build_weapon_embed),

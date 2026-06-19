@@ -4,15 +4,13 @@ and ``bot.vehicle_prices_api``)."""
 
 from __future__ import annotations
 
-from typing import Optional
-
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.uex_api import UEXError, Vehicle, VehiclePurchasePrice, VehicleRentalPrice
-from src.commands.formatting import format_number as _format_number
 
 MAX_LOCATIONS_SHOWN = 8
 
@@ -27,7 +25,7 @@ def build_shipprice_embed(
     vehicle: Vehicle,
     purchases: list[VehiclePurchasePrice],
     rentals: list[VehicleRentalPrice],
-    image_url: Optional[str] = None,
+    image_url: str | None = None,
 ) -> discord.Embed:
     """Render a ship's in-game buy/rent locations as a Discord embed."""
     embed = discord.Embed(title=_ship_title(vehicle), color=0x1B98E0)
@@ -80,9 +78,7 @@ class ShipPriceCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def ship_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
+    async def ship_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         """Suggest ship names as the user types, de-duplicated by display name.
 
         Before anything is typed, show a default sample of ships rather than an
@@ -106,9 +102,7 @@ class ShipPriceCog(commands.Cog):
                 break
         return choices
 
-    @app_commands.command(
-        name="shipprice", description="Find where to buy or rent a ship for aUEC in-game"
-    )
+    @app_commands.command(name="shipprice", description="Find where to buy or rent a ship for aUEC in-game")
     @app_commands.describe(name="Ship name to search for (e.g. Cutlass Black, 300i)")
     @app_commands.autocomplete(name=ship_autocomplete)
     async def shipprice(self, interaction: discord.Interaction, name: str):
@@ -116,31 +110,23 @@ class ShipPriceCog(commands.Cog):
         try:
             vehicle = await self.bot.vehicles_api.find(name)
         except UEXError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the UEX API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
             return
         if vehicle is None or vehicle.id is None:
-            await interaction.followup.send(
-                f"No ship found matching **{name}**.", ephemeral=True
-            )
+            await interaction.followup.send(f"No ship found matching **{name}**.", ephemeral=True)
             return
 
         try:
             purchases = await self.bot.vehicle_prices_api.purchases_for_vehicle(vehicle.id)
             rentals = await self.bot.vehicle_prices_api.rentals_for_vehicle(vehicle.id)
         except UEXError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the UEX API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
             return
 
         image_url = await self._image_url(vehicle.name)
-        await interaction.followup.send(
-            embed=build_shipprice_embed(vehicle, purchases, rentals, image_url)
-        )
+        await interaction.followup.send(embed=build_shipprice_embed(vehicle, purchases, rentals, image_url))
 
-    async def _image_url(self, ship_name: str) -> Optional[str]:
+    async def _image_url(self, ship_name: str) -> str | None:
         """Best-effort ship thumbnail from the wiki, or None.
 
         UEX has no images, so this is sourced separately and never blocks the

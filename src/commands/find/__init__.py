@@ -10,15 +10,15 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .dispatch import API_ATTRS, CATEGORIES, DISPATCH
 from .all import handle as _handle_all
-from .weapon import handle as _handle_weapon
-from .shipweapon import handle as _handle_shipweapon
 from .armor import handle as _handle_armor
 from .clothes import handle as _handle_clothes
-from .vehicleitem import handle as _handle_vehicleitem
-from .weaponattachment import handle as _handle_weaponattachment
+from .dispatch import API_ATTRS, CATEGORIES, DISPATCH
 from .item import handle as _handle_item
+from .shipweapon import handle as _handle_shipweapon
+from .vehicleitem import handle as _handle_vehicleitem
+from .weapon import handle as _handle_weapon
+from .weaponattachment import handle as _handle_weaponattachment
 
 
 class FindCog(commands.Cog):
@@ -29,11 +29,10 @@ class FindCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def _handle_single(
-        self, interaction: discord.Interaction, name: str, category_key: str
-    ) -> None:
+    async def _handle_single(self, interaction: discord.Interaction, name: str, category_key: str) -> None:
         from src.starcitizenwiki_api import StarCitizenWikiError
         from src.starcitizenwiki_api.client import NotFoundError
+
         await interaction.response.defer()
         api_attr, embed_builder = DISPATCH[category_key]
         api = getattr(self.bot, api_attr)
@@ -43,18 +42,14 @@ class FindCog(commands.Cog):
             except NotFoundError:
                 item = await api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if item is None:
             await interaction.followup.send(f"No item found matching **{name}**.", ephemeral=True)
             return
         await interaction.followup.send(embed=embed_builder(item))
 
-    async def _single_autocomplete(
-        self, api_attr: str, current: str
-    ) -> list[app_commands.Choice[str]]:
+    async def _single_autocomplete(self, api_attr: str, current: str) -> list[app_commands.Choice[str]]:
         if not current:
             return []
         try:

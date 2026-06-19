@@ -1,6 +1,9 @@
 """Handler for /inventory add."""
+
 from __future__ import annotations
+
 import discord
+
 from .helpers import ITEMS, complete_sets
 
 
@@ -15,9 +18,7 @@ async def handle(cog, interaction: discord.Interaction, item: str, count: int = 
         await interaction.response.send_message("Count must be at least 1.", ephemeral=True)
         return
     if interaction.guild_id is None:
-        await interaction.response.send_message(
-            "This command can only be used in a server.", ephemeral=True
-        )
+        await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
         return
 
     guild_inv = await cog._get_guild_inventory(interaction.guild_id)

@@ -4,18 +4,18 @@ restart recovers the current cycle and any subscribed messages."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from src.exec_hangars import HangarSchedule
 from src.commands.checks import admin_or_sc_bot
+from src.exec_hangars import HangarSchedule
+
 from .embed import build_embed
-from .status import handle as _handle_status
 from .set import handle as _handle_set
+from .status import handle as _handle_status
 from .subscribe import handle as _handle_subscribe
 from .unsubscribe import handle as _handle_unsubscribe
 
@@ -30,8 +30,8 @@ class HangarCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.schedule: Optional[HangarSchedule] = None
-        self.set_at: Optional[datetime] = None
+        self.schedule: HangarSchedule | None = None
+        self.set_at: datetime | None = None
         self.subscriptions: list[dict] = []
 
     async def cog_load(self) -> None:

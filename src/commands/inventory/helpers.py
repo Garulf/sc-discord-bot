@@ -1,4 +1,5 @@
 """Pure helpers and constants for the /inventory command group."""
+
 from __future__ import annotations
 
 ITEMS = [f"DCHS-{i:02d}" for i in range(1, 8)]
@@ -20,7 +21,7 @@ def embed_color(inventory: dict[str, int]) -> int:
         return 0x57F287  # green
     if any(inventory.values()):
         return 0x5865F2  # blurple
-    return 0x99AAB5      # gray
+    return 0x99AAB5  # gray
 
 
 def format_field(inventory: dict[str, int]) -> str:

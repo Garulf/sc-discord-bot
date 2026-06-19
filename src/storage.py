@@ -13,7 +13,7 @@ import asyncio
 import json
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -38,7 +38,7 @@ class Database:
 
     def __init__(self, path: str) -> None:
         self._path = path
-        self._conn: Optional[aiosqlite.Connection] = None
+        self._conn: aiosqlite.Connection | None = None
 
     async def connect(self) -> None:
         directory = os.path.dirname(self._path)
@@ -70,9 +70,7 @@ class SqliteCache:
     memory so concurrent callers asking for the same key share one fetch.
     """
 
-    def __init__(
-        self, db: Database, *, namespace: str, ttl: float = DEFAULT_CACHE_TTL_SECONDS
-    ) -> None:
+    def __init__(self, db: Database, *, namespace: str, ttl: float = DEFAULT_CACHE_TTL_SECONDS) -> None:
         self._db = db
         self._namespace = namespace
         self._ttl = ttl
@@ -81,11 +79,9 @@ class SqliteCache:
     def _scoped(self, key: str) -> str:
         return f"{self._namespace}:{key}"
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         scoped = self._scoped(key)
-        async with self._db.conn.execute(
-            "SELECT value, expires_at FROM cache WHERE key = ?", (scoped,)
-        ) as cursor:
+        async with self._db.conn.execute("SELECT value, expires_at FROM cache WHERE key = ?", (scoped,)) as cursor:
             row = await cursor.fetchone()
         if row is None:
             return None
@@ -96,7 +92,7 @@ class SqliteCache:
             return None
         return json.loads(value)
 
-    async def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
+    async def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         lifetime = self._ttl if ttl is None else ttl
         await self._db.conn.execute(
             "INSERT OR REPLACE INTO cache (key, value, expires_at) VALUES (?, ?, ?)",
@@ -105,9 +101,7 @@ class SqliteCache:
         await self._db.conn.commit()
 
     async def clear(self) -> None:
-        await self._db.conn.execute(
-            "DELETE FROM cache WHERE key LIKE ?", (f"{self._namespace}:%",)
-        )
+        await self._db.conn.execute("DELETE FROM cache WHERE key LIKE ?", (f"{self._namespace}:%",))
         await self._db.conn.commit()
 
     def lock(self, key: str) -> asyncio.Lock:
@@ -126,9 +120,7 @@ class StateStore:
         self._db = db
 
     async def get(self, key: str, default: Any = None) -> Any:
-        async with self._db.conn.execute(
-            "SELECT value FROM state WHERE key = ?", (key,)
-        ) as cursor:
+        async with self._db.conn.execute("SELECT value FROM state WHERE key = ?", (key,)) as cursor:
             row = await cursor.fetchone()
         return json.loads(row[0]) if row is not None else default
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.uex_api.client import UEXClient
 from src.uex_api.models import CommodityPrice
@@ -24,14 +24,14 @@ class CommodityPrices:
         rows: list[Any] = data if isinstance(data, list) else []
         return [CommodityPrice.from_api(row) for row in rows if isinstance(row, dict)]
 
-    async def best_sell(self, id_commodity: int) -> Optional[CommodityPrice]:
+    async def best_sell(self, id_commodity: int) -> CommodityPrice | None:
         sellable = [p for p in await self.for_commodity(id_commodity) if p.price_sell]
         if not sellable:
             return None
         sellable.sort(key=lambda price: price.price_sell or 0.0, reverse=True)
         return sellable[0]
 
-    async def best_buy(self, id_commodity: int) -> Optional[CommodityPrice]:
+    async def best_buy(self, id_commodity: int) -> CommodityPrice | None:
         buyable = [p for p in await self.for_commodity(id_commodity) if p.price_buy]
         if not buyable:
             return None
@@ -39,8 +39,6 @@ class CommodityPrices:
         return buyable[0]
 
     async def _query(self, params: dict[str, Any]) -> list[CommodityPrice]:
-        data = await self._client.get(
-            "commodities_prices", params=params, cache_ttl=self._cache_ttl
-        )
+        data = await self._client.get("commodities_prices", params=params, cache_ttl=self._cache_ttl)
         rows: list[Any] = data if isinstance(data, list) else []
         return [CommodityPrice.from_api(row) for row in rows if isinstance(row, dict)]

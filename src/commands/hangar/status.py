@@ -1,4 +1,5 @@
 """Handler for /hangar status."""
+
 from __future__ import annotations
 
 import discord
@@ -12,6 +13,4 @@ async def handle(cog, interaction: discord.Interaction) -> None:
             "Hangar state hasn't been set yet. Use `/hangar set` first.", ephemeral=True
         )
         return
-    await interaction.response.send_message(
-        embed=build_embed(cog.schedule, set_at=cog.set_at), ephemeral=True
-    )
+    await interaction.response.send_message(embed=build_embed(cog.schedule, set_at=cog.set_at), ephemeral=True)

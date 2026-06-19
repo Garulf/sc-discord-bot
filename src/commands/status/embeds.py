@@ -1,11 +1,11 @@
 """Embed builders and text helpers for /status subcommands."""
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 import discord
 
-from src.rsi_status import StatusEntry, StatusOverview, STATUS_PAGE_URL
+from src.rsi_status import STATUS_PAGE_URL, StatusEntry, StatusOverview
+
 from .constants import MAX_ISSUE_MESSAGE, MAX_SUMMARY, OVERVIEW_COLOR, STATUS_COLOR, STATUS_LABEL
 
 
@@ -27,7 +27,7 @@ def truncate(text: str, limit: int) -> str:
     return cut + "…"
 
 
-def normalize_link(url: Optional[str]) -> str:
+def normalize_link(url: str | None) -> str:
     """Reduce an incident URL to a stable key (feed guid and JSON permalink
     differ only by a trailing ``index.html`` / slash)."""
     cleaned = (url or "").strip()
@@ -39,8 +39,8 @@ def normalize_link(url: Optional[str]) -> str:
 def build_overview_embed(
     overview: StatusOverview,
     *,
-    changes: Optional[list[tuple[str, str, str]]] = None,
-    incident: Optional[tuple[str, str, Optional[str]]] = None,
+    changes: list[tuple[str, str, str]] | None = None,
+    incident: tuple[str, str, str | None] | None = None,
 ) -> discord.Embed:
     """Render the RSI component status overview as a Discord embed.
 
@@ -52,10 +52,7 @@ def build_overview_embed(
     if changes:
         description_parts.append(
             "**Status changed**\n"
-            + "\n".join(
-                f"{name}: {status_text(old or 'unknown')} → {status_text(new)}"
-                for name, old, new in changes
-            )
+            + "\n".join(f"{name}: {status_text(old or 'unknown')} → {status_text(new)}" for name, old, new in changes)
         )
     description_parts.append(f"**Overall:** {status_text(overview.summary_status)}")
 
@@ -83,9 +80,7 @@ def build_status_embed(entry: StatusEntry) -> discord.Embed:
     """Render an RSI status incident as a Discord embed."""
     embed = discord.Embed(title=entry.title[:256], url=entry.link or None, color=STATUS_COLOR)
     if entry.summary:
-        embed.description = entry.summary[:MAX_SUMMARY] + (
-            "…" if len(entry.summary) > MAX_SUMMARY else ""
-        )
+        embed.description = entry.summary[:MAX_SUMMARY] + ("…" if len(entry.summary) > MAX_SUMMARY else "")
     footer = "RSI Status"
     if entry.published:
         footer += f" · {entry.published}"

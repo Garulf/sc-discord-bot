@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.uex_api.client import NotFoundError, UEXClient
 from src.uex_api.models import StarSystem
@@ -24,7 +24,7 @@ class StarSystems:
                 return system
         raise NotFoundError(f"No star system with id {star_system_id}")
 
-    async def find(self, query: str) -> Optional[StarSystem]:
+    async def find(self, query: str) -> StarSystem | None:
         needle = query.strip().lower()
         if not needle:
             return None

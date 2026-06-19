@@ -10,7 +10,7 @@ Ship weapons are exposed under ``/vehicle-weapons``. Supports:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
 from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
@@ -21,37 +21,33 @@ from src.starcitizenwiki_api.weapons import PurchaseLocation
 class ShipWeapon:
     """A trimmed-down view of a ship-mounted weapon component."""
 
-    uuid: Optional[str]
+    uuid: str | None
     name: str
-    slug: Optional[str]
-    manufacturer: Optional[str]
-    manufacturer_code: Optional[str]
-    description: Optional[str]
-    size: Optional[int]
-    grade: Optional[str]
-    classification: Optional[str]
-    type: Optional[str]
-    sub_type: Optional[str]
-    alpha_damage: Optional[float]
-    dps: Optional[float]
-    fire_rate: Optional[float]
-    range: Optional[float]
-    speed: Optional[float]
-    web_url: Optional[str]
-    image_url: Optional[str]
+    slug: str | None
+    manufacturer: str | None
+    manufacturer_code: str | None
+    description: str | None
+    size: int | None
+    grade: str | None
+    classification: str | None
+    type: str | None
+    sub_type: str | None
+    alpha_damage: float | None
+    dps: float | None
+    fire_rate: float | None
+    range: float | None
+    speed: float | None
+    web_url: str | None
+    image_url: str | None
     purchase_locations: list[PurchaseLocation] = field(default_factory=list)
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> "ShipWeapon":
+    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> ShipWeapon:
         manufacturer = data.get("manufacturer") or {}
         weapon = data.get("weapon") or {}
         damage = weapon.get("damage") or {}
         uex = data.get("uex_prices") or {}
-        purchases = [
-            PurchaseLocation.from_api(p)
-            for p in (uex.get("purchase") or [])
-            if isinstance(p, dict)
-        ]
+        purchases = [PurchaseLocation.from_api(p) for p in (uex.get("purchase") or []) if isinstance(p, dict)]
 
         return cls(
             uuid=data.get("uuid"),
@@ -76,7 +72,7 @@ class ShipWeapon:
         )
 
 
-def _first_image(images: Any) -> Optional[str]:
+def _first_image(images: Any) -> str | None:
     if not isinstance(images, list) or not images:
         return None
     first = images[0]
@@ -128,7 +124,7 @@ class ShipWeapons:
         items = _unique_by_slug(raw)[:limit]
         return [ShipWeapon.from_api(item, self._locale) for item in items]
 
-    async def find(self, query: str) -> Optional[ShipWeapon]:
+    async def find(self, query: str) -> ShipWeapon | None:
         """Best-effort single match: prefer exact name, then first hit.
 
         Re-fetches the chosen entry by slug to pull in full stats.

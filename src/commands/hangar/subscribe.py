@@ -1,4 +1,5 @@
 """Handler for /hangar subscribe."""
+
 from __future__ import annotations
 
 import discord
@@ -16,6 +17,4 @@ async def handle(cog, interaction: discord.Interaction) -> None:
     message = await interaction.channel.send(embed=build_embed(cog.schedule, set_at=cog.set_at))
     cog.subscriptions.append({"channel_id": message.channel.id, "message_id": message.id})
     await cog.save_state()
-    await interaction.response.send_message(
-        "Live status posted — it will keep updating here.", ephemeral=True
-    )
+    await interaction.response.send_message("Live status posted — it will keep updating here.", ephemeral=True)

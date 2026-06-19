@@ -1,15 +1,16 @@
 """Handler for /inventory status everyone."""
+
 from __future__ import annotations
+
 import discord
+
 from .helpers import MAX_EMBED_FIELDS, complete_sets, format_field
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
     guild = interaction.guild
     if guild is None:
-        await interaction.response.send_message(
-            "This command can only be used in a server.", ephemeral=True
-        )
+        await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
         return
 
     await interaction.response.defer()
@@ -25,9 +26,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         title="DCHS Inventory Status",
         color=0x57F287 if total_sets > 0 else 0x5865F2,
     )
-    embed.set_footer(
-        text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}"
-    )
+    embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")
 
     shown = 0
     for user_key, user_inv in sorted(active.items(), key=lambda kv: complete_sets(kv[1]), reverse=True):

@@ -4,16 +4,15 @@ incidents to subscribed channels."""
 
 from __future__ import annotations
 
-from typing import Optional
-
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from src.rsi_status import STATUS_FEED_URL, StatusOverview, fetch_status_entries, fetch_status_overview
 from src.commands.checks import admin_or_sc_bot
+from src.rsi_status import STATUS_FEED_URL, StatusOverview, fetch_status_entries, fetch_status_overview
+
 from .constants import POLL_MINUTES, SEEN_KEY, SUBSCRIPTIONS_KEY, SYSTEMS_KEY
-from .embeds import build_overview_embed, build_status_embed, normalize_link, status_text
+from .embeds import build_overview_embed, build_status_embed, normalize_link
 from .show import handle as _handle_show
 from .subscribe import handle as _handle_subscribe
 from .unsubscribe import handle as _handle_unsubscribe
@@ -95,23 +94,15 @@ class StatusCog(commands.Cog):
             return
 
         changes = [
-            (name, previous.get(name), status)
-            for name, status in current.items()
-            if previous.get(name) != status
+            (name, previous.get(name), status) for name, status in current.items() if previous.get(name) != status
         ]
         if changes:
             await self._broadcast(subscriptions, build_overview_embed(overview, changes=changes))
         await self.bot.state.set(SYSTEMS_KEY, current)
 
-    async def _latest_incident(
-        self, overview: StatusOverview
-    ) -> Optional[tuple[str, str, Optional[str]]]:
+    async def _latest_incident(self, overview: StatusOverview) -> tuple[str, str, str | None] | None:
         """The most recent unresolved incident as ``(title, message, link)``, or None."""
-        unresolved = {
-            normalize_link(issue.link)
-            for system in overview.systems
-            for issue in system.unresolved
-        }
+        unresolved = {normalize_link(issue.link) for system in overview.systems for issue in system.unresolved}
         if not unresolved:
             return None
         try:

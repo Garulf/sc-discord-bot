@@ -1,12 +1,14 @@
 """The /weapon command and /find weapon subcommand handler."""
+
 from __future__ import annotations
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import add_shops_field
+from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError, Weapon
-from src.commands.formatting import add_shops_field, format_number as _format_number
 
 
 def build_weapon_embed(weapon: Weapon) -> discord.Embed:
@@ -20,9 +22,7 @@ def build_weapon_embed(weapon: Weapon) -> discord.Embed:
     if weapon.image_url:
         embed.set_thumbnail(url=weapon.image_url)
 
-    classification = " · ".join(
-        part for part in (weapon.classification, weapon.weapon_type) if part
-    )
+    classification = " · ".join(part for part in (weapon.classification, weapon.weapon_type) if part)
     if classification:
         embed.add_field(name="Type", value=classification, inline=False)
 
@@ -89,9 +89,7 @@ class WeaponsCog(commands.Cog):
         try:
             weapon = await self.bot.weapons_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if weapon is None:
             await interaction.followup.send(f"No weapon found matching **{name}**.", ephemeral=True)

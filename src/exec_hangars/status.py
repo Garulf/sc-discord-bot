@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from src.exec_hangars.constants import LIGHT_COUNT
 from src.exec_hangars.schedule import HangarSchedule
@@ -61,9 +60,9 @@ def render_lights(hangar) -> str:
     return " ".join(LIGHT_EMOJI[light] for light in hangar.lights)
 
 
-def build_status(schedule: HangarSchedule, now: Optional[datetime] = None) -> dict:
+def build_status(schedule: HangarSchedule, now: datetime | None = None) -> dict:
     """Compute the live status of the hangar as embed-ready, discord-free data."""
-    now = now if now is not None else datetime.now(timezone.utc)
+    now = now if now is not None else datetime.now(UTC)
     hangar = schedule.snapshot(now)
 
     lines = [

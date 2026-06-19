@@ -1,11 +1,12 @@
 """Handler for /commodity route."""
+
 from __future__ import annotations
-from typing import Optional
 
 import discord
 from discord import app_commands
 
 from src.uex_api import UEXError
+
 from .embeds import build_routes_embed
 from .helpers import (
     build_uex_url,
@@ -22,27 +23,27 @@ from .routes import best_routes
 async def handle(
     cog,
     interaction: discord.Interaction,
-    ship: Optional[str] = None,
-    investment: Optional[int] = None,
-    scu: Optional[int] = None,
-    commodity: Optional[str] = None,
-    star_system_start: Optional[app_commands.Choice[str]] = None,
-    star_system_end: Optional[app_commands.Choice[str]] = None,
-    orbit_start: Optional[str] = None,
-    orbit_end: Optional[str] = None,
-    terminal_start: Optional[str] = None,
-    container_size: Optional[app_commands.Choice[int]] = None,
-    faction: Optional[str] = None,
-    is_loop: Optional[bool] = None,
-    has_loading_dock: Optional[bool] = None,
-    is_auto_load: Optional[bool] = None,
-    safe_commodities: Optional[bool] = None,
-    is_nqa: Optional[bool] = None,
-    is_monitored: Optional[bool] = None,
-    is_space_station: Optional[bool] = None,
-    has_refuel: Optional[bool] = None,
-    is_predictable: Optional[bool] = None,
-    is_player_owned: Optional[bool] = None,
+    ship: str | None = None,
+    investment: int | None = None,
+    scu: int | None = None,
+    commodity: str | None = None,
+    star_system_start: app_commands.Choice[str] | None = None,
+    star_system_end: app_commands.Choice[str] | None = None,
+    orbit_start: str | None = None,
+    orbit_end: str | None = None,
+    terminal_start: str | None = None,
+    container_size: app_commands.Choice[int] | None = None,
+    faction: str | None = None,
+    is_loop: bool | None = None,
+    has_loading_dock: bool | None = None,
+    is_auto_load: bool | None = None,
+    safe_commodities: bool | None = None,
+    is_nqa: bool | None = None,
+    is_monitored: bool | None = None,
+    is_space_station: bool | None = None,
+    has_refuel: bool | None = None,
+    is_predictable: bool | None = None,
+    is_player_owned: bool | None = None,
 ) -> None:
     await interaction.response.defer()
     try:
@@ -171,9 +172,7 @@ async def handle(
             "scu": scu,
             "commodity": slugify(commodity_name) if commodity_name else None,
             "mcs": container,
-            "id_faction": lookup_id(
-                terminals, lambda t: t.faction_name, faction, lambda t: t.id_faction
-            ),
+            "id_faction": lookup_id(terminals, lambda t: t.faction_name, faction, lambda t: t.id_faction),
             "is_loop": 1 if is_loop else None,
             "has_loading_dock": 1 if has_loading_dock else None,
             "is_auto_load": 1 if is_auto_load else None,

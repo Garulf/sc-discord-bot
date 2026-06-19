@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.uex_api.client import UEXClient
 from src.uex_api.models import VehiclePurchasePrice, VehicleRentalPrice
@@ -21,7 +21,7 @@ class VehiclePrices:
         rows = await self._query("vehicles_purchases_prices", {"id_terminal": id_terminal})
         return [VehiclePurchasePrice.from_api(row) for row in rows]
 
-    async def cheapest_purchase(self, id_vehicle: int) -> Optional[VehiclePurchasePrice]:
+    async def cheapest_purchase(self, id_vehicle: int) -> VehiclePurchasePrice | None:
         priced = [p for p in await self.purchases_for_vehicle(id_vehicle) if p.price_buy]
         if not priced:
             return None
@@ -32,7 +32,7 @@ class VehiclePrices:
         rows = await self._query("vehicles_rentals_prices", {"id_vehicle": id_vehicle})
         return [VehicleRentalPrice.from_api(row) for row in rows]
 
-    async def cheapest_rental(self, id_vehicle: int) -> Optional[VehicleRentalPrice]:
+    async def cheapest_rental(self, id_vehicle: int) -> VehicleRentalPrice | None:
         priced = [p for p in await self.rentals_for_vehicle(id_vehicle) if p.price_rent]
         if not priced:
             return None

@@ -1,8 +1,8 @@
 """Shared embed builder for all /hangar subcommands."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import discord
 
@@ -10,9 +10,9 @@ from src.exec_hangars import HangarSchedule, build_status, format_relative_time
 
 
 def build_embed(
-    schedule: Optional[HangarSchedule],
-    now: Optional[datetime] = None,
-    set_at: Optional[datetime] = None,
+    schedule: HangarSchedule | None,
+    now: datetime | None = None,
+    set_at: datetime | None = None,
 ) -> discord.Embed:
     status = build_status(schedule, now)
     embed = discord.Embed(
@@ -20,7 +20,7 @@ def build_embed(
         description=status["description"],
         color=status["color"],
     )
-    _now = now or datetime.now(timezone.utc)
+    _now = now or datetime.now(UTC)
     updated_str = format_relative_time(_now, _now)
     footer = (
         f"Synced: {format_relative_time(set_at, _now)} • Updated: {updated_str}"

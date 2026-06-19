@@ -9,7 +9,17 @@ import os
 import discord
 from discord.ext import commands
 
-from src.starcitizenwiki_api import Armor, Clothes, Items, ShipWeapons, Ships, StarCitizenWikiClient, VehicleItems, WeaponAttachments, Weapons
+from src.starcitizenwiki_api import (
+    Armor,
+    Clothes,
+    Items,
+    Ships,
+    ShipWeapons,
+    StarCitizenWikiClient,
+    VehicleItems,
+    WeaponAttachments,
+    Weapons,
+)
 from src.storage import Database, SqliteCache, StateStore
 from src.uex_api import (
     Commodities,
@@ -54,9 +64,7 @@ class SCBot(commands.Bot):
         # This bot only uses slash commands, but discord.py still runs every
         # message through get_prefix(); a None prefix raises there. Respond only
         # to @-mentions for the (unused) prefix command path.
-        super().__init__(
-            command_prefix=commands.when_mentioned, intents=intents, help_command=None
-        )
+        super().__init__(command_prefix=commands.when_mentioned, intents=intents, help_command=None)
 
         # Shared SQLite store for persistent API caching and bot state. The
         # connection is opened in :meth:`setup_hook` once the loop is running.
@@ -65,9 +73,7 @@ class SCBot(commands.Bot):
 
         # Shared API clients. HTTP sessions are created lazily on first use so
         # they bind to the running event loop; closed again in :meth:`close`.
-        self.sc_client = StarCitizenWikiClient(
-            locale="en_EN", cache=SqliteCache(self.db, namespace="wiki")
-        )
+        self.sc_client = StarCitizenWikiClient(locale="en_EN", cache=SqliteCache(self.db, namespace="wiki"))
         self.ships_api = Ships(self.sc_client)
         self.weapons_api = Weapons(self.sc_client)
         self.ship_weapons_api = ShipWeapons(self.sc_client)
@@ -77,9 +83,7 @@ class SCBot(commands.Bot):
         self.weapon_attachments_api = WeaponAttachments(self.sc_client)
         self.items_api = Items(self.sc_client)
 
-        self.uex_client = UEXClient(
-            token=os.getenv("UEX_BEARER_TOKEN"), cache=SqliteCache(self.db, namespace="uex")
-        )
+        self.uex_client = UEXClient(token=os.getenv("UEX_BEARER_TOKEN"), cache=SqliteCache(self.db, namespace="uex"))
         self.commodities_api = Commodities(self.uex_client)
         self.terminals_api = Terminals(self.uex_client)
         self.commodity_prices_api = CommodityPrices(self.uex_client)

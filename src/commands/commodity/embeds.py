@@ -1,11 +1,11 @@
 """Embed builders for /commodity subcommands."""
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 import discord
 
 from src.uex_api import Commodity, CommodityPrice
+
 from .constants import BUY_COLOR, LOSS_COLOR, MAX_LOCATIONS_SHOWN, ROUTE_COLOR, SELL_COLOR
 from .helpers import Route, format_number, location_line, route_leg
 
@@ -15,7 +15,7 @@ def build_commodity_embed(
     locations: list[CommodityPrice],
     *,
     selling: bool,
-    filters: Optional[str] = None,
+    filters: str | None = None,
     show_system: bool = True,
 ) -> discord.Embed:
     """Best buy/sell terminals for a commodity."""
@@ -54,7 +54,7 @@ def build_trade_embed(
     buy: CommodityPrice,
     sell: CommodityPrice,
     *,
-    filters: Optional[str] = None,
+    filters: str | None = None,
     show_system: bool = True,
 ) -> discord.Embed:
     """Best buy→sell route for a single commodity."""
@@ -78,9 +78,7 @@ def build_trade_embed(
     return embed
 
 
-def build_routes_embed(
-    routes: list[Route], *, filters: Optional[str], url: str
-) -> discord.Embed:
+def build_routes_embed(routes: list[Route], *, filters: str | None, url: str) -> discord.Embed:
     """Ranked multi-commodity trade routes."""
     embed = discord.Embed(title="Top Trade Routes", url=url, color=ROUTE_COLOR)
     blocks = []
@@ -88,10 +86,7 @@ def build_routes_embed(
         blocks.append(f"**Filters:** {filters}")
 
     for index, route in enumerate(routes, start=1):
-        header = (
-            f"**{index}. {route.commodity_name}** "
-            f"{format_number(route.profit_per_scu, ' aUEC')}/SCU"
-        )
+        header = f"**{index}. {route.commodity_name}** {format_number(route.profit_per_scu, ' aUEC')}/SCU"
         leg = (
             f"{route.buy_terminal.name} ({route.buy_terminal.star_system_name}) "
             f"→ {route.sell_terminal.name} ({route.sell_terminal.star_system_name})"

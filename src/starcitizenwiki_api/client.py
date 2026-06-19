@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 
@@ -51,7 +51,7 @@ class TTLCache:
         self._entries: dict[str, tuple[float, Any]] = {}
         self._locks: dict[str, asyncio.Lock] = {}
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         entry = self._entries.get(key)
         if entry is None:
             return None
@@ -61,7 +61,7 @@ class TTLCache:
             return None
         return value
 
-    async def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
+    async def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         lifetime = self._ttl if ttl is None else ttl
         self._entries[key] = (time.monotonic() + lifetime, value)
 
@@ -90,11 +90,11 @@ class StarCitizenWikiClient:
         self,
         base_url: str = API_BASE_URL,
         *,
-        session: Optional[aiohttp.ClientSession] = None,
+        session: aiohttp.ClientSession | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
-        locale: Optional[str] = None,
+        locale: str | None = None,
         cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
-        cache: Optional[Any] = None,
+        cache: Any | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._external_session = session
@@ -103,7 +103,7 @@ class StarCitizenWikiClient:
         self._locale = locale
         self._cache = cache if cache is not None else TTLCache(cache_ttl)
 
-    async def __aenter__(self) -> "StarCitizenWikiClient":
+    async def __aenter__(self) -> StarCitizenWikiClient:
         await self._ensure_session()
         return self
 
@@ -125,7 +125,7 @@ class StarCitizenWikiClient:
         if self._external_session is None and self._session is not None and not self._session.closed:
             await self._session.close()
 
-    def _merge_locale(self, params: Optional[dict[str, Any]]) -> dict[str, Any]:
+    def _merge_locale(self, params: dict[str, Any] | None) -> dict[str, Any]:
         query = dict(params or {})
         if self._locale and "locale" not in query:
             query["locale"] = self._locale
@@ -139,8 +139,8 @@ class StarCitizenWikiClient:
         self,
         path: str,
         *,
-        params: Optional[dict[str, Any]] = None,
-        cache_ttl: Optional[float] = None,
+        params: dict[str, Any] | None = None,
+        cache_ttl: float | None = None,
     ) -> Any:
         """GET ``{base_url}/{path}`` and return the decoded JSON body.
 
@@ -166,7 +166,7 @@ class StarCitizenWikiClient:
             await self._cache.set(key, data, cache_ttl)
             return data
 
-    def _cache_key(self, path: str, params: Optional[dict[str, Any]]) -> str:
+    def _cache_key(self, path: str, params: dict[str, Any] | None) -> str:
         if not params:
             return path
         ordered = sorted((str(name), str(value)) for name, value in params.items())
@@ -177,8 +177,8 @@ class StarCitizenWikiClient:
         self,
         path: str,
         *,
-        json: Optional[dict[str, Any]] = None,
-        params: Optional[dict[str, Any]] = None,
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         """POST to ``{base_url}/{path}`` and return the decoded JSON body."""
         return await self._request("POST", path, json=json, params=self._merge_locale(params))
@@ -188,8 +188,8 @@ class StarCitizenWikiClient:
         method: str,
         path: str,
         *,
-        params: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> Any:
         session = await self._ensure_session()
         url = f"{self._base_url}/{path.lstrip('/')}"

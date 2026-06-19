@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
-def _as_int(value: Any) -> Optional[int]:
+def _as_int(value: Any) -> int | None:
     if value is None:
         return None
     try:
@@ -13,7 +13,7 @@ def _as_int(value: Any) -> Optional[int]:
         return None
 
 
-def _as_float(value: Any) -> Optional[float]:
+def _as_float(value: Any) -> float | None:
     if value is None:
         return None
     try:
@@ -22,7 +22,7 @@ def _as_float(value: Any) -> Optional[float]:
         return None
 
 
-def _as_bool(value: Any) -> Optional[bool]:
+def _as_bool(value: Any) -> bool | None:
     if value is None:
         return None
     return bool(value)
@@ -30,25 +30,25 @@ def _as_bool(value: Any) -> Optional[bool]:
 
 @dataclass(frozen=True)
 class Commodity:
-    id: Optional[int]
+    id: int | None
     name: str
-    code: Optional[str]
-    slug: Optional[str]
-    kind: Optional[str]
-    weight_scu: Optional[float]
-    price_buy: Optional[float]
-    price_sell: Optional[float]
-    is_available: Optional[bool]
-    is_buyable: Optional[bool]
-    is_sellable: Optional[bool]
-    is_mineral: Optional[bool]
-    is_raw: Optional[bool]
-    is_refined: Optional[bool]
-    is_illegal: Optional[bool]
-    wiki: Optional[str]
+    code: str | None
+    slug: str | None
+    kind: str | None
+    weight_scu: float | None
+    price_buy: float | None
+    price_sell: float | None
+    is_available: bool | None
+    is_buyable: bool | None
+    is_sellable: bool | None
+    is_mineral: bool | None
+    is_raw: bool | None
+    is_refined: bool | None
+    is_illegal: bool | None
+    wiki: str | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "Commodity":
+    def from_api(cls, data: dict[str, Any]) -> Commodity:
         return cls(
             id=_as_int(data.get("id")),
             name=data.get("name") or "Unknown",
@@ -71,35 +71,35 @@ class Commodity:
 
 @dataclass(frozen=True)
 class Terminal:
-    id: Optional[int]
+    id: int | None
     name: str
-    nickname: Optional[str]
-    code: Optional[str]
-    type: Optional[str]
-    id_star_system: Optional[int]
-    star_system_name: Optional[str]
-    id_orbit: Optional[int]
-    orbit_name: Optional[str]
-    id_faction: Optional[int]
-    faction_name: Optional[str]
-    planet_name: Optional[str]
-    moon_name: Optional[str]
-    city_name: Optional[str]
-    space_station_name: Optional[str]
-    max_container_size: Optional[int]
-    is_available: Optional[bool]
-    has_loading_dock: Optional[bool]
-    has_docking_port: Optional[bool]
-    has_freight_elevator: Optional[bool]
-    is_cargo_center: Optional[bool]
-    is_auto_load: Optional[bool]
-    is_nqa: Optional[bool]
-    is_refuel: Optional[bool]
-    is_player_owned: Optional[bool]
-    is_space_station: Optional[bool]
+    nickname: str | None
+    code: str | None
+    type: str | None
+    id_star_system: int | None
+    star_system_name: str | None
+    id_orbit: int | None
+    orbit_name: str | None
+    id_faction: int | None
+    faction_name: str | None
+    planet_name: str | None
+    moon_name: str | None
+    city_name: str | None
+    space_station_name: str | None
+    max_container_size: int | None
+    is_available: bool | None
+    has_loading_dock: bool | None
+    has_docking_port: bool | None
+    has_freight_elevator: bool | None
+    is_cargo_center: bool | None
+    is_auto_load: bool | None
+    is_nqa: bool | None
+    is_refuel: bool | None
+    is_player_owned: bool | None
+    is_space_station: bool | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "Terminal":
+    def from_api(cls, data: dict[str, Any]) -> Terminal:
         return cls(
             id=_as_int(data.get("id")),
             name=data.get("name") or "Unknown",
@@ -132,28 +132,28 @@ class Terminal:
 
 @dataclass(frozen=True)
 class CommodityPrice:
-    id: Optional[int]
-    id_commodity: Optional[int]
-    id_terminal: Optional[int]
-    commodity_name: Optional[str]
-    terminal_name: Optional[str]
-    star_system_name: Optional[str]
-    planet_name: Optional[str]
-    moon_name: Optional[str]
-    city_name: Optional[str]
-    outpost_name: Optional[str]
-    space_station_name: Optional[str]
-    price_buy: Optional[float]
-    price_buy_avg: Optional[float]
-    price_sell: Optional[float]
-    price_sell_avg: Optional[float]
-    scu_buy: Optional[float]
-    scu_sell: Optional[float]
-    status_buy: Optional[int]
-    status_sell: Optional[int]
+    id: int | None
+    id_commodity: int | None
+    id_terminal: int | None
+    commodity_name: str | None
+    terminal_name: str | None
+    star_system_name: str | None
+    planet_name: str | None
+    moon_name: str | None
+    city_name: str | None
+    outpost_name: str | None
+    space_station_name: str | None
+    price_buy: float | None
+    price_buy_avg: float | None
+    price_sell: float | None
+    price_sell_avg: float | None
+    scu_buy: float | None
+    scu_sell: float | None
+    status_buy: int | None
+    status_sell: int | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "CommodityPrice":
+    def from_api(cls, data: dict[str, Any]) -> CommodityPrice:
         return cls(
             id=_as_int(data.get("id")),
             id_commodity=_as_int(data.get("id_commodity")),
@@ -193,18 +193,18 @@ class CommodityPrice:
 
 @dataclass(frozen=True)
 class Vehicle:
-    id: Optional[int]
+    id: int | None
     name: str
-    name_full: Optional[str]
-    slug: Optional[str]
-    uuid: Optional[str]
-    company_name: Optional[str]
-    scu: Optional[float]
-    crew: Optional[int]
-    is_available: Optional[bool]
+    name_full: str | None
+    slug: str | None
+    uuid: str | None
+    company_name: str | None
+    scu: float | None
+    crew: int | None
+    is_available: bool | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "Vehicle":
+    def from_api(cls, data: dict[str, Any]) -> Vehicle:
         return cls(
             id=_as_int(data.get("id")),
             name=data.get("name") or "Unknown",
@@ -220,15 +220,15 @@ class Vehicle:
 
 @dataclass(frozen=True)
 class VehiclePurchasePrice:
-    id: Optional[int]
-    id_vehicle: Optional[int]
-    id_terminal: Optional[int]
-    vehicle_name: Optional[str]
-    terminal_name: Optional[str]
-    price_buy: Optional[float]
+    id: int | None
+    id_vehicle: int | None
+    id_terminal: int | None
+    vehicle_name: str | None
+    terminal_name: str | None
+    price_buy: float | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "VehiclePurchasePrice":
+    def from_api(cls, data: dict[str, Any]) -> VehiclePurchasePrice:
         return cls(
             id=_as_int(data.get("id")),
             id_vehicle=_as_int(data.get("id_vehicle")),
@@ -241,15 +241,15 @@ class VehiclePurchasePrice:
 
 @dataclass(frozen=True)
 class VehicleRentalPrice:
-    id: Optional[int]
-    id_vehicle: Optional[int]
-    id_terminal: Optional[int]
-    vehicle_name: Optional[str]
-    terminal_name: Optional[str]
-    price_rent: Optional[float]
+    id: int | None
+    id_vehicle: int | None
+    id_terminal: int | None
+    vehicle_name: str | None
+    terminal_name: str | None
+    price_rent: float | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "VehicleRentalPrice":
+    def from_api(cls, data: dict[str, Any]) -> VehicleRentalPrice:
         return cls(
             id=_as_int(data.get("id")),
             id_vehicle=_as_int(data.get("id_vehicle")),
@@ -262,13 +262,13 @@ class VehicleRentalPrice:
 
 @dataclass(frozen=True)
 class StarSystem:
-    id: Optional[int]
+    id: int | None
     name: str
-    code: Optional[str]
-    is_available: Optional[bool]
+    code: str | None
+    is_available: bool | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "StarSystem":
+    def from_api(cls, data: dict[str, Any]) -> StarSystem:
         return cls(
             id=_as_int(data.get("id")),
             name=data.get("name") or "Unknown",

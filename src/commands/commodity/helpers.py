@@ -1,21 +1,23 @@
 """Pure helpers and data types for the /commodity command group."""
+
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 from urllib.parse import urlencode
 
 from discord import app_commands
 
-from src.uex_api import CommodityPrice, Terminal, Vehicle
 from src.commands.formatting import format_number as _format_number_opt
+from src.uex_api import CommodityPrice, Terminal, Vehicle
+
 from .constants import UEX_ROUTES_URL
 
 TerminalPredicate = Callable[[Terminal], bool]
 
 
-def format_number(value: Optional[float], suffix: str = "") -> str:
+def format_number(value: float | None, suffix: str = "") -> str:
     """Format a number for display, returning '?' when the value is absent."""
     return _format_number_opt(value, suffix) or "?"
 
@@ -28,8 +30,8 @@ class Route:
     buy_price: float
     sell_price: float
     profit_per_scu: float
-    scu: Optional[int]
-    total_profit: Optional[float]
+    scu: int | None
+    total_profit: float | None
 
 
 def matches_place(price: CommodityPrice, place: str) -> bool:
@@ -54,10 +56,10 @@ def selling_locations(prices: list[CommodityPrice]) -> list[CommodityPrice]:
 
 
 def commodity_filter_summary(
-    system: Optional[app_commands.Choice[str]],
-    place: Optional[app_commands.Choice[str]],
-    exterior_cargo: Optional[bool],
-) -> Optional[str]:
+    system: app_commands.Choice[str] | None,
+    place: app_commands.Choice[str] | None,
+    exterior_cargo: bool | None,
+) -> str | None:
     parts = []
     if system is not None:
         parts.append(system.name)
@@ -68,13 +70,13 @@ def commodity_filter_summary(
     return " · ".join(parts) if parts else None
 
 
-def location_line(price: CommodityPrice, value: Optional[float], *, show_system: bool) -> str:
+def location_line(price: CommodityPrice, value: float | None, *, show_system: bool) -> str:
     auec = format_number(value, " aUEC")
     suffix = f" ({price.star_system_name})" if show_system and price.star_system_name else ""
     return f"**{auec}** — {price.terminal_name or 'Unknown terminal'}{suffix}"
 
 
-def route_leg(price: CommodityPrice, value: Optional[float], *, show_system: bool) -> str:
+def route_leg(price: CommodityPrice, value: float | None, *, show_system: bool) -> str:
     auec = format_number(value, " aUEC")
     location = price.terminal_name or "Unknown terminal"
     if show_system and price.star_system_name:
@@ -97,19 +99,19 @@ def name_choices(names) -> list[app_commands.Choice[str]]:
 
 def route_filter_summary(
     *,
-    ship: Optional[str],
-    investment: Optional[int],
-    scu: Optional[int],
-    commodity: Optional[str],
-    system_start: Optional[str],
-    system_end: Optional[str],
-    orbit_start: Optional[str],
-    orbit_end: Optional[str],
-    terminal_start: Optional[str],
-    container: Optional[int],
-    faction: Optional[str],
-    toggles: Optional[list[str]] = None,
-) -> Optional[str]:
+    ship: str | None,
+    investment: int | None,
+    scu: int | None,
+    commodity: str | None,
+    system_start: str | None,
+    system_end: str | None,
+    orbit_start: str | None,
+    orbit_end: str | None,
+    terminal_start: str | None,
+    container: int | None,
+    faction: str | None,
+    toggles: list[str] | None = None,
+) -> str | None:
     parts = []
     if commodity:
         parts.append(commodity)
@@ -140,17 +142,17 @@ def route_filter_summary(
 
 def terminal_predicate(
     *,
-    system: Optional[str],
-    orbit: Optional[str],
-    terminal_name: Optional[str],
-    faction: Optional[str],
-    container_size: Optional[int],
-    has_loading_dock: Optional[bool] = None,
-    is_auto_load: Optional[bool] = None,
-    is_nqa: Optional[bool] = None,
-    has_refuel: Optional[bool] = None,
-    is_player_owned: Optional[bool] = None,
-    is_space_station: Optional[bool] = None,
+    system: str | None,
+    orbit: str | None,
+    terminal_name: str | None,
+    faction: str | None,
+    container_size: int | None,
+    has_loading_dock: bool | None = None,
+    is_auto_load: bool | None = None,
+    is_nqa: bool | None = None,
+    has_refuel: bool | None = None,
+    is_player_owned: bool | None = None,
+    is_space_station: bool | None = None,
 ) -> TerminalPredicate:
     def matches(terminal: Terminal) -> bool:
         if system and (terminal.star_system_name or "").lower() != system.lower():
@@ -184,8 +186,8 @@ def tradeable_scu(
     buy_price: float,
     scu_buy: float,
     scu_sell: float,
-    capacity: Optional[int],
-    investment: Optional[int],
+    capacity: int | None,
+    investment: int | None,
 ) -> int:
     """SCU actually movable: limited by supply, ship hold, and budget."""
     caps: list[float] = [scu_buy]
@@ -198,7 +200,7 @@ def tradeable_scu(
     return int(min(caps))
 
 
-def capacity(vehicle: Optional[Vehicle], scu: Optional[int]) -> Optional[int]:
+def capacity(vehicle: Vehicle | None, scu: int | None) -> int | None:
     caps = []
     if vehicle is not None and vehicle.scu:
         caps.append(int(vehicle.scu))
@@ -209,10 +211,10 @@ def capacity(vehicle: Optional[Vehicle], scu: Optional[int]) -> Optional[int]:
 
 def lookup_id(
     terminals: list[Terminal],
-    getter: Callable[[Terminal], Optional[str]],
-    value: Optional[str],
-    id_getter: Callable[[Terminal], Optional[int]],
-) -> Optional[int]:
+    getter: Callable[[Terminal], str | None],
+    value: str | None,
+    id_getter: Callable[[Terminal], int | None],
+) -> int | None:
     if not value:
         return None
     target = value.lower()
@@ -227,7 +229,7 @@ def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
-def terminal_slug(terminals: list[Terminal], value: Optional[str]) -> Optional[str]:
+def terminal_slug(terminals: list[Terminal], value: str | None) -> str | None:
     if not value:
         return None
     target = value.lower()

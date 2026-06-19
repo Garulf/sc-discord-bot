@@ -11,14 +11,14 @@ cares about:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
 
 DEFAULT_LOCALE = "en_EN"
 
 
-def localize(value: Any, locale: str = DEFAULT_LOCALE) -> Optional[str]:
+def localize(value: Any, locale: str = DEFAULT_LOCALE) -> str | None:
     """Flatten the API's ``{locale: text}`` fields down to a single string.
 
     Many fields come back either as a plain string or as a dict keyed by locale
@@ -44,44 +44,44 @@ def localize(value: Any, locale: str = DEFAULT_LOCALE) -> Optional[str]:
 class Vehicle:
     """A trimmed-down view of a vehicle, parsed from the raw API payload."""
 
-    uuid: Optional[str]
+    uuid: str | None
     name: str
-    slug: Optional[str]
-    manufacturer: Optional[str]
-    manufacturer_code: Optional[str]
-    description: Optional[str]
-    type: Optional[str]
-    production_status: Optional[str]
-    career: Optional[str]
-    role: Optional[str]
-    size: Optional[str]
-    size_class: Optional[int]
+    slug: str | None
+    manufacturer: str | None
+    manufacturer_code: str | None
+    description: str | None
+    type: str | None
+    production_status: str | None
+    career: str | None
+    role: str | None
+    size: str | None
+    size_class: int | None
     foci: list[str]
-    crew_min: Optional[int]
-    crew_max: Optional[int]
-    cargo_capacity: Optional[float]
-    scm_speed: Optional[float]
-    max_speed: Optional[float]
-    health: Optional[float]
-    shield_hp: Optional[float]
-    armor_physical: Optional[float]
-    armor_energy: Optional[float]
-    deflection_physical: Optional[float]
-    deflection_energy: Optional[float]
-    signal_ir: Optional[float]
-    signal_em: Optional[float]
-    signal_cs: Optional[float]
-    length: Optional[float]
-    width: Optional[float]
-    height: Optional[float]
-    mass: Optional[float]
-    msrp: Optional[float]
-    pledge_url: Optional[str]
-    web_url: Optional[str]
-    image_url: Optional[str]
+    crew_min: int | None
+    crew_max: int | None
+    cargo_capacity: float | None
+    scm_speed: float | None
+    max_speed: float | None
+    health: float | None
+    shield_hp: float | None
+    armor_physical: float | None
+    armor_energy: float | None
+    deflection_physical: float | None
+    deflection_energy: float | None
+    signal_ir: float | None
+    signal_em: float | None
+    signal_cs: float | None
+    length: float | None
+    width: float | None
+    height: float | None
+    mass: float | None
+    msrp: float | None
+    pledge_url: str | None
+    web_url: str | None
+    image_url: str | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> "Vehicle":
+    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Vehicle:
         manufacturer = data.get("manufacturer") or {}
         crew = data.get("crew") or {}
         speed = data.get("speed") or {}
@@ -128,7 +128,7 @@ class Vehicle:
         )
 
 
-def _first_image(images: Any) -> Optional[str]:
+def _first_image(images: Any) -> str | None:
     if not isinstance(images, list) or not images:
         return None
     first = images[0]
@@ -190,15 +190,13 @@ class Ships:
 
         Used to populate autocomplete before the user types anything.
         """
-        payload = await self._client.get(
-            "vehicles", params={"page[size]": min(limit * 2, 200)}
-        )
+        payload = await self._client.get("vehicles", params={"page[size]": min(limit * 2, 200)})
         raw = payload.get("data", []) if isinstance(payload, dict) else []
         vehicles = [Vehicle.from_api(item, self._locale) for item in _unique_by_slug(raw)]
         vehicles.sort(key=lambda vehicle: vehicle.name)
         return vehicles[:limit]
 
-    async def find(self, query: str) -> Optional[Vehicle]:
+    async def find(self, query: str) -> Vehicle | None:
         """Best-effort single match: prefer an exact name, else the first hit."""
         results = await self.search(query, limit=25)
         if not results:

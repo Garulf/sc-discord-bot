@@ -1,13 +1,15 @@
 """The /shipweapon command and /find shipweapon subcommand handler."""
+
 from __future__ import annotations
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import add_shops_field
+from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon
-from src.commands.formatting import add_shops_field, format_number as _format_number
 
 
 def build_ship_weapon_embed(weapon: ShipWeapon) -> discord.Embed:
@@ -95,14 +97,10 @@ class ShipWeaponsCog(commands.Cog):
         try:
             weapon = await self.bot.ship_weapons_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if weapon is None:
-            await interaction.followup.send(
-                f"No ship weapon found matching **{name}**.", ephemeral=True
-            )
+            await interaction.followup.send(f"No ship weapon found matching **{name}**.", ephemeral=True)
             return
         await interaction.followup.send(embed=build_ship_weapon_embed(weapon))
 

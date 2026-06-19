@@ -1,9 +1,9 @@
 """Route-finding logic for /commodity route."""
+
 from __future__ import annotations
 
-from typing import Optional
-
 from src.uex_api import CommodityPrice, Terminal
+
 from .constants import MAX_ROUTES
 from .helpers import Route, TerminalPredicate, tradeable_scu
 
@@ -14,10 +14,10 @@ def best_routes(
     *,
     origin: TerminalPredicate,
     destination: TerminalPredicate,
-    id_commodity: Optional[int],
-    capacity: Optional[int],
-    investment: Optional[int],
-    allowed_commodities: Optional[set[int]] = None,
+    id_commodity: int | None,
+    capacity: int | None,
+    investment: int | None,
+    allowed_commodities: set[int] | None = None,
 ) -> list[Route]:
     """Best buy→sell route per commodity, ranked by trip profit, capped at MAX_ROUTES.
 
@@ -64,8 +64,8 @@ def best_routes(
 def _commodity_routes(
     buy_options: list[tuple[CommodityPrice, Terminal]],
     sell_options: list[tuple[CommodityPrice, Terminal]],
-    capacity: Optional[int],
-    investment: Optional[int],
+    capacity: int | None,
+    investment: int | None,
 ) -> list[Route]:
     """Every viable buy→sell terminal pairing for one commodity, stock-limited."""
     routes: list[Route] = []

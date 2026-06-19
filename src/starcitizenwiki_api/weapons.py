@@ -12,7 +12,7 @@ as :mod:`src.starcitizenwiki_api.ships`:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
 from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
@@ -22,13 +22,13 @@ from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
 class PurchaseLocation:
     """A single in-game shop terminal that stocks a weapon, from UEX data."""
 
-    price_buy: Optional[float]
-    terminal_name: Optional[str]
-    location_name: Optional[str]
-    star_system: Optional[str]
+    price_buy: float | None
+    terminal_name: str | None
+    location_name: str | None
+    star_system: str | None
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> "PurchaseLocation":
+    def from_api(cls, data: dict[str, Any]) -> PurchaseLocation:
         location = data.get("starmap_location") or {}
         return cls(
             price_buy=data.get("price_buy"),
@@ -42,39 +42,35 @@ class PurchaseLocation:
 class Weapon:
     """A trimmed-down view of a personal weapon, parsed from the raw API payload."""
 
-    uuid: Optional[str]
+    uuid: str | None
     name: str
-    slug: Optional[str]
-    manufacturer: Optional[str]
-    manufacturer_code: Optional[str]
-    description: Optional[str]
-    classification: Optional[str]
-    weapon_type: Optional[str]
-    size: Optional[int]
-    fire_mode: Optional[str]
-    magazine_size: Optional[int]
-    rpm: Optional[float]
-    effective_range: Optional[float]
-    damage_per_shot: Optional[float]
-    alpha_damage: Optional[float]
-    dps: Optional[float]
-    ammunition_type: Optional[str]
-    web_url: Optional[str]
-    image_url: Optional[str]
+    slug: str | None
+    manufacturer: str | None
+    manufacturer_code: str | None
+    description: str | None
+    classification: str | None
+    weapon_type: str | None
+    size: int | None
+    fire_mode: str | None
+    magazine_size: int | None
+    rpm: float | None
+    effective_range: float | None
+    damage_per_shot: float | None
+    alpha_damage: float | None
+    dps: float | None
+    ammunition_type: str | None
+    web_url: str | None
+    image_url: str | None
     purchase_locations: list[PurchaseLocation] = field(default_factory=list)
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> "Weapon":
+    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Weapon:
         manufacturer = data.get("manufacturer") or {}
         weapon = data.get("personal_weapon") or {}
         damage = weapon.get("damage") or {}
         ammunition = weapon.get("ammunition") or {}
         uex = data.get("uex_prices") or {}
-        purchases = [
-            PurchaseLocation.from_api(p)
-            for p in (uex.get("purchase") or [])
-            if isinstance(p, dict)
-        ]
+        purchases = [PurchaseLocation.from_api(p) for p in (uex.get("purchase") or []) if isinstance(p, dict)]
 
         return cls(
             uuid=data.get("uuid"),
@@ -100,7 +96,7 @@ class Weapon:
         )
 
 
-def _first_image(images: Any) -> Optional[str]:
+def _first_image(images: Any) -> str | None:
     if not isinstance(images, list) or not images:
         return None
     first = images[0]
@@ -167,7 +163,7 @@ class Weapons:
         weapons = _unique_by_slug(raw)[:limit]
         return [Weapon.from_api(item, self._locale) for item in weapons]
 
-    async def find(self, query: str) -> Optional[Weapon]:
+    async def find(self, query: str) -> Weapon | None:
         """Best-effort single match for a search query.
 
         Preference order: an exact name match, then the base model over its

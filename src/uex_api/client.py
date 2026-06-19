@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 
@@ -32,7 +32,7 @@ class TTLCache:
         self._entries: dict[str, tuple[float, Any]] = {}
         self._locks: dict[str, asyncio.Lock] = {}
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         entry = self._entries.get(key)
         if entry is None:
             return None
@@ -42,7 +42,7 @@ class TTLCache:
             return None
         return value
 
-    async def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
+    async def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         lifetime = self._ttl if ttl is None else ttl
         self._entries[key] = (time.monotonic() + lifetime, value)
 
@@ -63,11 +63,11 @@ class UEXClient:
         self,
         base_url: str = API_BASE_URL,
         *,
-        token: Optional[str] = None,
-        session: Optional[aiohttp.ClientSession] = None,
+        token: str | None = None,
+        session: aiohttp.ClientSession | None = None,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
-        cache: Optional[Any] = None,
+        cache: Any | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
@@ -76,7 +76,7 @@ class UEXClient:
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._cache = cache if cache is not None else TTLCache(cache_ttl)
 
-    async def __aenter__(self) -> "UEXClient":
+    async def __aenter__(self) -> UEXClient:
         await self._ensure_session()
         return self
 
@@ -107,8 +107,8 @@ class UEXClient:
         self,
         path: str,
         *,
-        params: Optional[dict[str, Any]] = None,
-        cache_ttl: Optional[float] = None,
+        params: dict[str, Any] | None = None,
+        cache_ttl: float | None = None,
     ) -> Any:
         use_cache = cache_ttl is None or cache_ttl > 0
         if not use_cache:
@@ -128,14 +128,14 @@ class UEXClient:
             await self._cache.set(key, data, cache_ttl)
             return data
 
-    def _cache_key(self, path: str, params: Optional[dict[str, Any]]) -> str:
+    def _cache_key(self, path: str, params: dict[str, Any] | None) -> str:
         if not params:
             return path
         ordered = sorted((str(name), str(value)) for name, value in params.items())
         encoded = "&".join(f"{name}={value}" for name, value in ordered)
         return f"{path}?{encoded}"
 
-    async def _fetch(self, path: str, params: Optional[dict[str, Any]]) -> Any:
+    async def _fetch(self, path: str, params: dict[str, Any] | None) -> Any:
         session = await self._ensure_session()
         url = f"{self._base_url}/{path.lstrip('/')}"
         try:

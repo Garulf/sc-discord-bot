@@ -1,12 +1,14 @@
 """Handler for /hangar set."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import discord
 from discord import app_commands
 
 from src.exec_hangars import HangarSchedule
+
 from .embed import build_embed
 
 
@@ -16,7 +18,7 @@ async def handle(
     phase: app_commands.Choice[str],
     lights: int,
 ) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if phase.value == "charging":
         cog.schedule = HangarSchedule.from_charging(lights_green=lights, observed_at=now)
     elif phase.value == "active":

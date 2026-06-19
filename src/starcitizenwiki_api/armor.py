@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
 from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
@@ -10,33 +10,29 @@ from src.starcitizenwiki_api.weapons import PurchaseLocation
 
 @dataclass(frozen=True)
 class ArmorItem:
-    uuid: Optional[str]
+    uuid: str | None
     name: str
-    slug: Optional[str]
-    manufacturer: Optional[str]
-    manufacturer_code: Optional[str]
-    description: Optional[str]
-    type: Optional[str]
-    sub_type: Optional[str]
-    size: Optional[int]
-    grade: Optional[str]
-    classification: Optional[str]
-    damage_reduction: Optional[float]
-    capacity: Optional[float]
-    web_url: Optional[str]
-    image_url: Optional[str]
+    slug: str | None
+    manufacturer: str | None
+    manufacturer_code: str | None
+    description: str | None
+    type: str | None
+    sub_type: str | None
+    size: int | None
+    grade: str | None
+    classification: str | None
+    damage_reduction: float | None
+    capacity: float | None
+    web_url: str | None
+    image_url: str | None
     purchase_locations: list[PurchaseLocation] = field(default_factory=list)
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> "ArmorItem":
+    def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> ArmorItem:
         manufacturer = data.get("manufacturer") or {}
         armor = data.get("armor") or {}
         uex = data.get("uex_prices") or {}
-        purchases = [
-            PurchaseLocation.from_api(p)
-            for p in (uex.get("purchase") or [])
-            if isinstance(p, dict)
-        ]
+        purchases = [PurchaseLocation.from_api(p) for p in (uex.get("purchase") or []) if isinstance(p, dict)]
         return cls(
             uuid=data.get("uuid"),
             name=data.get("name") or "Unknown",
@@ -57,7 +53,7 @@ class ArmorItem:
         )
 
 
-def _first_image(images: Any) -> Optional[str]:
+def _first_image(images: Any) -> str | None:
     if not isinstance(images, list) or not images:
         return None
     first = images[0]
@@ -102,7 +98,7 @@ class Armor:
         items = _unique_by_slug(raw)[:limit]
         return [ArmorItem.from_api(item, self._locale) for item in items]
 
-    async def find(self, query: str) -> Optional[ArmorItem]:
+    async def find(self, query: str) -> ArmorItem | None:
         results = await self.search(query, limit=25)
         if not results:
             return None

@@ -11,7 +11,6 @@ from __future__ import annotations
 import html
 import re
 from dataclasses import dataclass
-from typing import Optional
 from xml.etree import ElementTree
 
 import aiohttp
@@ -29,12 +28,12 @@ _TAG_RE = re.compile(r"<[^>]+>")
 class StatusEntry:
     guid: str
     title: str
-    link: Optional[str]
-    published: Optional[str]
-    summary: Optional[str]
+    link: str | None
+    published: str | None
+    summary: str | None
 
     @classmethod
-    def from_item(cls, item: ElementTree.Element) -> "StatusEntry":
+    def from_item(cls, item: ElementTree.Element) -> StatusEntry:
         return cls(
             guid=_text(item, "guid") or _text(item, "link") or "",
             title=_text(item, "title") or "Untitled",
@@ -44,14 +43,14 @@ class StatusEntry:
         )
 
 
-def _text(item: ElementTree.Element, tag: str) -> Optional[str]:
+def _text(item: ElementTree.Element, tag: str) -> str | None:
     element = item.find(tag)
     if element is None or element.text is None:
         return None
     return element.text.strip()
 
 
-def _clean(raw: Optional[str]) -> Optional[str]:
+def _clean(raw: str | None) -> str | None:
     if not raw:
         return None
     stripped = _TAG_RE.sub(" ", html.unescape(raw))
@@ -75,8 +74,8 @@ async def fetch_status_entries(
 @dataclass(frozen=True)
 class UnresolvedIssue:
     title: str
-    link: Optional[str]
-    severity: Optional[str]
+    link: str | None
+    severity: str | None
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.uex_api.client import NotFoundError, UEXClient
 from src.uex_api.models import Terminal
@@ -16,17 +16,15 @@ class Terminals:
     async def all(
         self,
         *,
-        terminal_type: Optional[str] = None,
-        id_star_system: Optional[int] = None,
+        terminal_type: str | None = None,
+        id_star_system: int | None = None,
     ) -> list[Terminal]:
         params: dict[str, Any] = {}
         if terminal_type is not None:
             params["type"] = terminal_type
         if id_star_system is not None:
             params["id_star_system"] = id_star_system
-        data = await self._client.get(
-            "terminals", params=params or None, cache_ttl=self._cache_ttl
-        )
+        data = await self._client.get("terminals", params=params or None, cache_ttl=self._cache_ttl)
         rows: list[Any] = data if isinstance(data, list) else []
         return [Terminal.from_api(row) for row in rows if isinstance(row, dict)]
 
@@ -49,7 +47,7 @@ class Terminals:
                 break
         return matches
 
-    async def find(self, query: str) -> Optional[Terminal]:
+    async def find(self, query: str) -> Terminal | None:
         results = await self.search(query, limit=25)
         if not results:
             return None

@@ -1,13 +1,14 @@
 """The /vehicleitem command and /find vehicleitem subcommand handler."""
+
 from __future__ import annotations
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import add_shops_field
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.vehicle_items import VehicleItem
-from src.commands.formatting import add_shops_field
 
 
 def build_vehicle_item_embed(item: VehicleItem) -> discord.Embed:
@@ -75,14 +76,10 @@ class VehicleItemsCog(commands.Cog):
         try:
             item = await self.bot.vehicle_items_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if item is None:
-            await interaction.followup.send(
-                f"No vehicle item found matching **{name}**.", ephemeral=True
-            )
+            await interaction.followup.send(f"No vehicle item found matching **{name}**.", ephemeral=True)
             return
         await interaction.followup.send(embed=build_vehicle_item_embed(item))
 

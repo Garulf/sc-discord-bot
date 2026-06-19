@@ -1,4 +1,5 @@
 """Constants and choice lists for the /commodity command group."""
+
 from discord import app_commands
 
 MAX_LOCATIONS_SHOWN = 8
@@ -19,7 +20,4 @@ PLACE_CHOICES = [
     app_commands.Choice(name="Planet", value="planet"),
     app_commands.Choice(name="Outpost", value="outpost"),
 ]
-CONTAINER_CHOICES = [
-    app_commands.Choice(name=f"{size} SCU", value=size)
-    for size in (1, 2, 4, 8, 16, 24, 32)
-]
+CONTAINER_CHOICES = [app_commands.Choice(name=f"{size} SCU", value=size) for size in (1, 2, 4, 8, 16, 24, 32)]

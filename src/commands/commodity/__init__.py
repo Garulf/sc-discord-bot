@@ -6,14 +6,15 @@ and ``bot.vehicles_api``)."""
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from src.uex_api import Terminal, UEXError
-from src.commands.formatting import format_number as _format_number_opt
+
+from .buy import handle as _handle_buy
 from .constants import CONTAINER_CHOICES, PLACE_CHOICES, SYSTEM_CHOICES
 from .embeds import build_commodity_embed
 from .helpers import (
@@ -23,9 +24,8 @@ from .helpers import (
     name_choices,
     selling_locations,
 )
-from .buy import handle as _handle_buy
-from .sell import handle as _handle_sell
 from .route import handle as _handle_route
+from .sell import handle as _handle_sell
 
 
 class CommodityCog(commands.Cog):
@@ -57,9 +57,7 @@ class CommodityCog(commands.Cog):
                 break
         return choices
 
-    async def ship_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
+    async def ship_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         try:
             if current:
                 results = await self.bot.vehicles_api.search(current, limit=25)
@@ -90,9 +88,9 @@ class CommodityCog(commands.Cog):
         name: str,
         *,
         selling: bool,
-        system: Optional[app_commands.Choice[str]],
-        place: Optional[app_commands.Choice[str]],
-        exterior_cargo: Optional[bool],
+        system: app_commands.Choice[str] | None,
+        place: app_commands.Choice[str] | None,
+        exterior_cargo: bool | None,
     ) -> None:
         await interaction.response.defer()
         commodity = await self._find_commodity(interaction, name)
@@ -115,14 +113,10 @@ class CommodityCog(commands.Cog):
         try:
             commodity = await self.bot.commodities_api.find(name)
         except UEXError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the UEX API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
             return None
         if commodity is None or commodity.id is None:
-            await interaction.followup.send(
-                f"No commodity found matching **{name}**.", ephemeral=True
-            )
+            await interaction.followup.send(f"No commodity found matching **{name}**.", ephemeral=True)
             return None
         return commodity
 
@@ -131,9 +125,9 @@ class CommodityCog(commands.Cog):
         interaction: discord.Interaction,
         commodity_id: int,
         *,
-        system: Optional[app_commands.Choice[str]],
-        place: Optional[app_commands.Choice[str]],
-        exterior_cargo: Optional[bool],
+        system: app_commands.Choice[str] | None,
+        place: app_commands.Choice[str] | None,
+        exterior_cargo: bool | None,
     ):
         try:
             prices = await self.bot.commodity_prices_api.for_commodity(commodity_id)
@@ -147,9 +141,7 @@ class CommodityCog(commands.Cog):
                 prices = [p for p in prices if (p.id_terminal in docks) == exterior_cargo]
             return prices
         except UEXError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the UEX API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
             return None
 
     async def _exterior_terminal_ids(self) -> set[int]:
@@ -157,7 +149,7 @@ class CommodityCog(commands.Cog):
         return {t.id for t in terminals if t.has_loading_dock and t.id is not None}
 
     async def _terminal_attr_choices(
-        self, getter: Callable[[Terminal], Optional[str]], current: str
+        self, getter: Callable[[Terminal], str | None], current: str
     ) -> list[app_commands.Choice[str]]:
         try:
             terminals = await self.bot.terminals_api.all(terminal_type="commodity")
@@ -181,9 +173,9 @@ class CommodityCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         name: str,
-        system: Optional[app_commands.Choice[str]] = None,
-        place: Optional[app_commands.Choice[str]] = None,
-        exterior_cargo: Optional[bool] = None,
+        system: app_commands.Choice[str] | None = None,
+        place: app_commands.Choice[str] | None = None,
+        exterior_cargo: bool | None = None,
     ):
         await _handle_buy(self, interaction, name, system, place, exterior_cargo)
 
@@ -200,9 +192,9 @@ class CommodityCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         name: str,
-        system: Optional[app_commands.Choice[str]] = None,
-        place: Optional[app_commands.Choice[str]] = None,
-        exterior_cargo: Optional[bool] = None,
+        system: app_commands.Choice[str] | None = None,
+        place: app_commands.Choice[str] | None = None,
+        exterior_cargo: bool | None = None,
     ):
         await _handle_sell(self, interaction, name, system, place, exterior_cargo)
 
@@ -246,38 +238,52 @@ class CommodityCog(commands.Cog):
     async def route(
         self,
         interaction: discord.Interaction,
-        ship: Optional[str] = None,
-        investment: Optional[int] = None,
-        scu: Optional[int] = None,
-        commodity: Optional[str] = None,
-        star_system_start: Optional[app_commands.Choice[str]] = None,
-        star_system_end: Optional[app_commands.Choice[str]] = None,
-        orbit_start: Optional[str] = None,
-        orbit_end: Optional[str] = None,
-        terminal_start: Optional[str] = None,
-        container_size: Optional[app_commands.Choice[int]] = None,
-        faction: Optional[str] = None,
-        is_loop: Optional[bool] = None,
-        has_loading_dock: Optional[bool] = None,
-        is_auto_load: Optional[bool] = None,
-        safe_commodities: Optional[bool] = None,
-        is_nqa: Optional[bool] = None,
-        is_monitored: Optional[bool] = None,
-        is_space_station: Optional[bool] = None,
-        has_refuel: Optional[bool] = None,
-        is_predictable: Optional[bool] = None,
-        is_player_owned: Optional[bool] = None,
+        ship: str | None = None,
+        investment: int | None = None,
+        scu: int | None = None,
+        commodity: str | None = None,
+        star_system_start: app_commands.Choice[str] | None = None,
+        star_system_end: app_commands.Choice[str] | None = None,
+        orbit_start: str | None = None,
+        orbit_end: str | None = None,
+        terminal_start: str | None = None,
+        container_size: app_commands.Choice[int] | None = None,
+        faction: str | None = None,
+        is_loop: bool | None = None,
+        has_loading_dock: bool | None = None,
+        is_auto_load: bool | None = None,
+        safe_commodities: bool | None = None,
+        is_nqa: bool | None = None,
+        is_monitored: bool | None = None,
+        is_space_station: bool | None = None,
+        has_refuel: bool | None = None,
+        is_predictable: bool | None = None,
+        is_player_owned: bool | None = None,
     ):
         await _handle_route(
-            self, interaction,
-            ship=ship, investment=investment, scu=scu, commodity=commodity,
-            star_system_start=star_system_start, star_system_end=star_system_end,
-            orbit_start=orbit_start, orbit_end=orbit_end, terminal_start=terminal_start,
-            container_size=container_size, faction=faction, is_loop=is_loop,
-            has_loading_dock=has_loading_dock, is_auto_load=is_auto_load,
-            safe_commodities=safe_commodities, is_nqa=is_nqa, is_monitored=is_monitored,
-            is_space_station=is_space_station, has_refuel=has_refuel,
-            is_predictable=is_predictable, is_player_owned=is_player_owned,
+            self,
+            interaction,
+            ship=ship,
+            investment=investment,
+            scu=scu,
+            commodity=commodity,
+            star_system_start=star_system_start,
+            star_system_end=star_system_end,
+            orbit_start=orbit_start,
+            orbit_end=orbit_end,
+            terminal_start=terminal_start,
+            container_size=container_size,
+            faction=faction,
+            is_loop=is_loop,
+            has_loading_dock=has_loading_dock,
+            is_auto_load=is_auto_load,
+            safe_commodities=safe_commodities,
+            is_nqa=is_nqa,
+            is_monitored=is_monitored,
+            is_space_station=is_space_station,
+            has_refuel=has_refuel,
+            is_predictable=is_predictable,
+            is_player_owned=is_player_owned,
         )
 
 

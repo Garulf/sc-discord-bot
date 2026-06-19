@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from src.uex_api.client import NotFoundError, UEXClient
 from src.uex_api.models import Commodity
@@ -37,7 +37,7 @@ class Commodities:
                 break
         return matches
 
-    async def find(self, query: str) -> Optional[Commodity]:
+    async def find(self, query: str) -> Commodity | None:
         results = await self.search(query, limit=25)
         if not results:
             return None

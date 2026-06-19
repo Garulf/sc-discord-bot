@@ -3,18 +3,16 @@ its key stats. Uses the shared API client stored on the bot (``bot.ships_api``).
 
 from __future__ import annotations
 
-from typing import Optional
-
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError, Vehicle
 from src.uex_api import UEXError, VehiclePurchasePrice
-from src.commands.formatting import format_number as _format_number
 
 
-def _format_armor(vehicle: Vehicle) -> Optional[str]:
+def _format_armor(vehicle: Vehicle) -> str | None:
     parts = []
     if vehicle.deflection_physical:
         parts.append(f"Physical {vehicle.deflection_physical}")
@@ -23,7 +21,7 @@ def _format_armor(vehicle: Vehicle) -> Optional[str]:
     return " · ".join(parts) if parts else None
 
 
-def _format_signals(vehicle: Vehicle) -> Optional[str]:
+def _format_signals(vehicle: Vehicle) -> str | None:
     parts = []
     for label, value in (
         ("IR", vehicle.signal_ir),
@@ -35,9 +33,7 @@ def _format_signals(vehicle: Vehicle) -> Optional[str]:
     return " · ".join(parts) if parts else None
 
 
-def build_ship_embed(
-    vehicle: Vehicle, cheapest_auec: Optional[VehiclePurchasePrice] = None
-) -> discord.Embed:
+def build_ship_embed(vehicle: Vehicle, cheapest_auec: VehiclePurchasePrice | None = None) -> discord.Embed:
     """Render a vehicle from the wiki API as a Discord embed."""
     title = f"{vehicle.manufacturer} {vehicle.name}" if vehicle.manufacturer else vehicle.name
     embed = discord.Embed(
@@ -51,9 +47,7 @@ def build_ship_embed(
     if vehicle.image_url:
         embed.set_image(url=vehicle.image_url)
 
-    classification = " · ".join(
-        part for part in (vehicle.production_status, vehicle.size, vehicle.type) if part
-    )
+    classification = " · ".join(part for part in (vehicle.production_status, vehicle.size, vehicle.type) if part)
     if classification:
         embed.add_field(name="Status", value=classification.title(), inline=False)
 
@@ -81,9 +75,7 @@ def build_ship_embed(
         embed.add_field(name="NAV Speed", value=nav_speed, inline=True)
 
     if vehicle.length or vehicle.width or vehicle.height:
-        dims = " × ".join(
-            _format_number(d) or "?" for d in (vehicle.length, vehicle.width, vehicle.height)
-        )
+        dims = " × ".join(_format_number(d) or "?" for d in (vehicle.length, vehicle.width, vehicle.height))
         embed.add_field(name="Size (L×W×H)", value=f"{dims} m", inline=True)
 
     hull = _format_number(vehicle.health)
@@ -123,9 +115,7 @@ class ShipsCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def ship_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
+    async def ship_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         """Suggest ship names as the user types, de-duplicated by display name.
 
         Before anything is typed, show a default sample of ships rather than an
@@ -158,19 +148,15 @@ class ShipsCog(commands.Cog):
         try:
             vehicle = await self.bot.ships_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if vehicle is None:
-            await interaction.followup.send(
-                f"No ship found matching **{name}**.", ephemeral=True
-            )
+            await interaction.followup.send(f"No ship found matching **{name}**.", ephemeral=True)
             return
         cheapest = await self._cheapest_auec(vehicle.name)
         await interaction.followup.send(embed=build_ship_embed(vehicle, cheapest))
 
-    async def _cheapest_auec(self, ship_name: str) -> Optional[VehiclePurchasePrice]:
+    async def _cheapest_auec(self, ship_name: str) -> VehiclePurchasePrice | None:
         """Best-effort cheapest in-game (aUEC) buy price for a ship, or None.
 
         The wiki and UEX are independent sources, so this never blocks the

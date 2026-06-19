@@ -1,13 +1,14 @@
 """The /clothes command and /find clothes subcommand handler."""
+
 from __future__ import annotations
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.formatting import add_shops_field
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.clothes import ClothingItem
-from src.commands.formatting import add_shops_field
 
 
 def build_clothes_embed(item: ClothingItem) -> discord.Embed:
@@ -65,9 +66,7 @@ class ClothesCog(commands.Cog):
         try:
             item = await self.bot.clothes_api.find(name)
         except StarCitizenWikiError as e:
-            await interaction.followup.send(
-                f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True
-            )
+            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
             return
         if item is None:
             await interaction.followup.send(f"No clothing found matching **{name}**.", ephemeral=True)
