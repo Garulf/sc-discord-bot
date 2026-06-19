@@ -4,9 +4,8 @@ from datetime import UTC, datetime
 
 from src.commands.hangar.embed import build_embed
 from src.exec_hangars.schedule import HangarSchedule
-from src.exec_hangars.status import PHASE_COLOR
 from src.exec_hangars.states import HangarPhase
-
+from src.exec_hangars.status import PHASE_COLOR
 
 _NOW = datetime(2025, 3, 15, 12, 0, 0, tzinfo=UTC)
 _SET_AT = datetime(2025, 3, 15, 11, 30, 0, tzinfo=UTC)

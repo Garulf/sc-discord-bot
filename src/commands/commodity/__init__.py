@@ -12,6 +12,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.autocomplete import name_choices
 from src.uex_api import Terminal, UEXError
 
 from .buy import handle as _handle_buy
@@ -21,9 +22,9 @@ from .helpers import (
     buying_locations,
     commodity_filter_summary,
     matches_place,
-    name_choices,
     selling_locations,
 )
+from .route import RouteFilters
 from .route import handle as _handle_route
 from .sell import handle as _handle_sell
 
@@ -46,16 +47,7 @@ class CommodityCog(commands.Cog):
                 results = sorted(await self.bot.commodities_api.all(), key=lambda c: c.name)
         except UEXError:
             return []
-        choices: list[app_commands.Choice[str]] = []
-        seen: set[str] = set()
-        for commodity in results:
-            if commodity.name in seen:
-                continue
-            seen.add(commodity.name)
-            choices.append(app_commands.Choice(name=commodity.name[:100], value=commodity.name[:100]))
-            if len(choices) >= 25:
-                break
-        return choices
+        return name_choices(commodity.name for commodity in results)
 
     async def ship_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         try:
@@ -263,27 +255,29 @@ class CommodityCog(commands.Cog):
         await _handle_route(
             self,
             interaction,
-            ship=ship,
-            investment=investment,
-            scu=scu,
-            commodity=commodity,
-            star_system_start=star_system_start,
-            star_system_end=star_system_end,
-            orbit_start=orbit_start,
-            orbit_end=orbit_end,
-            terminal_start=terminal_start,
-            container_size=container_size,
-            faction=faction,
-            is_loop=is_loop,
-            has_loading_dock=has_loading_dock,
-            is_auto_load=is_auto_load,
-            safe_commodities=safe_commodities,
-            is_nqa=is_nqa,
-            is_monitored=is_monitored,
-            is_space_station=is_space_station,
-            has_refuel=has_refuel,
-            is_predictable=is_predictable,
-            is_player_owned=is_player_owned,
+            RouteFilters(
+                ship=ship,
+                investment=investment,
+                scu=scu,
+                commodity=commodity,
+                star_system_start=star_system_start,
+                star_system_end=star_system_end,
+                orbit_start=orbit_start,
+                orbit_end=orbit_end,
+                terminal_start=terminal_start,
+                container_size=container_size,
+                faction=faction,
+                is_loop=is_loop,
+                has_loading_dock=has_loading_dock,
+                is_auto_load=is_auto_load,
+                safe_commodities=safe_commodities,
+                is_nqa=is_nqa,
+                is_monitored=is_monitored,
+                is_space_station=is_space_station,
+                has_refuel=has_refuel,
+                is_predictable=is_predictable,
+                is_player_owned=is_player_owned,
+            ),
         )
 
 

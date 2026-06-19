@@ -4,6 +4,7 @@ and wires up command extensions. Command logic itself lives in the cogs under
 
 from __future__ import annotations
 
+import logging
 import os
 
 import discord
@@ -31,6 +32,8 @@ from src.uex_api import (
 )
 
 DEFAULT_DB_PATH = "data/bot.db"
+
+logger = logging.getLogger(__name__)
 
 # Cogs to load on startup. Each module exposes an async ``setup(bot)``.
 INITIAL_EXTENSIONS = [
@@ -96,12 +99,12 @@ class SCBot(commands.Bot):
             await self.load_extension(extension)
         try:
             synced = await self.tree.sync()
-            print(f"Synced {len(synced)} command(s)")
-        except Exception as e:  # noqa: BLE001 - log and keep running
-            print(f"Failed to sync commands: {e}")
+            logger.info("Synced %d command(s)", len(synced))
+        except Exception:  # noqa: BLE001 - log and keep running
+            logger.exception("Failed to sync commands")
 
     async def on_ready(self) -> None:
-        print(f"Logged in as {self.user.name if self.user else '?'}")
+        logger.info("Logged in as %s", self.user.name if self.user else "?")
 
     async def close(self) -> None:
         await self.sc_client.close()

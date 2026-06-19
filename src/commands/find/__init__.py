@@ -10,6 +10,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL, item_choices
+
 from .all import handle as _handle_all
 from .armor import handle as _handle_armor
 from .clothes import handle as _handle_clothes
@@ -56,17 +58,7 @@ class FindCog(commands.Cog):
             results = await getattr(self.bot, api_attr).search(current, limit=25)
         except Exception:  # noqa: BLE001 - autocomplete failures are silently dropped
             return []
-        choices: list[app_commands.Choice[str]] = []
-        seen: set[str] = set()
-        for item in sorted(results, key=lambda x: len(x.name)):
-            if item.name in seen:
-                continue
-            seen.add(item.name)
-            identifier = item.slug or item.name
-            choices.append(app_commands.Choice(name=item.name[:100], value=identifier[:100]))
-            if len(choices) >= 25:
-                break
-        return choices
+        return item_choices(sorted(results, key=lambda x: len(x.name)), use_slug=True)
 
     async def weapon_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self._single_autocomplete("weapons_api", current)
@@ -109,11 +101,11 @@ class FindCog(commands.Cog):
                 identifier = item.slug or item.name
                 choices.append(
                     app_commands.Choice(
-                        name=f"{item.name} ({category_label})"[:100],
-                        value=f"{category_key}:{identifier}"[:100],
+                        name=f"{item.name} ({category_label})"[:MAX_CHOICE_LABEL],
+                        value=f"{category_key}:{identifier}"[:MAX_CHOICE_LABEL],
                     )
                 )
-                if len(choices) >= 25:
+                if len(choices) >= MAX_AUTOCOMPLETE_CHOICES:
                     return choices
         return choices
 

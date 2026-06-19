@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.uex_api._common import COMMODITY_PRICE_CACHE_TTL_SECONDS
 from src.uex_api.client import UEXClient
 from src.uex_api.models import CommodityPrice
 
-DEFAULT_CACHE_TTL_SECONDS = 60
-
 
 class CommodityPrices:
-    def __init__(self, client: UEXClient, *, cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS) -> None:
+    def __init__(self, client: UEXClient, *, cache_ttl: float = COMMODITY_PRICE_CACHE_TTL_SECONDS) -> None:
         self._client = client
         self._cache_ttl = cache_ttl
 

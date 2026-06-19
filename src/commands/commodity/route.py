@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import discord
 from discord import app_commands
 
 from src.uex_api import UEXError
+from src.uex_api.models import Commodity, CommodityPrice, Terminal, Vehicle
 
 from .embeds import build_routes_embed
 from .helpers import (
@@ -20,169 +23,223 @@ from .helpers import (
 from .routes import best_routes
 
 
-async def handle(
-    cog,
-    interaction: discord.Interaction,
-    ship: str | None = None,
-    investment: int | None = None,
-    scu: int | None = None,
-    commodity: str | None = None,
-    star_system_start: app_commands.Choice[str] | None = None,
-    star_system_end: app_commands.Choice[str] | None = None,
-    orbit_start: str | None = None,
-    orbit_end: str | None = None,
-    terminal_start: str | None = None,
-    container_size: app_commands.Choice[int] | None = None,
-    faction: str | None = None,
-    is_loop: bool | None = None,
-    has_loading_dock: bool | None = None,
-    is_auto_load: bool | None = None,
-    safe_commodities: bool | None = None,
-    is_nqa: bool | None = None,
-    is_monitored: bool | None = None,
-    is_space_station: bool | None = None,
-    has_refuel: bool | None = None,
-    is_predictable: bool | None = None,
-    is_player_owned: bool | None = None,
-) -> None:
+@dataclass(frozen=True)
+class RouteFilters:
+    """Every option the user can pass to /commodity route, in one bundle.
+
+    The slash command must declare each option explicitly (Discord requirement),
+    so it builds this and hands it to :func:`handle` instead of threading two
+    dozen arguments through every step.
+    """
+
+    ship: str | None = None
+    investment: int | None = None
+    scu: int | None = None
+    commodity: str | None = None
+    star_system_start: app_commands.Choice[str] | None = None
+    star_system_end: app_commands.Choice[str] | None = None
+    orbit_start: str | None = None
+    orbit_end: str | None = None
+    terminal_start: str | None = None
+    container_size: app_commands.Choice[int] | None = None
+    faction: str | None = None
+    is_loop: bool | None = None
+    has_loading_dock: bool | None = None
+    is_auto_load: bool | None = None
+    safe_commodities: bool | None = None
+    is_nqa: bool | None = None
+    is_monitored: bool | None = None
+    is_space_station: bool | None = None
+    has_refuel: bool | None = None
+    is_predictable: bool | None = None
+    is_player_owned: bool | None = None
+
+    @property
+    def system_start(self) -> str | None:
+        return self.star_system_start.value if self.star_system_start else None
+
+    @property
+    def system_end(self) -> str | None:
+        return self.star_system_end.value if self.star_system_end else None
+
+    @property
+    def container(self) -> int | None:
+        return self.container_size.value if self.container_size else None
+
+    @property
+    def terminal_flags(self) -> dict[str, bool | None]:
+        """The boolean toggles that constrain which terminals qualify."""
+        return {
+            "has_loading_dock": self.has_loading_dock,
+            "is_auto_load": self.is_auto_load,
+            "is_nqa": self.is_nqa,
+            "has_refuel": self.has_refuel,
+            "is_player_owned": self.is_player_owned,
+            "is_space_station": self.is_space_station,
+        }
+
+    @property
+    def toggles(self) -> list[str]:
+        """Human-readable labels for the filters the user turned on."""
+        labelled = (
+            ("Loop", self.is_loop),
+            ("Loading dock", self.has_loading_dock),
+            ("Auto-load", self.is_auto_load),
+            ("Legal only", self.safe_commodities),
+            ("NQA", self.is_nqa),
+            ("Monitored", self.is_monitored),
+            ("Space station", self.is_space_station),
+            ("Refuel", self.has_refuel),
+            ("Predictable", self.is_predictable),
+            ("Player-owned", self.is_player_owned),
+        )
+        return [label for label, value in labelled if value]
+
+
+class _RouteAborted(Exception):
+    """Raised once a user-facing error has been sent, to stop further handling."""
+
+
+async def handle(cog, interaction: discord.Interaction, filters: RouteFilters) -> None:
     await interaction.response.defer()
+    try:
+        prices, terminals = await _fetch_market_data(cog, interaction)
+        commodity = await _resolve_commodity(cog, interaction, filters.commodity)
+        vehicle = await _resolve_vehicle(cog, filters.ship)
+        allowed_commodities = await _resolve_allowed_commodities(cog, enabled=filters.safe_commodities)
+    except _RouteAborted:
+        return
+
+    origin, destination = _build_predicates(filters)
+    routes = best_routes(
+        prices,
+        {t.id: t for t in terminals if t.id is not None},
+        origin=origin,
+        destination=destination,
+        id_commodity=commodity.id if commodity else None,
+        capacity=capacity(vehicle, filters.scu),
+        investment=filters.investment,
+        allowed_commodities=allowed_commodities,
+    )
+    if not routes:
+        await interaction.followup.send("No profitable routes match those filters.", ephemeral=True)
+        return
+
+    summary = route_filter_summary(
+        ship=filters.ship,
+        investment=filters.investment,
+        scu=filters.scu,
+        commodity=filters.commodity,
+        system_start=filters.system_start,
+        system_end=filters.system_end,
+        orbit_start=filters.orbit_start,
+        orbit_end=filters.orbit_end,
+        terminal_start=filters.terminal_start,
+        container=filters.container,
+        faction=filters.faction,
+        toggles=filters.toggles,
+    )
+    url = _build_uex_url(filters, vehicle, terminals, commodity.name if commodity else None)
+    await interaction.followup.send(embed=build_routes_embed(routes, filters=summary, url=url))
+
+
+async def _fetch_market_data(cog, interaction: discord.Interaction) -> tuple[list[CommodityPrice], list[Terminal]]:
     try:
         prices = await cog.bot.commodity_prices_api.all()
         terminals = await cog.bot.terminals_api.all(terminal_type="commodity")
     except UEXError as e:
         await interaction.followup.send(f"Couldn't reach the UEX API right now: {e}", ephemeral=True)
-        return
+        raise _RouteAborted from e
+    return prices, terminals
 
-    id_commodity = None
-    commodity_name = None
-    if commodity:
-        try:
-            match = await cog.bot.commodities_api.find(commodity)
-        except UEXError:
-            match = None
-        if match is None or match.id is None:
-            await interaction.followup.send(f"No commodity found matching **{commodity}**.", ephemeral=True)
-            return
-        id_commodity = match.id
-        commodity_name = match.name
 
-    vehicle = None
-    if ship:
-        try:
-            vehicle = await cog.bot.vehicles_api.find(ship)
-        except UEXError:
-            vehicle = None
+async def _resolve_commodity(cog, interaction: discord.Interaction, query: str | None) -> Commodity | None:
+    """Resolve the optional commodity filter, or ``None`` if none was requested.
 
-    cap = capacity(vehicle, scu)
-    container = container_size.value if container_size else None
-    system_start = star_system_start.value if star_system_start else None
-    system_end = star_system_end.value if star_system_end else None
+    Aborts (after sending a message) when a named commodity can't be found.
+    """
+    if not query:
+        return None
+    try:
+        match = await cog.bot.commodities_api.find(query)
+    except UEXError:
+        match = None
+    if match is None or match.id is None:
+        await interaction.followup.send(f"No commodity found matching **{query}**.", ephemeral=True)
+        raise _RouteAborted
+    return match
 
-    terminal_flags = {
-        "has_loading_dock": has_loading_dock,
-        "is_auto_load": is_auto_load,
-        "is_nqa": is_nqa,
-        "has_refuel": has_refuel,
-        "is_player_owned": is_player_owned,
-        "is_space_station": is_space_station,
-    }
+
+async def _resolve_vehicle(cog, ship: str | None) -> Vehicle | None:
+    """Look up the chosen ship; a lookup failure just means no capacity hint."""
+    if not ship:
+        return None
+    try:
+        return await cog.bot.vehicles_api.find(ship)
+    except UEXError:
+        return None
+
+
+async def _resolve_allowed_commodities(cog, *, enabled: bool | None) -> set[int] | None:
+    """The set of legal commodity ids when 'safe_commodities' is on, else ``None``."""
+    if not enabled:
+        return None
+    try:
+        catalogue = await cog.bot.commodities_api.all()
+    except UEXError:
+        catalogue = []
+    return {c.id for c in catalogue if c.id is not None and not c.is_illegal}
+
+
+def _build_predicates(filters: RouteFilters):
     origin = terminal_predicate(
-        system=system_start,
-        orbit=orbit_start,
-        terminal_name=terminal_start,
-        faction=faction,
-        container_size=container,
-        **terminal_flags,
+        system=filters.system_start,
+        orbit=filters.orbit_start,
+        terminal_name=filters.terminal_start,
+        faction=filters.faction,
+        container_size=filters.container,
+        **filters.terminal_flags,
     )
     destination = terminal_predicate(
-        system=system_end,
-        orbit=orbit_end,
+        system=filters.system_end,
+        orbit=filters.orbit_end,
         terminal_name=None,
-        faction=faction,
-        container_size=container,
-        **terminal_flags,
+        faction=filters.faction,
+        container_size=filters.container,
+        **filters.terminal_flags,
     )
+    return origin, destination
 
-    allowed_commodities = None
-    if safe_commodities:
-        try:
-            catalogue = await cog.bot.commodities_api.all()
-        except UEXError:
-            catalogue = []
-        allowed_commodities = {c.id for c in catalogue if c.id is not None and not c.is_illegal}
 
-    terminals_by_id = {t.id: t for t in terminals if t.id is not None}
-    found_routes = best_routes(
-        prices,
-        terminals_by_id,
-        origin=origin,
-        destination=destination,
-        id_commodity=id_commodity,
-        capacity=cap,
-        investment=investment,
-        allowed_commodities=allowed_commodities,
-    )
-    if not found_routes:
-        await interaction.followup.send("No profitable routes match those filters.", ephemeral=True)
-        return
-
-    toggles = [
-        label
-        for label, value in (
-            ("Loop", is_loop),
-            ("Loading dock", has_loading_dock),
-            ("Auto-load", is_auto_load),
-            ("Legal only", safe_commodities),
-            ("NQA", is_nqa),
-            ("Monitored", is_monitored),
-            ("Space station", is_space_station),
-            ("Refuel", has_refuel),
-            ("Predictable", is_predictable),
-            ("Player-owned", is_player_owned),
-        )
-        if value
-    ]
-    filters = route_filter_summary(
-        ship=ship,
-        investment=investment,
-        scu=scu,
-        commodity=commodity,
-        system_start=system_start,
-        system_end=system_end,
-        orbit_start=orbit_start,
-        orbit_end=orbit_end,
-        terminal_start=terminal_start,
-        container=container,
-        faction=faction,
-        toggles=toggles,
-    )
-    url = build_uex_url(
+def _build_uex_url(
+    filters: RouteFilters, vehicle: Vehicle | None, terminals: list[Terminal], commodity_name: str | None
+) -> str:
+    return build_uex_url(
         {
             "id_vehicle": vehicle.id if vehicle else None,
-            "investment": f"{investment:,}" if investment else None,
-            "orbit_origin": slugify(orbit_start) if orbit_start else None,
-            "orbit_destination": slugify(orbit_end) if orbit_end else None,
-            "terminal_origin": terminal_slug(terminals, terminal_start),
+            "investment": f"{filters.investment:,}" if filters.investment else None,
+            "orbit_origin": slugify(filters.orbit_start) if filters.orbit_start else None,
+            "orbit_destination": slugify(filters.orbit_end) if filters.orbit_end else None,
+            "terminal_origin": terminal_slug(terminals, filters.terminal_start),
             "id_star_system_origin": lookup_id(
-                terminals, lambda t: t.star_system_name, system_start, lambda t: t.id_star_system
+                terminals, lambda t: t.star_system_name, filters.system_start, lambda t: t.id_star_system
             ),
             "id_star_system_destination": lookup_id(
-                terminals, lambda t: t.star_system_name, system_end, lambda t: t.id_star_system
+                terminals, lambda t: t.star_system_name, filters.system_end, lambda t: t.id_star_system
             ),
-            "scu": scu,
+            "scu": filters.scu,
             "commodity": slugify(commodity_name) if commodity_name else None,
-            "mcs": container,
-            "id_faction": lookup_id(terminals, lambda t: t.faction_name, faction, lambda t: t.id_faction),
-            "is_loop": 1 if is_loop else None,
-            "has_loading_dock": 1 if has_loading_dock else None,
-            "is_auto_load": 1 if is_auto_load else None,
-            "safe_commodities": 1 if safe_commodities else None,
-            "is_nqa": 1 if is_nqa else None,
-            "is_monitored": 1 if is_monitored else None,
-            "is_space_station": 1 if is_space_station else None,
-            "has_refuel": 1 if has_refuel else None,
-            "is_predictable": 1 if is_predictable else None,
-            "is_player_owned": 1 if is_player_owned else None,
+            "mcs": filters.container,
+            "id_faction": lookup_id(terminals, lambda t: t.faction_name, filters.faction, lambda t: t.id_faction),
+            "is_loop": 1 if filters.is_loop else None,
+            "has_loading_dock": 1 if filters.has_loading_dock else None,
+            "is_auto_load": 1 if filters.is_auto_load else None,
+            "safe_commodities": 1 if filters.safe_commodities else None,
+            "is_nqa": 1 if filters.is_nqa else None,
+            "is_monitored": 1 if filters.is_monitored else None,
+            "is_space_station": 1 if filters.is_space_station else None,
+            "has_refuel": 1 if filters.has_refuel else None,
+            "is_predictable": 1 if filters.is_predictable else None,
+            "is_player_owned": 1 if filters.is_player_owned else None,
         }
     )
-    await interaction.followup.send(embed=build_routes_embed(found_routes, filters=filters, url=url))

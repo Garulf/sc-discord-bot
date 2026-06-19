@@ -9,16 +9,17 @@ resource (ships, components, ...) builds on top of it.
 
 from __future__ import annotations
 
-import asyncio
-import time
 from typing import Any
 
 import aiohttp
 
+from src.http_cache import DEFAULT_CACHE_TTL_SECONDS, TTLCache, cache_key
+
 API_BASE_URL = "https://api.star-citizen.wiki/api/v2"
 DEFAULT_TIMEOUT_SECONDS = 15
-DEFAULT_CACHE_TTL_SECONDS = 300
 USER_AGENT = "sc-discord-bot (+https://github.com/StarCitizenWiki/API)"
+
+ERROR_BODY_PREVIEW = 200
 
 
 class StarCitizenWikiError(Exception):
@@ -35,46 +36,6 @@ class APIStatusError(StarCitizenWikiError):
     def __init__(self, status: int, message: str) -> None:
         super().__init__(f"API returned HTTP {status}: {message}")
         self.status = status
-
-
-class TTLCache:
-    """A tiny in-memory cache with per-entry expiry and per-key locking.
-
-    The wiki's catalogue data changes rarely, so caching GET responses for a
-    short while spares the API repeated identical calls (especially from
-    autocomplete). The per-key lock lets concurrent callers asking for the same
-    thing share a single in-flight request instead of stampeding the API.
-    """
-
-    def __init__(self, ttl: float = DEFAULT_CACHE_TTL_SECONDS) -> None:
-        self._ttl = ttl
-        self._entries: dict[str, tuple[float, Any]] = {}
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    async def get(self, key: str) -> Any | None:
-        entry = self._entries.get(key)
-        if entry is None:
-            return None
-        expires_at, value = entry
-        if expires_at < time.monotonic():
-            del self._entries[key]
-            return None
-        return value
-
-    async def set(self, key: str, value: Any, ttl: float | None = None) -> None:
-        lifetime = self._ttl if ttl is None else ttl
-        self._entries[key] = (time.monotonic() + lifetime, value)
-
-    def lock(self, key: str) -> asyncio.Lock:
-        existing = self._locks.get(key)
-        if existing is not None:
-            return existing
-        created = asyncio.Lock()
-        self._locks[key] = created
-        return created
-
-    async def clear(self) -> None:
-        self._entries.clear()
 
 
 class StarCitizenWikiClient:
@@ -152,7 +113,7 @@ class StarCitizenWikiClient:
         if not use_cache:
             return await self._request("GET", path, params=query)
 
-        key = self._cache_key(path, query)
+        key = cache_key(path, query)
         cached = await self._cache.get(key)
         if cached is not None:
             return cached
@@ -165,13 +126,6 @@ class StarCitizenWikiClient:
             data = await self._request("GET", path, params=query)
             await self._cache.set(key, data, cache_ttl)
             return data
-
-    def _cache_key(self, path: str, params: dict[str, Any] | None) -> str:
-        if not params:
-            return path
-        ordered = sorted((str(name), str(value)) for name, value in params.items())
-        encoded = "&".join(f"{name}={value}" for name, value in ordered)
-        return f"{path}?{encoded}"
 
     async def post(
         self,
@@ -199,7 +153,7 @@ class StarCitizenWikiClient:
                     raise NotFoundError(f"{url} returned 404")
                 if response.status >= 400:
                     body = await response.text()
-                    raise APIStatusError(response.status, body[:200])
+                    raise APIStatusError(response.status, body[:ERROR_BODY_PREVIEW])
                 return await response.json()
         except aiohttp.ClientError as e:
             raise StarCitizenWikiError(f"Request to {url} failed: {e}") from e
