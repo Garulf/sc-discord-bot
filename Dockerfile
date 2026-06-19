@@ -5,10 +5,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY requirments.txt ./
-RUN pip install --no-cache-dir -r requirments.txt
-
+COPY pyproject.toml ./
 COPY src ./src
+RUN pip install --no-cache-dir .
 
 RUN useradd --create-home --uid 1000 bot \
     && mkdir -p /app/data \
@@ -16,4 +15,4 @@ RUN useradd --create-home --uid 1000 bot \
 
 USER bot
 
-CMD ["python", "-m", "src.main"]
+CMD ["sc-bot"]
