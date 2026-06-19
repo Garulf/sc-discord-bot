@@ -1,4 +1,5 @@
 from src.starcitizenwiki_api.armor import Armor, ArmorItem
+from src.starcitizenwiki_api.blueprints import Blueprint, BlueprintIngredient, Blueprints
 from src.starcitizenwiki_api.client import (
     API_BASE_URL,
     APIStatusError,
@@ -17,6 +18,9 @@ from src.starcitizenwiki_api.weapons import PurchaseLocation, Weapon, Weapons
 
 __all__ = [
     "API_BASE_URL",
+    "Blueprint",
+    "BlueprintIngredient",
+    "Blueprints",
     "APIStatusError",
     "NotFoundError",
     "StarCitizenWikiClient",
