@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.starcitizenwiki_api._common import DEFAULT_LOCALE, MAX_PAGE_SIZE, extract_data, localize
+from src.starcitizenwiki_api._common import DEFAULT_LOCALE, MAX_PAGE_SIZE, extract_data
 from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
 
 # Blueprints live outside the v2 namespace.
@@ -16,13 +16,15 @@ DEFAULT_SORT = "-craft_time_seconds"
 @dataclass(frozen=True)
 class BlueprintIngredient:
     name: str
-    quantity: int | None
+    quantity_scu: float | None
+    kind: str | None
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> BlueprintIngredient:
         return cls(
             name=data.get("name") or "Unknown",
-            quantity=data.get("quantity"),
+            quantity_scu=data.get("quantity_scu"),
+            kind=data.get("kind"),
         )
 
 
@@ -30,16 +32,20 @@ class BlueprintIngredient:
 class Blueprint:
     uuid: str
     name: str
-    slug: str | None
+    key: str | None
     craft_time_seconds: int | None
+    craft_time_label: str | None
     ingredient_count: int | None
     unlocking_missions_count: int | None
-    is_default: bool | None
-    description: str | None
+    is_available_by_default: bool | None
+    output_class: str | None
+    output_type: str | None
+    output_type_label: str | None
     ingredients: list[BlueprintIngredient] = field(default_factory=list)
 
     @classmethod
     def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Blueprint:
+        output = data.get("output") or {}
         ingredients = [
             BlueprintIngredient.from_api(i)
             for i in (data.get("ingredients") or [])
@@ -47,13 +53,16 @@ class Blueprint:
         ]
         return cls(
             uuid=data.get("uuid") or "",
-            name=data.get("name") or "Unknown",
-            slug=data.get("slug"),
+            name=data.get("output_name") or output.get("name") or "Unknown",
+            key=data.get("key"),
             craft_time_seconds=data.get("craft_time_seconds"),
+            craft_time_label=data.get("craft_time_label"),
             ingredient_count=data.get("ingredient_count"),
             unlocking_missions_count=data.get("unlocking_missions_count"),
-            is_default=data.get("default"),
-            description=localize(data.get("description"), locale),
+            is_available_by_default=data.get("is_available_by_default"),
+            output_class=data.get("output_class") or output.get("class"),
+            output_type=output.get("type"),
+            output_type_label=output.get("type_label"),
             ingredients=ingredients,
         )
 

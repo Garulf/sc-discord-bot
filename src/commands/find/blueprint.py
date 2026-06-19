@@ -14,26 +14,24 @@ from src.starcitizenwiki_api.client import NotFoundError
 def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
     embed = discord.Embed(title=blueprint.name, color=0xF97316)
 
-    if blueprint.craft_time_seconds is not None:
-        minutes, seconds = divmod(blueprint.craft_time_seconds, 60)
-        time_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
-        embed.add_field(name="Craft Time", value=time_str, inline=True)
+    if blueprint.output_type_label:
+        embed.description = blueprint.output_type_label
+
+    if blueprint.craft_time_label:
+        embed.add_field(name="Craft Time", value=blueprint.craft_time_label, inline=True)
 
     if blueprint.ingredient_count is not None:
         embed.add_field(name="Ingredients", value=str(blueprint.ingredient_count), inline=True)
 
-    if blueprint.is_default is not None:
-        embed.add_field(name="Default", value="Yes" if blueprint.is_default else "No", inline=True)
+    if blueprint.is_available_by_default is not None:
+        embed.add_field(name="Default", value="Yes" if blueprint.is_available_by_default else "No", inline=True)
 
     if blueprint.ingredients:
         lines = [
-            f"× {i.quantity or '?'}  {i.name}"
+            f"× {i.quantity_scu:g} SCU  {i.name}" if i.quantity_scu is not None else f"{i.name}"
             for i in blueprint.ingredients
         ]
         embed.add_field(name="Components", value="\n".join(lines), inline=False)
-
-    if blueprint.description:
-        embed.description = blueprint.description
 
     embed.set_footer(text="Source: star-citizen.wiki")
     return embed
