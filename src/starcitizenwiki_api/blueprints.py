@@ -17,14 +17,18 @@ DEFAULT_SORT = "-craft_time_seconds"
 class BlueprintIngredient:
     name: str
     quantity_scu: float | None
+    quantity: int | None
     kind: str | None
+    modifiers: tuple[str, ...] = ()
 
     @classmethod
-    def from_api(cls, data: dict[str, Any]) -> BlueprintIngredient:
+    def from_api(cls, data: dict[str, Any], modifiers: list[str] | None = None) -> BlueprintIngredient:
         return cls(
             name=data.get("name") or "Unknown",
             quantity_scu=data.get("quantity_scu"),
+            quantity=data.get("quantity"),
             kind=data.get("kind"),
+            modifiers=tuple(modifiers or []),
         )
 
 
@@ -47,11 +51,26 @@ class Blueprint:
     @classmethod
     def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Blueprint:
         output = data.get("output") or {}
-        ingredients = [
-            BlueprintIngredient.from_api(i)
-            for i in (data.get("ingredients") or [])
-            if isinstance(i, dict)
-        ]
+        requirement_groups = data.get("requirement_groups") or []
+        if requirement_groups:
+            ingredients = []
+            for group in requirement_groups:
+                if not isinstance(group, dict):
+                    continue
+                modifier_labels = [
+                    m["label"]
+                    for m in (group.get("modifiers") or [])
+                    if isinstance(m, dict) and m.get("label")
+                ]
+                for child in (group.get("children") or []):
+                    if isinstance(child, dict):
+                        ingredients.append(BlueprintIngredient.from_api(child, modifier_labels))
+        else:
+            ingredients = [
+                BlueprintIngredient.from_api(i)
+                for i in (data.get("ingredients") or [])
+                if isinstance(i, dict)
+            ]
         return cls(
             uuid=data.get("uuid") or "",
             name=data.get("output_name") or output.get("name") or "Unknown",

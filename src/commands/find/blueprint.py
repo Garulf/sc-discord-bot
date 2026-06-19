@@ -21,10 +21,18 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
         embed.add_field(name="Craft Time", value=blueprint.craft_time_label, inline=True)
 
     if blueprint.ingredients:
-        lines = [
-            f"× {i.quantity_scu:g} SCU  {i.name}" if i.quantity_scu is not None else i.name
-            for i in blueprint.ingredients
-        ]
+        def _format_ingredient(i) -> str:
+            if i.quantity_scu is not None:
+                line = f"× {i.quantity_scu:g} SCU  {i.name}"
+            elif i.quantity is not None:
+                line = f"x{i.quantity}  {i.name}"
+            else:
+                line = i.name
+            if i.modifiers:
+                line += f"\n  ↳ {', '.join(i.modifiers)}"
+            return line
+
+        lines = [_format_ingredient(i) for i in blueprint.ingredients]
         embed.add_field(name="Components", value="\n".join(lines), inline=False)
 
     embed.set_footer(text="Source: star-citizen.wiki")
