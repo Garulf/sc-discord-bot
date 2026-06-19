@@ -130,12 +130,10 @@ class WikiResource(Generic[ModelT]):
         returns an empty list rather than the entire catalogue.
         """
         query = query.strip()
-        if not query:
-            return []
-        payload = await self._client.get(
-            self.endpoint,
-            params={"filter[name]": query, "page[size]": min(limit * SEARCH_OVERFETCH_FACTOR, MAX_PAGE_SIZE)},
-        )
+        params: dict[str, Any] = {"page[size]": min(limit * SEARCH_OVERFETCH_FACTOR, MAX_PAGE_SIZE)}
+        if query:
+            params["filter[name]"] = query
+        payload = await self._client.get(self.endpoint, params=params)
         raw = extract_data(payload, [])
         items = unique_by_slug(raw)[:limit]
         return [self.model.from_api(item, self._locale) for item in items]

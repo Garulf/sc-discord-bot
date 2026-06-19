@@ -65,8 +65,6 @@ async def handle_single(
 
 
 async def autocomplete_single(cog, api_attr: str, current: str) -> list[app_commands.Choice[str]]:
-    if not current:
-        return []
     try:
         results = await getattr(cog.bot, api_attr).search(current, limit=25)
     except Exception:  # noqa: BLE001 - autocomplete failures are silently dropped
@@ -76,8 +74,6 @@ async def autocomplete_single(cog, api_attr: str, current: str) -> list[app_comm
 
 async def autocomplete_all(cog, current: str) -> list[app_commands.Choice[str]]:
     """Autocomplete across all categories; choice value is ``category_key:slug``."""
-    if not current:
-        return []
     results = await asyncio.gather(
         *[getattr(cog.bot, attr).search(current, limit=5) for attr in API_ATTRS],
         return_exceptions=True,

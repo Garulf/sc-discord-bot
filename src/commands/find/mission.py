@@ -86,10 +86,8 @@ def build_mission_embed(mission: Mission) -> discord.Embed:
 
 
 async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
-    if not current:
-        return []
     try:
-        results = await cog.bot.missions_api.search(current, limit=MAX_AUTOCOMPLETE_CHOICES)
+        results = await cog.bot.missions_api.search(current or None, limit=MAX_AUTOCOMPLETE_CHOICES)
     except Exception:  # noqa: BLE001
         return []
     return [
@@ -97,7 +95,7 @@ async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
             name=m.title[:MAX_CHOICE_LABEL],
             value=m.uuid[:MAX_CHOICE_LABEL],
         )
-        for m in results
+        for m in sorted(results, key=lambda m: len(m.title))
     ]
 
 

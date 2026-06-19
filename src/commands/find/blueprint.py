@@ -57,10 +57,8 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
 
 
 async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
-    if not current:
-        return []
     try:
-        results = await cog.bot.blueprints_api.search(query=current, page_size=MAX_AUTOCOMPLETE_CHOICES)
+        results = await cog.bot.blueprints_api.search(query=current or None, page_size=MAX_AUTOCOMPLETE_CHOICES)
     except Exception:  # noqa: BLE001
         return []
     return [
@@ -68,7 +66,7 @@ async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
             name=bp.name[:MAX_CHOICE_LABEL],
             value=bp.uuid[:MAX_CHOICE_LABEL],
         )
-        for bp in results
+        for bp in sorted(results, key=lambda bp: len(bp.name))
     ]
 
 
