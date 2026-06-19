@@ -1,5 +1,6 @@
 from src.starcitizenwiki_api.armor import Armor, ArmorItem
-from src.starcitizenwiki_api.blueprints import Blueprint, BlueprintIngredient, Blueprints
+from src.starcitizenwiki_api.blueprints import Blueprint, BlueprintIngredient, Blueprints, UnlockingMission, UnlockingMissionGroup
+from src.starcitizenwiki_api.missions import BlueprintStub, Mission, Missions, ReputationGain
 from src.starcitizenwiki_api.client import (
     API_BASE_URL,
     APIStatusError,
@@ -21,6 +22,12 @@ __all__ = [
     "Blueprint",
     "BlueprintIngredient",
     "Blueprints",
+    "UnlockingMission",
+    "UnlockingMissionGroup",
+    "BlueprintStub",
+    "Mission",
+    "Missions",
+    "ReputationGain",
     "APIStatusError",
     "NotFoundError",
     "StarCitizenWikiClient",

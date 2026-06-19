@@ -14,6 +14,8 @@ from .blueprint import autocomplete as _blueprint_autocomplete
 from .blueprint import handle as _handle_blueprint
 from .clothes import handle as _handle_clothes
 from .item import handle as _handle_item
+from .mission import autocomplete as _mission_autocomplete
+from .mission import handle as _handle_mission
 from .shared import autocomplete_all, autocomplete_single
 from .shipweapon import handle as _handle_shipweapon
 from .vehicleitem import handle as _handle_vehicleitem
@@ -52,6 +54,9 @@ class FindCog(commands.Cog):
 
     async def blueprint_autocomplete(self, interaction: discord.Interaction, current: str):
         return await _blueprint_autocomplete(self, current)
+
+    async def mission_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await _mission_autocomplete(self, current)
 
     async def all_autocomplete(self, interaction: discord.Interaction, current: str):
         return await autocomplete_all(self, current)
@@ -109,6 +114,12 @@ class FindCog(commands.Cog):
     @app_commands.autocomplete(name=blueprint_autocomplete)
     async def blueprint(self, interaction: discord.Interaction, name: str) -> None:
         await _handle_blueprint(self, interaction, name)
+
+    @find.command(name="mission", description="Search Star Citizen missions")
+    @app_commands.describe(name="Mission name to search for")
+    @app_commands.autocomplete(name=mission_autocomplete)
+    async def mission(self, interaction: discord.Interaction, name: str) -> None:
+        await _handle_mission(self, interaction, name)
 
 
 async def setup(bot: commands.Bot) -> None:

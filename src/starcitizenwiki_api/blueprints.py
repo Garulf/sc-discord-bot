@@ -33,6 +33,42 @@ class BlueprintIngredient:
 
 
 @dataclass(frozen=True)
+class UnlockingMission:
+    title: str
+    reward_scope: str | None
+    count: int
+    web_url: str | None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> UnlockingMission:
+        return cls(
+            title=data.get("title") or "Unknown",
+            reward_scope=data.get("reward_scope"),
+            count=data.get("count") or 1,
+            web_url=data.get("web_url"),
+        )
+
+
+@dataclass(frozen=True)
+class UnlockingMissionGroup:
+    label: str
+    chance: float
+    missions: list[UnlockingMission] = field(default_factory=list)
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> UnlockingMissionGroup:
+        return cls(
+            label=data.get("label") or "",
+            chance=float(data.get("chance") or 0),
+            missions=[
+                UnlockingMission.from_api(m)
+                for m in (data.get("missions") or [])
+                if isinstance(m, dict)
+            ],
+        )
+
+
+@dataclass(frozen=True)
 class Blueprint:
     uuid: str
     name: str
@@ -47,6 +83,7 @@ class Blueprint:
     output_type: str | None
     output_type_label: str | None
     ingredients: list[BlueprintIngredient] = field(default_factory=list)
+    unlocking_missions_grouped: list[UnlockingMissionGroup] = field(default_factory=list)
 
     @classmethod
     def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Blueprint:
@@ -85,6 +122,11 @@ class Blueprint:
             output_type=output.get("type"),
             output_type_label=output.get("type_label"),
             ingredients=ingredients,
+            unlocking_missions_grouped=[
+                UnlockingMissionGroup.from_api(g)
+                for g in (data.get("unlocking_missions_grouped") or [])
+                if isinstance(g, dict)
+            ],
         )
 
 
