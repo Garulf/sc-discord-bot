@@ -1,20 +1,26 @@
 """Unit tests for src.starcitizenwiki_api models and shared helpers.
 
-Covers the pure parsing layer: from_api() constructors, localize(), _first_image(),
-_unique_by_slug(), and _is_base_model() — no HTTP calls involved.
+Covers the pure parsing layer: from_api() constructors, localize(), first_image(),
+unique_by_slug(), and _is_base_model() — no HTTP calls involved.
 """
 
-from src.starcitizenwiki_api.armor import ArmorItem, _first_image as armor_first_image
+from src.starcitizenwiki_api._common import (
+    PurchaseLocation,
+    first_image,
+    localize,
+    unique_by_slug,
+)
+from src.starcitizenwiki_api.armor import ArmorItem
 from src.starcitizenwiki_api.clothes import ClothingItem
 from src.starcitizenwiki_api.items import Item
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon
-from src.starcitizenwiki_api.ships import Vehicle, _first_image, _unique_by_slug, localize
+from src.starcitizenwiki_api.ships import Vehicle
 from src.starcitizenwiki_api.vehicle_items import VehicleItem
 from src.starcitizenwiki_api.weapon_attachments import WeaponAttachment
-from src.starcitizenwiki_api.weapons import PurchaseLocation, Weapon, _is_base_model
-
+from src.starcitizenwiki_api.weapons import Weapon, _is_base_model
 
 # ── localize ──────────────────────────────────────────────────────────────────
+
 
 class TestLocalize:
     def test_none_returns_none(self):
@@ -39,66 +45,69 @@ class TestLocalize:
         assert localize({"en_EN": "", "de_DE": "Bereit"}) == "Bereit"
 
 
-# ── _first_image ──────────────────────────────────────────────────────────────
+# ── first_image ──────────────────────────────────────────────────────────────
+
 
 class TestFirstImage:
     def test_none_images_returns_none(self):
-        assert _first_image(None) is None
+        assert first_image(None) is None
 
     def test_empty_list_returns_none(self):
-        assert _first_image([]) is None
+        assert first_image([]) is None
 
     def test_non_list_returns_none(self):
-        assert _first_image("not-a-list") is None
+        assert first_image("not-a-list") is None
 
     def test_first_element_not_dict_returns_none(self):
-        assert _first_image(["string"]) is None
+        assert first_image(["string"]) is None
 
     def test_returns_thumbnail_url_when_present(self):
         images = [{"thumbnail_url": "https://example.com/thumb.jpg", "original_url": "https://example.com/orig.jpg"}]
-        assert _first_image(images) == "https://example.com/thumb.jpg"
+        assert first_image(images) == "https://example.com/thumb.jpg"
 
     def test_falls_back_to_original_url_when_no_thumbnail(self):
         images = [{"original_url": "https://example.com/orig.jpg"}]
-        assert _first_image(images) == "https://example.com/orig.jpg"
+        assert first_image(images) == "https://example.com/orig.jpg"
 
     def test_uses_only_first_image(self):
         images = [
             {"thumbnail_url": "https://example.com/first.jpg"},
             {"thumbnail_url": "https://example.com/second.jpg"},
         ]
-        assert _first_image(images) == "https://example.com/first.jpg"
+        assert first_image(images) == "https://example.com/first.jpg"
 
 
-# ── _unique_by_slug ───────────────────────────────────────────────────────────
+# ── unique_by_slug ───────────────────────────────────────────────────────────
+
 
 class TestUniqueBySlug:
     def test_empty_list_returns_empty(self):
-        assert _unique_by_slug([]) == []
+        assert unique_by_slug([]) == []
 
     def test_no_duplicates_passthrough(self):
         items = [{"slug": "aurora-mr"}, {"slug": "cutlass-black"}]
-        assert _unique_by_slug(items) == items
+        assert unique_by_slug(items) == items
 
     def test_deduplicates_by_slug(self):
         items = [{"slug": "aurora-mr", "name": "Aurora MR"}, {"slug": "aurora-mr", "name": "Aurora MR v2"}]
-        assert len(_unique_by_slug(items)) == 1
+        assert len(unique_by_slug(items)) == 1
 
     def test_falls_back_to_name_when_no_slug(self):
         items = [{"name": "Aurora MR"}, {"name": "Aurora MR"}]
-        assert len(_unique_by_slug(items)) == 1
+        assert len(unique_by_slug(items)) == 1
 
     def test_falls_back_to_uuid_when_no_slug_or_name(self):
         items = [{"uuid": "abc-123"}, {"uuid": "abc-123"}]
-        assert len(_unique_by_slug(items)) == 1
+        assert len(unique_by_slug(items)) == 1
 
     def test_preserves_order_of_first_seen(self):
         items = [{"slug": "a"}, {"slug": "b"}, {"slug": "a"}]
-        result = _unique_by_slug(items)
+        result = unique_by_slug(items)
         assert [r["slug"] for r in result] == ["a", "b"]
 
 
 # ── PurchaseLocation ──────────────────────────────────────────────────────────
+
 
 class TestPurchaseLocationFromApi:
     def test_parses_price_buy(self):
@@ -127,31 +136,59 @@ class TestPurchaseLocationFromApi:
 
 # ── _is_base_model ────────────────────────────────────────────────────────────
 
+
 class TestIsBaseModel:
     def test_plain_name_is_base_model(self):
         w = Weapon(
-            uuid=None, name="P4-AR Rifle", slug=None, manufacturer=None,
-            manufacturer_code=None, description=None, classification=None,
-            weapon_type=None, size=None, fire_mode=None, magazine_size=None,
-            rpm=None, effective_range=None, damage_per_shot=None,
-            alpha_damage=None, dps=None, ammunition_type=None,
-            web_url=None, image_url=None,
+            uuid=None,
+            name="P4-AR Rifle",
+            slug=None,
+            manufacturer=None,
+            manufacturer_code=None,
+            description=None,
+            classification=None,
+            weapon_type=None,
+            size=None,
+            fire_mode=None,
+            magazine_size=None,
+            rpm=None,
+            effective_range=None,
+            damage_per_shot=None,
+            alpha_damage=None,
+            dps=None,
+            ammunition_type=None,
+            web_url=None,
+            image_url=None,
         )
         assert _is_base_model(w)
 
     def test_quoted_nickname_is_not_base_model(self):
         w = Weapon(
-            uuid=None, name='P4-AR "Canuto" Rifle', slug=None, manufacturer=None,
-            manufacturer_code=None, description=None, classification=None,
-            weapon_type=None, size=None, fire_mode=None, magazine_size=None,
-            rpm=None, effective_range=None, damage_per_shot=None,
-            alpha_damage=None, dps=None, ammunition_type=None,
-            web_url=None, image_url=None,
+            uuid=None,
+            name='P4-AR "Canuto" Rifle',
+            slug=None,
+            manufacturer=None,
+            manufacturer_code=None,
+            description=None,
+            classification=None,
+            weapon_type=None,
+            size=None,
+            fire_mode=None,
+            magazine_size=None,
+            rpm=None,
+            effective_range=None,
+            damage_per_shot=None,
+            alpha_damage=None,
+            dps=None,
+            ammunition_type=None,
+            web_url=None,
+            image_url=None,
         )
         assert not _is_base_model(w)
 
 
 # ── Weapon.from_api ───────────────────────────────────────────────────────────
+
 
 class TestWeaponFromApi:
     def test_defaults_name_to_unknown(self):
@@ -179,11 +216,7 @@ class TestWeaponFromApi:
         assert Weapon.from_api(data).rpm == 600
 
     def test_parses_purchase_locations_from_uex_prices(self):
-        data = {
-            "uex_prices": {
-                "purchase": [{"price_buy": 500.0, "terminal_name": "Store"}]
-            }
-        }
+        data = {"uex_prices": {"purchase": [{"price_buy": 500.0, "terminal_name": "Store"}]}}
         w = Weapon.from_api(data)
         assert len(w.purchase_locations) == 1
         assert w.purchase_locations[0].price_buy == 500.0
@@ -202,6 +235,7 @@ class TestWeaponFromApi:
 
 
 # ── ShipWeapon.from_api ───────────────────────────────────────────────────────
+
 
 class TestShipWeaponFromApi:
     def test_defaults_name_to_unknown(self):
@@ -238,6 +272,7 @@ class TestShipWeaponFromApi:
 
 # ── ArmorItem.from_api ────────────────────────────────────────────────────────
 
+
 class TestArmorItemFromApi:
     def test_defaults_name_to_unknown(self):
         assert ArmorItem.from_api({}).name == "Unknown"
@@ -268,6 +303,7 @@ class TestArmorItemFromApi:
 
 # ── ClothingItem.from_api ─────────────────────────────────────────────────────
 
+
 class TestClothingItemFromApi:
     def test_defaults_name_to_unknown(self):
         assert ClothingItem.from_api({}).name == "Unknown"
@@ -284,6 +320,7 @@ class TestClothingItemFromApi:
 
 
 # ── VehicleItem.from_api ──────────────────────────────────────────────────────
+
 
 class TestVehicleItemFromApi:
     def test_defaults_name_to_unknown(self):
@@ -304,6 +341,7 @@ class TestVehicleItemFromApi:
 
 # ── Item.from_api ─────────────────────────────────────────────────────────────
 
+
 class TestItemFromApi:
     def test_defaults_name_to_unknown(self):
         assert Item.from_api({}).name == "Unknown"
@@ -319,6 +357,7 @@ class TestItemFromApi:
 
 
 # ── WeaponAttachment.from_api ─────────────────────────────────────────────────
+
 
 class TestWeaponAttachmentFromApi:
     def test_defaults_name_to_unknown(self):
@@ -336,6 +375,7 @@ class TestWeaponAttachmentFromApi:
 
 
 # ── Vehicle (SC wiki ship).from_api ───────────────────────────────────────────
+
 
 class TestVehicleFromApi:
     def test_defaults_name_to_unknown(self):

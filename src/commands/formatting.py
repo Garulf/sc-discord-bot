@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import discord
 
-from src.starcitizenwiki_api.weapons import PurchaseLocation
+from src.starcitizenwiki_api import PurchaseLocation
 
 MAX_SHOPS_SHOWN = 8
+MAX_EMBED_DESCRIPTION = 500
 
 
 def format_number(value: float | None, suffix: str = "") -> str | None:
@@ -17,6 +18,12 @@ def format_number(value: float | None, suffix: str = "") -> str | None:
     if rounded == int(rounded):
         rounded = int(rounded)
     return f"{rounded:,}{suffix}"
+
+
+def truncate(text: str, limit: int = MAX_EMBED_DESCRIPTION) -> str:
+    """Trim text to ``limit`` characters, appending an ellipsis when shortened."""
+    text = text.strip()
+    return text[:limit] + ("…" if len(text) > limit else "")
 
 
 def format_shop(shop: PurchaseLocation) -> str:

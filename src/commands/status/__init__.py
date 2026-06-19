@@ -4,6 +4,8 @@ incidents to subscribed channels."""
 
 from __future__ import annotations
 
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -16,6 +18,8 @@ from .embeds import build_overview_embed, build_status_embed, normalize_link
 from .show import handle as _handle_show
 from .subscribe import handle as _handle_subscribe
 from .unsubscribe import handle as _handle_unsubscribe
+
+logger = logging.getLogger(__name__)
 
 
 class StatusCog(commands.Cog):
@@ -58,8 +62,8 @@ class StatusCog(commands.Cog):
     async def _poll_incidents(self, subscriptions: list[int]) -> None:
         try:
             entries = await fetch_status_entries(STATUS_FEED_URL)
-        except Exception as e:  # noqa: BLE001 - log and keep the loop alive
-            print(f"RSI status feed poll failed: {e}")
+        except Exception:  # noqa: BLE001 - log and keep the loop alive
+            logger.exception("RSI status feed poll failed")
             return
         if not entries:
             return
@@ -80,8 +84,8 @@ class StatusCog(commands.Cog):
     async def _poll_systems(self, subscriptions: list[int]) -> None:
         try:
             overview = await fetch_status_overview()
-        except Exception as e:  # noqa: BLE001 - log and keep the loop alive
-            print(f"RSI status overview poll failed: {e}")
+        except Exception:  # noqa: BLE001 - log and keep the loop alive
+            logger.exception("RSI status overview poll failed")
             return
 
         current = {system.name: system.status for system in overview.systems}
@@ -107,8 +111,8 @@ class StatusCog(commands.Cog):
             return None
         try:
             entries = await fetch_status_entries(STATUS_FEED_URL)
-        except Exception as e:  # noqa: BLE001 - the message is best-effort
-            print(f"RSI status message lookup failed: {e}")
+        except Exception:  # noqa: BLE001 - the message is best-effort
+            logger.exception("RSI status message lookup failed")
             return None
         for entry in entries:
             if entry.summary and normalize_link(entry.link or entry.guid) in unresolved:

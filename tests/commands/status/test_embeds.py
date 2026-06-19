@@ -8,8 +8,7 @@ from src.commands.status.embeds import (
     status_text,
     truncate,
 )
-from src.rsi_status import STATUS_PAGE_URL, StatusEntry, StatusOverview, StatusSystem, UnresolvedIssue
-
+from src.rsi_status import STATUS_PAGE_URL, StatusEntry, StatusOverview, StatusSystem
 
 # ── status_text ───────────────────────────────────────────────────────────────
 

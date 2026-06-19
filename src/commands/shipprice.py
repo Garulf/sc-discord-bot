@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.autocomplete import item_choices
 from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.uex_api import UEXError, Vehicle, VehiclePurchasePrice, VehicleRentalPrice
@@ -91,16 +92,7 @@ class ShipPriceCog(commands.Cog):
                 results = sorted(await self.bot.vehicles_api.all(), key=lambda v: v.name)
         except UEXError:
             return []
-        choices: list[app_commands.Choice[str]] = []
-        seen: set[str] = set()
-        for vehicle in results:
-            if vehicle.name in seen:
-                continue
-            seen.add(vehicle.name)
-            choices.append(app_commands.Choice(name=vehicle.name[:100], value=vehicle.name[:100]))
-            if len(choices) >= 25:
-                break
-        return choices
+        return item_choices(results)
 
     @app_commands.command(name="shipprice", description="Find where to buy or rent a ship for aUEC in-game")
     @app_commands.describe(name="Ship name to search for (e.g. Cutlass Black, 300i)")

@@ -4,7 +4,6 @@ from src.commands.commodity.constants import MAX_ROUTES
 from src.commands.commodity.routes import _commodity_routes, best_routes
 from src.uex_api import CommodityPrice, Terminal
 
-
 # ── Factories ─────────────────────────────────────────────────────────────────
 
 def _terminal(id: int, name: str = "Terminal", system: str = "Stanton") -> Terminal:

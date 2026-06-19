@@ -15,7 +15,6 @@ from src.commands.commodity.embeds import (
 from src.commands.commodity.helpers import Route
 from src.uex_api import Commodity, CommodityPrice, Terminal
 
-
 # ── Factories ─────────────────────────────────────────────────────────────────
 
 def _commodity(name: str = "Gold") -> Commodity:
