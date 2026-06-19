@@ -22,7 +22,20 @@ from src.starcitizenwiki_api import (
     Weapons,
 )
 from src.starcitizenwiki_api.blueprints import Blueprints
+from src.starcitizenwiki_api.celestial_objects import CelestialObjects
+from src.starcitizenwiki_api.comm_links import CommLinks
+from src.starcitizenwiki_api.factions import Factions
+from src.starcitizenwiki_api.food import Food
+from src.starcitizenwiki_api.galactapedia import Galactapedia
+from src.starcitizenwiki_api.game_versions import GameVersions
+from src.starcitizenwiki_api.gravlev_vehicles import GravlevVehicles
+from src.starcitizenwiki_api.ground_vehicles import GroundVehicles
+from src.starcitizenwiki_api.locations import Locations
+from src.starcitizenwiki_api.manufacturers import Manufacturers
 from src.starcitizenwiki_api.missions import Missions
+from src.starcitizenwiki_api.stats import Stats
+from src.starcitizenwiki_api.starsystems import StarSystems
+from src.starcitizenwiki_api.wiki_commodities import WikiCommodities
 from src.storage import Database, SqliteCache, StateStore
 from src.uex_api import (
     Commodities,
@@ -82,6 +95,19 @@ class SCBot(commands.Bot):
         self.items_api = Items(self.sc_client)
         self.blueprints_api = Blueprints(self.sc_client)
         self.missions_api = Missions(self.sc_client)
+        self.celestial_objects_api = CelestialObjects(self.sc_client)
+        self.starsystems_api = StarSystems(self.sc_client)
+        self.locations_api = Locations(self.sc_client)
+        self.ground_vehicles_api = GroundVehicles(self.sc_client)
+        self.gravlev_vehicles_api = GravlevVehicles(self.sc_client)
+        self.factions_api = Factions(self.sc_client)
+        self.manufacturers_api = Manufacturers(self.sc_client)
+        self.wiki_commodities_api = WikiCommodities(self.sc_client)
+        self.food_api = Food(self.sc_client)
+        self.galactapedia_api = Galactapedia(self.sc_client)
+        self.comm_links_api = CommLinks(self.sc_client)
+        self.game_versions_api = GameVersions(self.sc_client)
+        self.stats_api = Stats(self.sc_client)
 
         self.uex_client = UEXClient(token=os.getenv("UEX_BEARER_TOKEN"), cache=SqliteCache(self.db, namespace="uex"))
         self.commodities_api = Commodities(self.uex_client)
