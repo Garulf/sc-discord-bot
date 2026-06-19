@@ -10,6 +10,7 @@ from src.starcitizenwiki_api.client import NotFoundError
 from .armor import build_armor_embed
 from .clothes import build_clothes_embed
 from .item import build_item_embed
+from .mission import build_mission_embed
 from .shipweapon import build_ship_weapon_embed
 from .vehicleitem import build_vehicle_item_embed
 from .weapon import build_weapon_embed
@@ -23,6 +24,7 @@ DISPATCH: dict[str, tuple[str, object]] = {
     "vehicle-item": ("vehicle_items_api", build_vehicle_item_embed),
     "weapon-attachment": ("weapon_attachments_api", build_weapon_attachment_embed),
     "item": ("items_api", build_item_embed),
+    "mission": ("missions_api", build_mission_embed),
 }
 
 

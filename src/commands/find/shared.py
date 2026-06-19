@@ -26,6 +26,7 @@ CATEGORIES = [
     ("vehicle-item", "Vehicle Item"),
     ("weapon-attachment", "Weapon Attachment"),
     ("item", "Item"),
+    ("mission", "Mission"),
 ]
 
 API_ATTRS = [
@@ -36,6 +37,7 @@ API_ATTRS = [
     "vehicle_items_api",
     "weapon_attachments_api",
     "items_api",
+    "missions_api",
 ]
 
 
