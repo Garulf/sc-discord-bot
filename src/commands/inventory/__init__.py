@@ -12,15 +12,15 @@ from discord import app_commands
 from discord.ext import commands
 
 from .add import handle as _handle_add
-from .admin_add import handle as _handle_admin_add
-from .admin_clear import handle as _handle_admin_clear
-from .admin_clear_all import handle as _handle_admin_clear_all
-from .admin_remove import handle as _handle_admin_remove
+from .admin.add import handle as _handle_admin_add
+from .admin.clear import handle as _handle_admin_clear
+from .admin.clear_all import handle as _handle_admin_clear_all
+from .admin.remove import handle as _handle_admin_remove
 from .clear import handle as _handle_clear
-from .helpers import ITEMS, guild_key
 from .remove import handle as _handle_remove
-from .status_everyone import handle as _handle_status_everyone
-from .status_mine import handle as _handle_status_mine
+from .shared import item_choices
+from .status.everyone import handle as _handle_status_everyone
+from .status.mine import handle as _handle_status_mine
 
 
 class InventoryCog(commands.Cog):
@@ -44,15 +44,8 @@ class InventoryCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    async def _get_guild_inventory(self, guild_id: int) -> dict[str, dict[str, int]]:
-        return await self.bot.state.get(guild_key(guild_id), {})
-
-    async def _save_guild_inventory(self, guild_id: int, data: dict[str, dict[str, int]]) -> None:
-        await self.bot.state.set(guild_key(guild_id), data)
-
     async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        needle = current.strip().lower()
-        return [app_commands.Choice(name=item, value=item) for item in ITEMS if not needle or needle in item.lower()]
+        return item_choices(current)
 
     @inventory.command(name="add", description="Add a DCHS item to your inventory")
     @app_commands.describe(item="The DCHS item to add (DCHS-01 through DCHS-07)", count="How many to add (default 1)")

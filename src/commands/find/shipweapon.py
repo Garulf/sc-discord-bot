@@ -1,16 +1,14 @@
-"""The /shipweapon command and /find shipweapon subcommand handler."""
+"""Handler for /find shipweapon."""
 
 from __future__ import annotations
 
 import discord
-from discord import app_commands
-from discord.ext import commands
 
-from src.commands.autocomplete import item_choices
 from src.commands.formatting import add_shops_field, truncate
 from src.commands.formatting import format_number as _format_number
-from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon
+
+from .shared import handle_single
 
 
 def build_ship_weapon_embed(weapon: ShipWeapon) -> discord.Embed:
@@ -62,43 +60,5 @@ def build_ship_weapon_embed(weapon: ShipWeapon) -> discord.Embed:
     return embed
 
 
-class ShipWeaponsCog(commands.Cog):
-    """Ship weapon component lookups against the Star Citizen Wiki API."""
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-
-    async def ship_weapon_autocomplete(
-        self, interaction: discord.Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
-        if not current:
-            return []
-        try:
-            results = await self.bot.ship_weapons_api.search(current, limit=25)
-        except StarCitizenWikiError:
-            return []
-        results.sort(key=lambda w: len(w.name))
-        return item_choices(results)
-
-    @app_commands.command(name="shipweapon", description="Look up a ship-mounted weapon component")
-    @app_commands.describe(name="Weapon name to search for (e.g. Laser Cannon, Gatling)")
-    @app_commands.autocomplete(name=ship_weapon_autocomplete)
-    async def shipweapon(self, interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
-        try:
-            weapon = await self.bot.ship_weapons_api.find(name)
-        except StarCitizenWikiError as e:
-            await interaction.followup.send(f"Couldn't reach the Star Citizen Wiki API right now: {e}", ephemeral=True)
-            return
-        if weapon is None:
-            await interaction.followup.send(f"No ship weapon found matching **{name}**.", ephemeral=True)
-            return
-        await interaction.followup.send(embed=build_ship_weapon_embed(weapon))
-
-
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(ShipWeaponsCog(bot))
-
-
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:
-    await cog._handle_single(interaction, name, "ship-weapon")
+    await handle_single(cog, interaction, name, "ship_weapons_api", build_ship_weapon_embed)

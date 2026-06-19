@@ -1,6 +1,12 @@
-"""Pure helpers and constants for the /inventory command group."""
+"""Shared code for the /inventory command group.
+
+Contains constants, pure helpers, embed formatting, and guild-state accessors
+used by all inventory subcommands.
+"""
 
 from __future__ import annotations
+
+from discord import app_commands
 
 ITEMS = [f"DCHS-{i:02d}" for i in range(1, 8)]
 _STATE_KEY_PREFIX = "inventory"
@@ -11,8 +17,12 @@ def guild_key(guild_id: int) -> str:
     return f"{_STATE_KEY_PREFIX}:{guild_id}"
 
 
+def item_choices(current: str) -> list[app_commands.Choice[str]]:
+    needle = current.strip().lower()
+    return [app_commands.Choice(name=item, value=item) for item in ITEMS if not needle or needle in item.lower()]
+
+
 def complete_sets(inventory: dict[str, int]) -> int:
-    """Minimum count across all 7 items — the number of complete sets."""
     return min(inventory.get(item, 0) for item in ITEMS)
 
 
@@ -25,7 +35,6 @@ def embed_color(inventory: dict[str, int]) -> int:
 
 
 def format_field(inventory: dict[str, int]) -> str:
-    """Compact per-item lines for embed fields in the everyone view."""
     lines = []
     for item in ITEMS:
         count = inventory.get(item, 0)
@@ -41,7 +50,6 @@ def format_field(inventory: dict[str, int]) -> str:
 
 
 def format_mine(inventory: dict[str, int]) -> str:
-    """Richer per-item lines for the personal mine view."""
     lines = []
     for item in ITEMS:
         count = inventory.get(item, 0)
@@ -51,3 +59,11 @@ def format_mine(inventory: dict[str, int]) -> str:
         else:
             lines.append(f"❌ ~~{item}~~")
     return "\n".join(lines)
+
+
+async def get_guild_inventory(cog, guild_id: int) -> dict[str, dict[str, int]]:
+    return await cog.bot.state.get(guild_key(guild_id), {})
+
+
+async def save_guild_inventory(cog, guild_id: int, data: dict[str, dict[str, int]]) -> None:
+    await cog.bot.state.set(guild_key(guild_id), data)

@@ -5,6 +5,8 @@ from __future__ import annotations
 import discord
 from discord import app_commands
 
+from .shared import respond
+
 
 async def handle(
     cog,
@@ -14,4 +16,4 @@ async def handle(
     place: app_commands.Choice[str] | None = None,
     exterior_cargo: bool | None = None,
 ) -> None:
-    await cog._respond(interaction, name, selling=False, system=system, place=place, exterior_cargo=exterior_cargo)
+    await respond(cog, interaction, name, selling=False, system=system, place=place, exterior_cargo=exterior_cargo)

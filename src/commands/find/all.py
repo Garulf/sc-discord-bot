@@ -7,7 +7,23 @@ import discord
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.client import NotFoundError
 
-from .dispatch import DISPATCH
+from .armor import build_armor_embed
+from .clothes import build_clothes_embed
+from .item import build_item_embed
+from .shipweapon import build_ship_weapon_embed
+from .vehicleitem import build_vehicle_item_embed
+from .weapon import build_weapon_embed
+from .weaponattachment import build_weapon_attachment_embed
+
+DISPATCH: dict[str, tuple[str, object]] = {
+    "weapon": ("weapons_api", build_weapon_embed),
+    "ship-weapon": ("ship_weapons_api", build_ship_weapon_embed),
+    "armor": ("armor_api", build_armor_embed),
+    "clothes": ("clothes_api", build_clothes_embed),
+    "vehicle-item": ("vehicle_items_api", build_vehicle_item_embed),
+    "weapon-attachment": ("weapon_attachments_api", build_weapon_attachment_embed),
+    "item": ("items_api", build_item_embed),
+}
 
 
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:

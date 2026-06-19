@@ -1,18 +1,16 @@
 """Unit tests for src.commands.commodity.embeds — three embed builders."""
 
-from src.commands.commodity.constants import (
+from src.commands.commodity.shared import (
     BUY_COLOR,
     LOSS_COLOR,
     MAX_LOCATIONS_SHOWN,
     ROUTE_COLOR,
     SELL_COLOR,
-)
-from src.commands.commodity.embeds import (
+    Route,
     build_commodity_embed,
     build_routes_embed,
     build_trade_embed,
 )
-from src.commands.commodity.helpers import Route
 from src.uex_api import Commodity, CommodityPrice, Terminal
 
 # ── Factories ─────────────────────────────────────────────────────────────────

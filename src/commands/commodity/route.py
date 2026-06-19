@@ -1,4 +1,4 @@
-"""Handler for /commodity route."""
+"""Handler for /commodity route — ranks the most profitable trade routes."""
 
 from __future__ import annotations
 
@@ -10,8 +10,11 @@ from discord import app_commands
 from src.uex_api import UEXError
 from src.uex_api.models import Commodity, CommodityPrice, Terminal, Vehicle
 
-from .embeds import build_routes_embed
-from .helpers import (
+from .shared import (
+    MAX_ROUTES,
+    Route,
+    TerminalPredicate,
+    build_routes_embed,
     build_uex_url,
     capacity,
     lookup_id,
@@ -19,8 +22,8 @@ from .helpers import (
     slugify,
     terminal_predicate,
     terminal_slug,
+    tradeable_scu,
 )
-from .routes import best_routes
 
 
 @dataclass(frozen=True)
@@ -100,11 +103,59 @@ class _RouteAborted(Exception):
     """Raised once a user-facing error has been sent, to stop further handling."""
 
 
-async def handle(cog, interaction: discord.Interaction, filters: RouteFilters) -> None:
+async def handle(
+    cog,
+    interaction: discord.Interaction,
+    *,
+    ship: str | None = None,
+    investment: int | None = None,
+    scu: int | None = None,
+    commodity: str | None = None,
+    star_system_start: app_commands.Choice[str] | None = None,
+    star_system_end: app_commands.Choice[str] | None = None,
+    orbit_start: str | None = None,
+    orbit_end: str | None = None,
+    terminal_start: str | None = None,
+    container_size: app_commands.Choice[int] | None = None,
+    faction: str | None = None,
+    is_loop: bool | None = None,
+    has_loading_dock: bool | None = None,
+    is_auto_load: bool | None = None,
+    safe_commodities: bool | None = None,
+    is_nqa: bool | None = None,
+    is_monitored: bool | None = None,
+    is_space_station: bool | None = None,
+    has_refuel: bool | None = None,
+    is_predictable: bool | None = None,
+    is_player_owned: bool | None = None,
+) -> None:
+    filters = RouteFilters(
+        ship=ship,
+        investment=investment,
+        scu=scu,
+        commodity=commodity,
+        star_system_start=star_system_start,
+        star_system_end=star_system_end,
+        orbit_start=orbit_start,
+        orbit_end=orbit_end,
+        terminal_start=terminal_start,
+        container_size=container_size,
+        faction=faction,
+        is_loop=is_loop,
+        has_loading_dock=has_loading_dock,
+        is_auto_load=is_auto_load,
+        safe_commodities=safe_commodities,
+        is_nqa=is_nqa,
+        is_monitored=is_monitored,
+        is_space_station=is_space_station,
+        has_refuel=has_refuel,
+        is_predictable=is_predictable,
+        is_player_owned=is_player_owned,
+    )
     await interaction.response.defer()
     try:
         prices, terminals = await _fetch_market_data(cog, interaction)
-        commodity = await _resolve_commodity(cog, interaction, filters.commodity)
+        resolved_commodity = await _resolve_commodity(cog, interaction, filters.commodity)
         vehicle = await _resolve_vehicle(cog, filters.ship)
         allowed_commodities = await _resolve_allowed_commodities(cog, enabled=filters.safe_commodities)
     except _RouteAborted:
@@ -116,7 +167,7 @@ async def handle(cog, interaction: discord.Interaction, filters: RouteFilters) -
         {t.id: t for t in terminals if t.id is not None},
         origin=origin,
         destination=destination,
-        id_commodity=commodity.id if commodity else None,
+        id_commodity=resolved_commodity.id if resolved_commodity else None,
         capacity=capacity(vehicle, filters.scu),
         investment=filters.investment,
         allowed_commodities=allowed_commodities,
@@ -139,8 +190,106 @@ async def handle(cog, interaction: discord.Interaction, filters: RouteFilters) -
         faction=filters.faction,
         toggles=filters.toggles,
     )
-    url = _build_uex_url(filters, vehicle, terminals, commodity.name if commodity else None)
+    url = _build_uex_url(filters, vehicle, terminals, resolved_commodity.name if resolved_commodity else None)
     await interaction.followup.send(embed=build_routes_embed(routes, filters=summary, url=url))
+
+
+# ---------------------------------------------------------------------------
+# Route-finding algorithm (was routes.py)
+# ---------------------------------------------------------------------------
+
+
+def best_routes(
+    prices: list[CommodityPrice],
+    terminals_by_id: dict[int, Terminal],
+    *,
+    origin: TerminalPredicate,
+    destination: TerminalPredicate,
+    id_commodity: int | None,
+    capacity: int | None,
+    investment: int | None,
+    allowed_commodities: set[int] | None = None,
+) -> list[Route]:
+    """Best buy→sell route per commodity, ranked by trip profit, capped at MAX_ROUTES."""
+    buys: dict[int, list[tuple[CommodityPrice, Terminal]]] = {}
+    sells: dict[int, list[tuple[CommodityPrice, Terminal]]] = {}
+
+    for row in prices:
+        commodity_id = row.id_commodity
+        if commodity_id is None:
+            continue
+        if id_commodity is not None and commodity_id != id_commodity:
+            continue
+        if allowed_commodities is not None and commodity_id not in allowed_commodities:
+            continue
+        terminal = terminals_by_id.get(row.id_terminal)
+        if terminal is None:
+            continue
+        if row.price_buy and (row.scu_buy or 0) > 0 and origin(terminal):
+            buys.setdefault(commodity_id, []).append((row, terminal))
+        if row.price_sell and destination(terminal):
+            sells.setdefault(commodity_id, []).append((row, terminal))
+
+    routes: list[Route] = []
+    for commodity_id, buy_options in buys.items():
+        sell_options = sells.get(commodity_id)
+        if not sell_options:
+            continue
+        pairs = _commodity_routes(buy_options, sell_options, capacity, investment)
+        if not pairs:
+            continue
+        pairs.sort(key=lambda r: r.total_profit or 0.0, reverse=True)
+        if id_commodity is None:
+            routes.append(pairs[0])
+        else:
+            routes.extend(pairs)
+
+    routes.sort(key=lambda r: r.total_profit or 0.0, reverse=True)
+    return routes[:MAX_ROUTES]
+
+
+def _commodity_routes(
+    buy_options: list[tuple[CommodityPrice, Terminal]],
+    sell_options: list[tuple[CommodityPrice, Terminal]],
+    cap: int | None,
+    investment: int | None,
+) -> list[Route]:
+    """Every viable buy→sell terminal pairing for one commodity, stock-limited."""
+    routes: list[Route] = []
+    for buy_row, buy_terminal in buy_options:
+        for sell_row, sell_terminal in sell_options:
+            if buy_terminal.id == sell_terminal.id:
+                continue
+            profit = (sell_row.price_sell or 0.0) - (buy_row.price_buy or 0.0)
+            if profit <= 0:
+                continue
+            scu = tradeable_scu(
+                buy_row.price_buy or 0.0,
+                buy_row.scu_buy or 0.0,
+                sell_row.scu_sell or 0.0,
+                cap,
+                investment,
+            )
+            if scu <= 0:
+                continue
+            routes.append(
+                Route(
+                    commodity_name=buy_row.commodity_name or "Unknown",
+                    buy_terminal=buy_terminal,
+                    sell_terminal=sell_terminal,
+                    buy_price=buy_row.price_buy or 0.0,
+                    sell_price=sell_row.price_sell or 0.0,
+                    profit_per_scu=profit,
+                    scu=scu,
+                    total_profit=profit * scu,
+                )
+            )
+    return routes
+
+
+# ---------------------------------------------------------------------------
+# Helpers local to /commodity route
+# ---------------------------------------------------------------------------
 
 
 async def _fetch_market_data(cog, interaction: discord.Interaction) -> tuple[list[CommodityPrice], list[Terminal]]:
@@ -154,10 +303,6 @@ async def _fetch_market_data(cog, interaction: discord.Interaction) -> tuple[lis
 
 
 async def _resolve_commodity(cog, interaction: discord.Interaction, query: str | None) -> Commodity | None:
-    """Resolve the optional commodity filter, or ``None`` if none was requested.
-
-    Aborts (after sending a message) when a named commodity can't be found.
-    """
     if not query:
         return None
     try:
@@ -171,7 +316,6 @@ async def _resolve_commodity(cog, interaction: discord.Interaction, query: str |
 
 
 async def _resolve_vehicle(cog, ship: str | None) -> Vehicle | None:
-    """Look up the chosen ship; a lookup failure just means no capacity hint."""
     if not ship:
         return None
     try:
@@ -181,7 +325,6 @@ async def _resolve_vehicle(cog, ship: str | None) -> Vehicle | None:
 
 
 async def _resolve_allowed_commodities(cog, *, enabled: bool | None) -> set[int] | None:
-    """The set of legal commodity ids when 'safe_commodities' is on, else ``None``."""
     if not enabled:
         return None
     try:

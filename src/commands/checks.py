@@ -6,6 +6,17 @@ from discord import app_commands
 _SC_BOT_ROLE = "sc-bot"
 
 
+async def handle_check_failure(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+) -> None:
+    if isinstance(error, app_commands.CheckFailure):
+        msg = str(error) or "You don't have permission to use this command."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+
+
 async def admin_or_sc_bot(interaction: discord.Interaction) -> bool:
     """Allow administrators and members with the 'sc-bot' role."""
     member = interaction.user

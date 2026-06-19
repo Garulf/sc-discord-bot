@@ -7,6 +7,8 @@ from discord import app_commands
 
 from src.commands.checks import admin_or_sc_bot
 
+from ..shared import save_guild_inventory
+
 
 async def handle(cog, interaction: discord.Interaction) -> None:
     if interaction.guild_id is None:
@@ -18,5 +20,5 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(str(e), ephemeral=True)
         return
 
-    await cog._save_guild_inventory(interaction.guild_id, {})
+    await save_guild_inventory(cog, interaction.guild_id, {})
     await interaction.response.send_message("All inventories have been cleared.", ephemeral=True)

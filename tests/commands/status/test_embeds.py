@@ -1,7 +1,7 @@
 """Unit tests for src.commands.status.embeds — pure text helpers and embed builders."""
 
-from src.commands.status.constants import MAX_ISSUE_MESSAGE, OVERVIEW_COLOR, STATUS_LABEL
-from src.commands.status.embeds import (
+from src.commands.status.shared import MAX_ISSUE_MESSAGE, OVERVIEW_COLOR, STATUS_LABEL
+from src.commands.status.shared import (
     build_overview_embed,
     build_status_embed,
     normalize_link,
@@ -183,7 +183,7 @@ class TestBuildStatusEmbed:
         assert "Mon, 01 Jan 2025" in embed.footer.text
 
     def test_long_summary_truncated_with_ellipsis(self):
-        from src.commands.status.constants import MAX_SUMMARY
+        from src.commands.status.shared import MAX_SUMMARY
         long_summary = "Word " * 200
         entry = StatusEntry(guid="g", title="T", link=None, published=None, summary=long_summary)
         embed = build_status_embed(entry)

@@ -9,7 +9,7 @@ from discord import app_commands
 
 from src.exec_hangars import HangarSchedule
 
-from .embed import build_embed
+from .shared import build_embed, refresh_subscriptions, save_state
 
 
 async def handle(
@@ -27,10 +27,10 @@ async def handle(
         cog.schedule = HangarSchedule.from_reset(observed_at=now)
 
     cog.set_at = now
-    await cog.save_state()
+    await save_state(cog)
     await interaction.response.send_message(
         "Hangar state updated.",
         embed=build_embed(cog.schedule, now, set_at=cog.set_at),
         ephemeral=True,
     )
-    await cog.refresh_subscriptions()
+    await refresh_subscriptions(cog)

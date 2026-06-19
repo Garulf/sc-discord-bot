@@ -1,6 +1,6 @@
-"""Unit tests for src.commands.inventory.helpers — pure inventory helpers."""
+"""Unit tests for src.commands.inventory.shared — pure inventory helpers."""
 
-from src.commands.inventory.helpers import (
+from src.commands.inventory.shared import (
     ITEMS,
     complete_sets,
     embed_color,

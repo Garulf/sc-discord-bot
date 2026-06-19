@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .helpers import MAX_EMBED_FIELDS, complete_sets, format_field
+from ..shared import MAX_EMBED_FIELDS, complete_sets, format_field, get_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -14,7 +14,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         return
 
     await interaction.response.defer()
-    guild_inv = await cog._get_guild_inventory(guild.id)
+    guild_inv = await get_guild_inventory(cog, guild.id)
     active = {uid: inv for uid, inv in guild_inv.items() if inv}
 
     if not active:

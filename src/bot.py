@@ -43,13 +43,6 @@ INITIAL_EXTENSIONS = [
     "src.commands.commodity",
     "src.commands.status",
     "src.commands.find",
-    "src.commands.find.weapon",
-    "src.commands.find.shipweapon",
-    "src.commands.find.armor",
-    "src.commands.find.clothes",
-    "src.commands.find.vehicleitem",
-    "src.commands.find.weaponattachment",
-    "src.commands.find.item",
     "src.commands.inventory",
 ]
 
