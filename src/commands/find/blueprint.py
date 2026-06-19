@@ -25,7 +25,7 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
             if i.quantity_scu is not None:
                 line = f"× {i.quantity_scu:g} SCU  {i.name}"
             elif i.quantity is not None:
-                line = f"x{i.quantity}  {i.name}"
+                line = f"× {i.quantity}  {i.name}"
             else:
                 line = i.name
             if i.modifiers:
