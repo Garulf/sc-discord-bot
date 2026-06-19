@@ -11,15 +11,7 @@ from discord.ext import commands
 
 from src.starcitizenwiki_api import StarCitizenWikiError, Vehicle
 from src.uex_api import UEXError, VehiclePurchasePrice
-
-
-def _format_number(value: Optional[float], suffix: str = "") -> Optional[str]:
-    if value is None:
-        return None
-    rounded = round(value, 2)
-    if rounded == int(rounded):
-        rounded = int(rounded)
-    return f"{rounded:,}{suffix}"
+from src.commands.formatting import format_number as _format_number
 
 
 def _format_armor(vehicle: Vehicle) -> Optional[str]:

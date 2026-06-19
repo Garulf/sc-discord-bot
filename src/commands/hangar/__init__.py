@@ -1,5 +1,5 @@
-"""Executive Hangar tracking: status command, manual state entry, and live
-auto-updating subscriptions. State is persisted via the bot's StateStore so a
+"""Executive Hangar tracking: status, manual state entry, and live
+auto-updating subscriptions. State persists via the bot's StateStore so a
 restart recovers the current cycle and any subscribed messages."""
 
 from __future__ import annotations
@@ -11,29 +11,16 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from src.exec_hangars import HangarSchedule, build_status, format_relative_time
+from src.exec_hangars import HangarSchedule
 from src.commands.checks import admin_or_sc_bot
+from .embed import build_embed
+from .status import handle as _handle_status
+from .set import handle as _handle_set
+from .subscribe import handle as _handle_subscribe
+from .unsubscribe import handle as _handle_unsubscribe
 
 UPDATE_INTERVAL_SECONDS = 30
 _STATE_KEY = "hangar"
-
-
-def build_embed(
-    schedule: Optional[HangarSchedule],
-    now: Optional[datetime] = None,
-    set_at: Optional[datetime] = None,
-) -> discord.Embed:
-    status = build_status(schedule, now)
-    embed = discord.Embed(
-        title=status["title"],
-        description=status["description"],
-        color=status["color"],
-    )
-    _now = now or datetime.now(timezone.utc)
-    updated_str = format_relative_time(_now, _now)
-    footer = f"Synced: {format_relative_time(set_at, _now)} • Updated: {updated_str}" if set_at else f"Updated: {updated_str}"
-    embed.set_footer(text=footer)
-    return embed
 
 
 class HangarCog(commands.Cog):
@@ -54,8 +41,6 @@ class HangarCog(commands.Cog):
     async def cog_unload(self) -> None:
         self.update_loop.cancel()
 
-    # --- persistence -----------------------------------------------------
-
     async def load_state(self) -> None:
         data = await self.bot.state.get(_STATE_KEY)
         if data is None:
@@ -75,8 +60,6 @@ class HangarCog(commands.Cog):
             "subscriptions": self.subscriptions,
         }
         await self.bot.state.set(_STATE_KEY, data)
-
-    # --- live updates ----------------------------------------------------
 
     async def refresh_subscriptions(self) -> None:
         """Edit every subscribed message with the current status, pruning dead ones."""
@@ -115,16 +98,9 @@ class HangarCog(commands.Cog):
     async def before_update_loop(self) -> None:
         await self.bot.wait_until_ready()
 
-    # --- commands --------------------------------------------------------
-
     @hangar.command(name="status", description="Show the current Executive Hangar status")
     async def status(self, interaction: discord.Interaction):
-        if self.schedule is None:
-            await interaction.response.send_message(
-                "Hangar state hasn't been set yet. Use `/hangar set` first.", ephemeral=True
-            )
-            return
-        await interaction.response.send_message(embed=build_embed(self.schedule, set_at=self.set_at), ephemeral=True)
+        await _handle_status(self, interaction)
 
     @hangar.command(name="set", description="Set the current Executive Hangar state")
     @app_commands.describe(
@@ -144,20 +120,7 @@ class HangarCog(commands.Cog):
         phase: app_commands.Choice[str],
         lights: app_commands.Range[int, 0, 5] = 0,
     ):
-        now = datetime.now(timezone.utc)
-        if phase.value == "charging":
-            self.schedule = HangarSchedule.from_charging(lights_green=lights, observed_at=now)
-        elif phase.value == "active":
-            self.schedule = HangarSchedule.from_active(lights_expired=lights, observed_at=now)
-        else:
-            self.schedule = HangarSchedule.from_reset(observed_at=now)
-
-        self.set_at = now
-        await self.save_state()
-        await interaction.response.send_message(
-            "Hangar state updated.", embed=build_embed(self.schedule, now, set_at=self.set_at), ephemeral=True
-        )
-        await self.refresh_subscriptions()
+        await _handle_set(self, interaction, phase, lights)
 
     @hangar.command(
         name="subscribe",
@@ -165,18 +128,7 @@ class HangarCog(commands.Cog):
     )
     @app_commands.check(admin_or_sc_bot)
     async def subscribe(self, interaction: discord.Interaction):
-        if self.schedule is None:
-            await interaction.response.send_message(
-                "Hangar state hasn't been set yet. Use `/hangar set` first.", ephemeral=True
-            )
-            return
-
-        message = await interaction.channel.send(embed=build_embed(self.schedule, set_at=self.set_at))
-        self.subscriptions.append({"channel_id": message.channel.id, "message_id": message.id})
-        await self.save_state()
-        await interaction.response.send_message(
-            "Live status posted — it will keep updating here.", ephemeral=True
-        )
+        await _handle_subscribe(self, interaction)
 
     @hangar.command(
         name="unsubscribe",
@@ -184,28 +136,7 @@ class HangarCog(commands.Cog):
     )
     @app_commands.check(admin_or_sc_bot)
     async def unsubscribe(self, interaction: discord.Interaction):
-        channel_id = interaction.channel_id
-        removed = [sub for sub in self.subscriptions if sub["channel_id"] == channel_id]
-        if not removed:
-            await interaction.response.send_message(
-                "There's no live status in this channel.", ephemeral=True
-            )
-            return
-
-        self.subscriptions[:] = [
-            sub for sub in self.subscriptions if sub["channel_id"] != channel_id
-        ]
-        await self.save_state()
-        for sub in removed:
-            try:
-                message = await interaction.channel.fetch_message(sub["message_id"])
-                await message.delete()
-            except (discord.NotFound, discord.Forbidden):
-                pass
-        await interaction.response.send_message(
-            f"Removed {len(removed)} live status message(s).", ephemeral=True
-        )
-
+        await _handle_unsubscribe(self, interaction)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
