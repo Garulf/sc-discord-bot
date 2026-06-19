@@ -6,7 +6,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.commands.formatting import add_shops_field
+from src.commands.autocomplete import item_choices
+from src.commands.formatting import add_shops_field, truncate
 from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api import StarCitizenWikiError, Weapon
 
@@ -16,8 +17,7 @@ def build_weapon_embed(weapon: Weapon) -> discord.Embed:
     embed = discord.Embed(title=title, url=weapon.web_url or None, color=0xE07B1B)
 
     if weapon.description:
-        description = weapon.description.strip()
-        embed.description = description[:500] + ("…" if len(description) > 500 else "")
+        embed.description = truncate(weapon.description)
 
     if weapon.image_url:
         embed.set_thumbnail(url=weapon.image_url)
@@ -70,16 +70,7 @@ class WeaponsCog(commands.Cog):
         except StarCitizenWikiError:
             return []
         results.sort(key=lambda w: len(w.name))
-        seen: set[str] = set()
-        choices: list[app_commands.Choice[str]] = []
-        for weapon in results:
-            if weapon.name in seen:
-                continue
-            seen.add(weapon.name)
-            choices.append(app_commands.Choice(name=weapon.name[:100], value=weapon.name[:100]))
-            if len(choices) >= 25:
-                break
-        return choices
+        return item_choices(results)
 
     @app_commands.command(name="weapon", description="Look up Star Citizen FPS weapon info and where to buy it")
     @app_commands.describe(name="Weapon name to search for (e.g. P4-AR, Arrowhead)")

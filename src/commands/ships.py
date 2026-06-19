@@ -7,7 +7,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.commands.autocomplete import item_choices
 from src.commands.formatting import format_number as _format_number
+from src.commands.formatting import truncate
 from src.starcitizenwiki_api import StarCitizenWikiError, Vehicle
 from src.uex_api import UEXError, VehiclePurchasePrice
 
@@ -42,8 +44,7 @@ def build_ship_embed(vehicle: Vehicle, cheapest_auec: VehiclePurchasePrice | Non
         color=0x1B98E0,
     )
     if vehicle.description:
-        description = vehicle.description.strip()
-        embed.description = description[:500] + ("…" if len(description) > 500 else "")
+        embed.description = truncate(vehicle.description)
     if vehicle.image_url:
         embed.set_image(url=vehicle.image_url)
 
@@ -129,16 +130,7 @@ class ShipsCog(commands.Cog):
                 results = await self.bot.ships_api.browse(limit=25)
         except StarCitizenWikiError:
             return []
-        choices: list[app_commands.Choice[str]] = []
-        seen: set[str] = set()
-        for vehicle in results:
-            if vehicle.name in seen:
-                continue
-            seen.add(vehicle.name)
-            choices.append(app_commands.Choice(name=vehicle.name, value=vehicle.name))
-            if len(choices) >= 25:
-                break
-        return choices
+        return item_choices(results)
 
     @app_commands.command(name="ship", description="Look up Star Citizen ship/vehicle info")
     @app_commands.describe(name="Ship name to search for (e.g. 300i, Cutlass Black)")

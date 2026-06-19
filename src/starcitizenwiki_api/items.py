@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
-from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
-from src.starcitizenwiki_api.weapons import PurchaseLocation
+from src.starcitizenwiki_api._common import (
+    DEFAULT_LOCALE,
+    PurchaseLocation,
+    WikiResource,
+    first_image,
+    localize,
+)
 
 
 @dataclass(frozen=True)
@@ -43,65 +47,12 @@ class Item:
             grade=data.get("grade"),
             classification=data.get("class"),
             web_url=data.get("web_url"),
-            image_url=_first_image(data.get("images")),
+            image_url=first_image(data.get("images")),
             purchase_locations=purchases,
         )
 
 
-def _first_image(images: Any) -> str | None:
-    if not isinstance(images, list) or not images:
-        return None
-    first = images[0]
-    if not isinstance(first, dict):
-        return None
-    return first.get("thumbnail_url") or first.get("original_url")
-
-
-def _unique_by_slug(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-    for item in items:
-        key = item.get("slug") or item.get("name") or item.get("uuid") or ""
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(item)
-    return unique
-
-
-class Items:
-    def __init__(self, client: StarCitizenWikiClient, *, locale: str = DEFAULT_LOCALE) -> None:
-        self._client = client
-        self._locale = locale
-
-    async def get(self, name_or_slug: str) -> Item:
-        payload = await self._client.get(f"items/{name_or_slug.strip()}")
-        data = payload.get("data") if isinstance(payload, dict) else None
-        if not data:
-            raise NotFoundError(f"No item found for {name_or_slug!r}")
-        return Item.from_api(data, self._locale)
-
-    async def search(self, query: str, *, limit: int = 25) -> list[Item]:
-        query = query.strip()
-        if not query:
-            return []
-        payload = await self._client.get(
-            "items",
-            params={"filter[name]": query, "page[size]": min(limit * 2, 200)},
-        )
-        raw = payload.get("data", []) if isinstance(payload, dict) else []
-        items = _unique_by_slug(raw)[:limit]
-        return [Item.from_api(item, self._locale) for item in items]
-
-    async def find(self, query: str) -> Item | None:
-        results = await self.search(query, limit=25)
-        if not results:
-            return None
-        lowered = query.strip().lower()
-        match = next((w for w in results if w.name.lower() == lowered), results[0])
-        if match.slug:
-            try:
-                return await self.get(match.slug)
-            except NotFoundError:
-                return match
-        return match
+class Items(WikiResource[Item]):
+    endpoint = "items"
+    model = Item
+    noun = "item"

@@ -84,19 +84,6 @@ def route_leg(price: CommodityPrice, value: float | None, *, show_system: bool) 
     return f"**{auec}**\n{location}"
 
 
-def name_choices(names) -> list[app_commands.Choice[str]]:
-    choices: list[app_commands.Choice[str]] = []
-    seen: set[str] = set()
-    for name in names:
-        if name in seen:
-            continue
-        seen.add(name)
-        choices.append(app_commands.Choice(name=name[:100], value=name[:100]))
-        if len(choices) >= 25:
-            break
-    return choices
-
-
 def route_filter_summary(
     *,
     ship: str | None,

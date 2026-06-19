@@ -14,28 +14,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.starcitizenwiki_api.client import NotFoundError, StarCitizenWikiClient
-from src.starcitizenwiki_api.ships import DEFAULT_LOCALE, localize
-
-
-@dataclass(frozen=True)
-class PurchaseLocation:
-    """A single in-game shop terminal that stocks a weapon, from UEX data."""
-
-    price_buy: float | None
-    terminal_name: str | None
-    location_name: str | None
-    star_system: str | None
-
-    @classmethod
-    def from_api(cls, data: dict[str, Any]) -> PurchaseLocation:
-        location = data.get("starmap_location") or {}
-        return cls(
-            price_buy=data.get("price_buy"),
-            terminal_name=data.get("terminal_name"),
-            location_name=location.get("name"),
-            star_system=location.get("star_system_name"),
-        )
+from src.starcitizenwiki_api._common import (
+    DEFAULT_LOCALE,
+    PurchaseLocation,
+    WikiResource,
+    first_image,
+    localize,
+)
 
 
 @dataclass(frozen=True)
@@ -91,18 +76,9 @@ class Weapon:
             dps=damage.get("dps_total"),
             ammunition_type=localize(ammunition.get("type"), locale),
             web_url=data.get("web_url"),
-            image_url=_first_image(data.get("images")),
+            image_url=first_image(data.get("images")),
             purchase_locations=purchases,
         )
-
-
-def _first_image(images: Any) -> str | None:
-    if not isinstance(images, list) or not images:
-        return None
-    first = images[0]
-    if not isinstance(first, dict):
-        return None
-    return first.get("thumbnail_url") or first.get("original_url")
 
 
 def _is_base_model(weapon: Weapon) -> bool:
@@ -115,83 +91,19 @@ def _is_base_model(weapon: Weapon) -> bool:
     return '"' not in weapon.name
 
 
-def _unique_by_slug(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Drop duplicate entries (the API lists each weapon once per version)."""
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-    for item in items:
-        key = item.get("slug") or item.get("name") or item.get("uuid") or ""
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(item)
-    return unique
+class Weapons(WikiResource[Weapon]):
+    """Personal-weapon endpoints bound to a :class:`StarCitizenWikiClient`.
 
+    ``find`` favours the base model over its cosmetic skins because only the base
+    model carries shop/price data — skins are named with a quoted nickname (e.g.
+    ``A03 "Canuto" Sniper Rifle``) while the base is plain (``A03 Sniper Rifle``).
+    """
 
-class Weapons:
-    """Personal-weapon endpoints bound to a :class:`StarCitizenWikiClient`."""
+    endpoint = "weapons"
+    model = Weapon
+    noun = "weapon"
 
-    def __init__(self, client: StarCitizenWikiClient, *, locale: str = DEFAULT_LOCALE) -> None:
-        self._client = client
-        self._locale = locale
-
-    async def get(self, name_or_slug: str) -> Weapon:
-        """Fetch a single weapon by exact name or slug.
-
-        Raises :class:`NotFoundError` if no such weapon exists.
-        """
-        payload = await self._client.get(f"weapons/{name_or_slug.strip()}")
-        data = payload.get("data") if isinstance(payload, dict) else None
-        if not data:
-            raise NotFoundError(f"No weapon found for {name_or_slug!r}")
-        return Weapon.from_api(data, self._locale)
-
-    async def search(self, query: str, *, limit: int = 25) -> list[Weapon]:
-        """Find weapons whose name contains ``query`` (case-insensitive).
-
-        Results are de-duplicated and capped at ``limit``. An empty/blank query
-        returns an empty list rather than the entire catalogue.
-        """
-        query = query.strip()
-        if not query:
-            return []
-        payload = await self._client.get(
-            "weapons",
-            params={"filter[name]": query, "page[size]": min(limit * 2, 200)},
-        )
-        raw = payload.get("data", []) if isinstance(payload, dict) else []
-        weapons = _unique_by_slug(raw)[:limit]
-        return [Weapon.from_api(item, self._locale) for item in weapons]
-
-    async def find(self, query: str) -> Weapon | None:
-        """Best-effort single match for a search query.
-
-        Preference order: an exact name match, then the base model over its
-        skins, then the first hit. Skins are named with a quoted nickname (e.g.
-        ``A03 "Canuto" Sniper Rifle``) and carry no shop data — buy locations
-        live on the plain base model (``A03 Sniper Rifle``), so we favour it.
-
-        The search endpoint omits the per-item ``uex_prices`` shop data, so the
-        chosen weapon is re-fetched by slug to pull in its buy locations.
-        """
-        results = await self.search(query, limit=25)
-        if not results:
-            return None
-        match = self._pick_best(results, query)
-        if match.slug:
-            try:
-                return await self.get(match.slug)
-            except NotFoundError:
-                return match
-        return match
-
-    @staticmethod
-    def _pick_best(results: list[Weapon], query: str) -> Weapon:
-        """Choose the most relevant weapon from search results.
-
-        Prefer an exact name match, then a base model over its skins, then fall
-        back to the first result.
-        """
+    def _pick_best(self, results: list[Weapon], query: str) -> Weapon:
         lowered = query.strip().lower()
 
         for weapon in results:

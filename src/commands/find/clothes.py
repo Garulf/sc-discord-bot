@@ -6,7 +6,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.commands.formatting import add_shops_field
+from src.commands.autocomplete import item_choices
+from src.commands.formatting import add_shops_field, truncate
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.clothes import ClothingItem
 
@@ -16,8 +17,7 @@ def build_clothes_embed(item: ClothingItem) -> discord.Embed:
     embed = discord.Embed(title=title, url=item.web_url or None, color=0xA855F7)
 
     if item.description:
-        description = item.description.strip()
-        embed.description = description[:500] + ("…" if len(description) > 500 else "")
+        embed.description = truncate(item.description)
 
     if item.image_url:
         embed.set_thumbnail(url=item.image_url)
@@ -47,16 +47,7 @@ class ClothesCog(commands.Cog):
         except StarCitizenWikiError:
             return []
         results.sort(key=lambda w: len(w.name))
-        seen: set[str] = set()
-        choices: list[app_commands.Choice[str]] = []
-        for item in results:
-            if item.name in seen:
-                continue
-            seen.add(item.name)
-            choices.append(app_commands.Choice(name=item.name[:100], value=item.name[:100]))
-            if len(choices) >= 25:
-                break
-        return choices
+        return item_choices(results)
 
     @app_commands.command(name="clothes", description="Look up Star Citizen clothing and where to buy it")
     @app_commands.describe(name="Clothing name to search for")

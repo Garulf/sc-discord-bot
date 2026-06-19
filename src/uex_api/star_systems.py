@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.uex_api._common import CATALOGUE_CACHE_TTL_SECONDS
 from src.uex_api.client import NotFoundError, UEXClient
 from src.uex_api.models import StarSystem
 
-DEFAULT_CACHE_TTL_SECONDS = 3600
-
 
 class StarSystems:
-    def __init__(self, client: UEXClient, *, cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS) -> None:
+    def __init__(self, client: UEXClient, *, cache_ttl: float = CATALOGUE_CACHE_TTL_SECONDS) -> None:
         self._client = client
         self._cache_ttl = cache_ttl
 
