@@ -60,11 +60,7 @@ class UnlockingMissionGroup:
         return cls(
             label=data.get("label") or "",
             chance=float(data.get("chance") or 0),
-            missions=[
-                UnlockingMission.from_api(m)
-                for m in (data.get("missions") or [])
-                if isinstance(m, dict)
-            ],
+            missions=[UnlockingMission.from_api(m) for m in (data.get("missions") or []) if isinstance(m, dict)],
         )
 
 
@@ -95,18 +91,14 @@ class Blueprint:
                 if not isinstance(group, dict):
                     continue
                 modifier_labels = [
-                    m["label"]
-                    for m in (group.get("modifiers") or [])
-                    if isinstance(m, dict) and m.get("label")
+                    m["label"] for m in (group.get("modifiers") or []) if isinstance(m, dict) and m.get("label")
                 ]
-                for child in (group.get("children") or []):
+                for child in group.get("children") or []:
                     if isinstance(child, dict):
                         ingredients.append(BlueprintIngredient.from_api(child, modifier_labels))
         else:
             ingredients = [
-                BlueprintIngredient.from_api(i)
-                for i in (data.get("ingredients") or [])
-                if isinstance(i, dict)
+                BlueprintIngredient.from_api(i) for i in (data.get("ingredients") or []) if isinstance(i, dict)
             ]
         return cls(
             uuid=data.get("uuid") or "",

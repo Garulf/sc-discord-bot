@@ -23,6 +23,29 @@ from .weapon import handle as _handle_weapon
 from .weaponattachment import handle as _handle_weaponattachment
 
 
+def _autocomplete_for(api_attr: str):
+    """Build a name-autocomplete callback that searches a single wiki API.
+
+    These are plain module-level callbacks (not cog methods), so discord.py does
+    not pass a cog binding — the bot is read from ``interaction.client`` instead.
+    This collapses the per-category callbacks down to one table entry each.
+    """
+
+    async def autocomplete(interaction: discord.Interaction, current: str):
+        return await autocomplete_single(interaction.client, api_attr, current)
+
+    return autocomplete
+
+
+weapon_autocomplete = _autocomplete_for("weapons_api")
+shipweapon_autocomplete = _autocomplete_for("ship_weapons_api")
+armor_autocomplete = _autocomplete_for("armor_api")
+clothes_autocomplete = _autocomplete_for("clothes_api")
+vehicleitem_autocomplete = _autocomplete_for("vehicle_items_api")
+weaponattachment_autocomplete = _autocomplete_for("weapon_attachments_api")
+item_autocomplete = _autocomplete_for("items_api")
+
+
 class FindCog(commands.Cog):
     """Cross-category item search across all Star Citizen Wiki APIs."""
 
@@ -30,27 +53,6 @@ class FindCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-
-    async def weapon_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "weapons_api", current)
-
-    async def shipweapon_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "ship_weapons_api", current)
-
-    async def armor_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "armor_api", current)
-
-    async def clothes_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "clothes_api", current)
-
-    async def vehicleitem_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "vehicle_items_api", current)
-
-    async def weaponattachment_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "weapon_attachments_api", current)
-
-    async def item_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await autocomplete_single(self, "items_api", current)
 
     async def blueprint_autocomplete(self, interaction: discord.Interaction, current: str):
         return await _blueprint_autocomplete(self, current)

@@ -64,9 +64,9 @@ async def handle_single(
     await interaction.followup.send(embed=embed_builder(item))
 
 
-async def autocomplete_single(cog, api_attr: str, current: str) -> list[app_commands.Choice[str]]:
+async def autocomplete_single(client, api_attr: str, current: str) -> list[app_commands.Choice[str]]:
     try:
-        results = await getattr(cog.bot, api_attr).search(current, limit=25)
+        results = await getattr(client, api_attr).search(current, limit=25)
     except Exception:  # noqa: BLE001 - autocomplete failures are silently dropped
         return []
     return item_choices(sorted(results, key=lambda x: len(x.name)), use_slug=True)

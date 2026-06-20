@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localize
+from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localized
 
 _BASE = "https://api.star-citizen.wiki/api/manufacturers"
 
@@ -26,8 +26,8 @@ class Manufacturer:
             name=data.get("name") or "Unknown",
             slug=data.get("code") or data.get("slug"),
             code=data.get("code"),
-            description=localize(data.get("description"), locale),
-            known_for=localize(data.get("known_for"), locale),
+            description=localized(data, "description", locale),
+            known_for=localized(data, "known_for", locale),
             web_url=data.get("web_url"),
             image_url=first_image(data.get("images")),
         )

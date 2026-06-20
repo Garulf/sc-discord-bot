@@ -6,9 +6,7 @@ from discord import app_commands
 _SC_BOT_ROLE = "sc-bot"
 
 
-async def handle_check_failure(
-    interaction: discord.Interaction, error: app_commands.AppCommandError
-) -> None:
+async def handle_check_failure(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
     if isinstance(error, app_commands.CheckFailure):
         msg = str(error) or "You don't have permission to use this command."
         if interaction.response.is_done():

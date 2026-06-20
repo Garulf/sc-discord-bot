@@ -78,6 +78,7 @@ def normalize_link(url: str | None) -> str:
         cleaned = cleaned[: -len("index.html")]
     return cleaned.rstrip("/")
 
+
 # ---------------------------------------------------------------------------
 # Embed builders
 # ---------------------------------------------------------------------------
@@ -126,6 +127,7 @@ def build_status_embed(entry: StatusEntry) -> discord.Embed:
         footer += f" · {entry.published}"
     embed.set_footer(text=footer)
     return embed
+
 
 # ---------------------------------------------------------------------------
 # Background polling
@@ -178,9 +180,7 @@ async def _poll_systems(cog, subscriptions: list[int]) -> None:
         await cog.bot.state.set(SYSTEMS_KEY, current)
         return
 
-    changes = [
-        (name, previous.get(name), status) for name, status in current.items() if previous.get(name) != status
-    ]
+    changes = [(name, previous.get(name), status) for name, status in current.items() if previous.get(name) != status]
     if changes:
         await _broadcast(cog, subscriptions, build_overview_embed(overview, changes=changes))
     await cog.bot.state.set(SYSTEMS_KEY, current)
