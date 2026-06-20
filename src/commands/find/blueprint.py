@@ -21,6 +21,7 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
         embed.add_field(name="Craft Time", value=blueprint.craft_time_label, inline=True)
 
     if blueprint.ingredients:
+
         def _format_ingredient(i) -> str:
             if i.quantity_scu is not None:
                 line = f"× {i.quantity_scu:g} SCU  {i.name}"

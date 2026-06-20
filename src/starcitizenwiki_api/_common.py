@@ -92,6 +92,23 @@ class PurchaseLocation:
         )
 
 
+def localized(data: dict[str, Any], key: str, locale: str = DEFAULT_LOCALE) -> str | None:
+    """Shorthand for ``localize(data.get(key), locale)`` — the common case."""
+    return localize(data.get(key), locale)
+
+
+def parse_manufacturer(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Pull ``(name, code)`` out of an item's ``manufacturer`` object."""
+    manufacturer = data.get("manufacturer") or {}
+    return manufacturer.get("name"), manufacturer.get("code")
+
+
+def parse_purchase_locations(data: dict[str, Any]) -> list[PurchaseLocation]:
+    """Build the list of in-game shops from an item's ``uex_prices.purchase`` data."""
+    uex = data.get("uex_prices") or {}
+    return [PurchaseLocation.from_api(p) for p in (uex.get("purchase") or []) if isinstance(p, dict)]
+
+
 ModelT = TypeVar("ModelT")
 
 

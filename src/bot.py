@@ -33,8 +33,8 @@ from src.starcitizenwiki_api.ground_vehicles import GroundVehicles
 from src.starcitizenwiki_api.locations import Locations
 from src.starcitizenwiki_api.manufacturers import Manufacturers
 from src.starcitizenwiki_api.missions import Missions
-from src.starcitizenwiki_api.stats import Stats
 from src.starcitizenwiki_api.starsystems import StarSystems
+from src.starcitizenwiki_api.stats import Stats
 from src.starcitizenwiki_api.wiki_commodities import WikiCommodities
 from src.storage import Database, SqliteCache, StateStore
 from src.uex_api import (

@@ -259,6 +259,7 @@ def build_uex_url(params: dict[str, object]) -> str:
         return UEX_ROUTES_URL
     return f"{UEX_ROUTES_URL}?{urlencode(query)}"
 
+
 # ---------------------------------------------------------------------------
 # Embed builders
 # ---------------------------------------------------------------------------
@@ -358,6 +359,7 @@ def build_routes_embed(routes: list[Route], *, filters: str | None, url: str) ->
     embed.set_footer(text="In-game aUEC prices via UEX · prices per SCU")
     return embed
 
+
 # ---------------------------------------------------------------------------
 # Buy/sell pipeline (shared by buy.py and sell.py)
 # ---------------------------------------------------------------------------
@@ -385,9 +387,7 @@ async def respond(
     locations = selling_locations(prices) if selling else buying_locations(prices)
     filters = commodity_filter_summary(system, place, exterior_cargo)
     await interaction.followup.send(
-        embed=build_commodity_embed(
-            commodity, locations, selling=selling, filters=filters, show_system=system is None
-        )
+        embed=build_commodity_embed(commodity, locations, selling=selling, filters=filters, show_system=system is None)
     )
 
 
@@ -431,6 +431,7 @@ async def _collect_prices(
 async def _exterior_terminal_ids(cog) -> set[int]:
     terminals = await cog.bot.terminals_api.all(terminal_type="commodity")
     return {t.id for t in terminals if t.has_loading_dock and t.id is not None}
+
 
 # ---------------------------------------------------------------------------
 # Autocomplete callbacks

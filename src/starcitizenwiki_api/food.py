@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localize
+from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localize, localized
 
 _BASE = "https://api.star-citizen.wiki/api/food"
 
@@ -31,7 +31,7 @@ class FoodItem:
             name=data.get("name") or "Unknown",
             slug=data.get("slug"),
             manufacturer=manufacturer.get("name") if isinstance(manufacturer, dict) else localize(manufacturer, locale),
-            description=localize(data.get("description"), locale),
+            description=localized(data, "description", locale),
             type=data.get("type_label") or data.get("type"),
             classification_label=data.get("classification_label"),
             size=data.get("size"),

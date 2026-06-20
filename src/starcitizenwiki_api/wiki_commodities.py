@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localize
+from src.starcitizenwiki_api._common import DEFAULT_LOCALE, WikiResource, first_image, localized
 
 _BASE = "https://api.star-citizen.wiki/api/commodities"
 
@@ -28,7 +28,7 @@ class WikiCommodity:
             uuid=data.get("uuid"),
             name=data.get("name") or data.get("display_name") or "Unknown",
             slug=data.get("slug"),
-            description=localize(data.get("description"), locale),
+            description=localized(data, "description", locale),
             commodity_groups=[g for g in (data.get("commodity_groups") or []) if isinstance(g, str)],
             is_mineable=data.get("is_mineable"),
             is_harvestable=data.get("has_harvestables") or data.get("is_harvestable"),

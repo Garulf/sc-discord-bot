@@ -146,7 +146,11 @@ class StarCitizenWikiClient:
         json: dict[str, Any] | None = None,
     ) -> Any:
         session = await self._ensure_session()
-        url = path if path.startswith("http://") or path.startswith("https://") else f"{self._base_url}/{path.lstrip('/')}"
+        url = (
+            path
+            if path.startswith("http://") or path.startswith("https://")
+            else f"{self._base_url}/{path.lstrip('/')}"
+        )
         try:
             async with session.request(method, url, params=params, json=json) as response:
                 if response.status == 404:

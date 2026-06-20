@@ -1,5 +1,11 @@
 from src.starcitizenwiki_api.armor import Armor, ArmorItem
-from src.starcitizenwiki_api.blueprints import Blueprint, BlueprintIngredient, Blueprints, UnlockingMission, UnlockingMissionGroup
+from src.starcitizenwiki_api.blueprints import (
+    Blueprint,
+    BlueprintIngredient,
+    Blueprints,
+    UnlockingMission,
+    UnlockingMissionGroup,
+)
 from src.starcitizenwiki_api.celestial_objects import CelestialObject, CelestialObjects
 from src.starcitizenwiki_api.client import (
     API_BASE_URL,
@@ -23,8 +29,8 @@ from src.starcitizenwiki_api.manufacturers import Manufacturer, Manufacturers
 from src.starcitizenwiki_api.missions import BlueprintStub, Mission, Missions, ReputationGain
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon, ShipWeapons
 from src.starcitizenwiki_api.ships import Ships, Vehicle, localize
-from src.starcitizenwiki_api.stats import SCStats, Stats
 from src.starcitizenwiki_api.starsystems import StarSystem, StarSystems
+from src.starcitizenwiki_api.stats import SCStats, Stats
 from src.starcitizenwiki_api.vehicle_items import VehicleItem, VehicleItems
 from src.starcitizenwiki_api.weapon_attachments import WeaponAttachment, WeaponAttachments
 from src.starcitizenwiki_api.weapons import PurchaseLocation, Weapon, Weapons

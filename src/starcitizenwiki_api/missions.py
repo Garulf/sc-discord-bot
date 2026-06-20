@@ -118,15 +118,9 @@ class Mission:
             reputation_amount=data.get("reputation_amount"),
             web_url=data.get("web_url"),
             reputation_gained=[
-                ReputationGain.from_api(r)
-                for r in (data.get("reputation_gained") or [])
-                if isinstance(r, dict)
+                ReputationGain.from_api(r) for r in (data.get("reputation_gained") or []) if isinstance(r, dict)
             ],
-            blueprints=[
-                BlueprintStub.from_api(b)
-                for b in (data.get("blueprints") or [])
-                if isinstance(b, dict)
-            ],
+            blueprints=[BlueprintStub.from_api(b) for b in (data.get("blueprints") or []) if isinstance(b, dict)],
         )
 
 

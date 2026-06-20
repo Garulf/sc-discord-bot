@@ -20,6 +20,9 @@ from src.starcitizenwiki_api._common import (
     WikiResource,
     first_image,
     localize,
+    localized,
+    parse_manufacturer,
+    parse_purchase_locations,
 )
 
 
@@ -50,20 +53,18 @@ class Weapon:
 
     @classmethod
     def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Weapon:
-        manufacturer = data.get("manufacturer") or {}
         weapon = data.get("personal_weapon") or {}
         damage = weapon.get("damage") or {}
         ammunition = weapon.get("ammunition") or {}
-        uex = data.get("uex_prices") or {}
-        purchases = [PurchaseLocation.from_api(p) for p in (uex.get("purchase") or []) if isinstance(p, dict)]
+        manufacturer, manufacturer_code = parse_manufacturer(data)
 
         return cls(
             uuid=data.get("uuid"),
             name=data.get("name") or "Unknown",
             slug=data.get("slug"),
-            manufacturer=manufacturer.get("name"),
-            manufacturer_code=manufacturer.get("code"),
-            description=localize(data.get("description"), locale),
+            manufacturer=manufacturer,
+            manufacturer_code=manufacturer_code,
+            description=localized(data, "description", locale),
             classification=data.get("classification_label") or data.get("classification"),
             weapon_type=localize(weapon.get("type"), locale),
             size=data.get("size"),
@@ -77,7 +78,7 @@ class Weapon:
             ammunition_type=localize(ammunition.get("type"), locale),
             web_url=data.get("web_url"),
             image_url=first_image(data.get("images")),
-            purchase_locations=purchases,
+            purchase_locations=parse_purchase_locations(data),
         )
 
 
