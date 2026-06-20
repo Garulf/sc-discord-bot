@@ -43,8 +43,7 @@ def build_mission_embed(mission: Mission) -> discord.Embed:
     if mission.reward_max and mission.reward_max != mission.reward_min:
         reward_parts.append(f"{mission.reward_max:,}")
     if reward_parts:
-        currency = mission.reward_currency or "UEC"
-        embed.add_field(name="Reward", value=f"{' – '.join(reward_parts)} {currency}", inline=True)
+        embed.add_field(name="Reward", value=f"{' – '.join(reward_parts)} aUEC", inline=True)
 
     if mission.star_systems:
         embed.add_field(name="Star Systems", value=", ".join(mission.star_systems), inline=True)
