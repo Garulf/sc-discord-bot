@@ -23,7 +23,7 @@ class BlueprintStub:
         return cls(
             name=data.get("name") or "Unknown",
             uuid=data.get("uuid") or "",
-            link=data.get("link") or "",
+            link=data.get("web_blueprint_link") or data.get("blueprint_link") or "",
         )
 
 
@@ -55,6 +55,7 @@ class Mission:
     mission_giver: str | None
     faction_name: str | None
     rank_index: int | None
+    rank_label: str | None
     illegal: bool
     legality_label: str | None
     shareable: bool
@@ -89,6 +90,12 @@ class Mission:
     @classmethod
     def from_api(cls, data: dict[str, Any], locale: str = DEFAULT_LOCALE) -> Mission:
         faction = data.get("faction") or {}
+        rank_index = data.get("rank_index")
+        standings = (faction.get("reputation_ladder") or {}).get("standings") or []
+        rank_label: str | None = None
+        if rank_index is not None and isinstance(standings, list) and 0 <= rank_index < len(standings):
+            s = standings[rank_index]
+            rank_label = s.get("display_name") if isinstance(s, dict) else None
         return cls(
             uuid=data.get("uuid") or "",
             title=data.get("title") or "Unknown",
@@ -96,7 +103,8 @@ class Mission:
             mission_type=data.get("mission_type"),
             mission_giver=data.get("mission_giver"),
             faction_name=faction.get("name") if isinstance(faction, dict) else None,
-            rank_index=data.get("rank_index"),
+            rank_index=rank_index,
+            rank_label=rank_label,
             illegal=bool(data.get("illegal")),
             legality_label=data.get("legality_label"),
             shareable=bool(data.get("shareable")),
@@ -120,7 +128,13 @@ class Mission:
             reputation_gained=[
                 ReputationGain.from_api(r) for r in (data.get("reputation_gained") or []) if isinstance(r, dict)
             ],
-            blueprints=[BlueprintStub.from_api(b) for b in (data.get("blueprints") or []) if isinstance(b, dict)],
+            blueprints=[
+                BlueprintStub.from_api(item)
+                for pool in (data.get("blueprints") or [])
+                if isinstance(pool, dict)
+                for item in (pool.get("items") or [])
+                if isinstance(item, dict)
+            ],
         )
 
 
