@@ -34,6 +34,9 @@ def build_mission_embed(mission: Mission) -> discord.Embed:
     legality = mission.legality_label or ("Illegal" if mission.illegal else "Legal")
     embed.add_field(name="Legality", value=legality, inline=True)
 
+    if mission.rank_label is not None:
+        embed.add_field(name="Required Rank", value=mission.rank_label, inline=True)
+
     reward_parts: list[str] = []
     if mission.reward_min:
         reward_parts.append(f"{mission.reward_min:,}")
