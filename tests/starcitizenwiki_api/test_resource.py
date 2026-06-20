@@ -93,10 +93,11 @@ class TestGet:
 
 
 class TestSearch:
-    async def test_blank_query_returns_empty_without_calling_api(self):
+    async def test_blank_query_calls_api_without_name_filter(self):
         client = _FakeClient()
-        assert await _Things(client).search("   ") == []
-        assert client.calls == []
+        await _Things(client).search("   ")
+        assert len(client.calls) == 1
+        assert "filter[name]" not in client.calls[0][1]
 
     async def test_deduplicates_by_slug(self):
         listing = [
