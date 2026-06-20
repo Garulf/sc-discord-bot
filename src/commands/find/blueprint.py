@@ -44,14 +44,22 @@ def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
             if multi_group:
                 lines.append(f"**{group.label}**")
             for m in group.missions:
+                if m.title.startswith("<=") and m.title.endswith("=>"):
+                    continue
                 label = f"[{m.title}]({m.web_url})" if m.web_url else m.title
                 if m.count > 1:
                     label += f" ×{m.count}"
                 lines.append(label)
-        text = "\n".join(lines)
-        if len(text) > 1024:
-            text = text[:1021] + "…"
-        embed.add_field(name="Unlocked By", value=text, inline=False)
+        if lines:
+            visible: list[str] = []
+            total = 0
+            for line in lines:
+                if total + len(line) + 1 > 1000:
+                    visible.append(f"… and {len(lines) - len(visible)} more")
+                    break
+                visible.append(line)
+                total += len(line) + 1
+            embed.add_field(name="Unlocked By", value="\n".join(visible), inline=False)
 
     embed.set_footer(text="Source: star-citizen.wiki")
     return embed
