@@ -92,3 +92,24 @@ The bot requires the following when creating its application:
 ## Development
 
 Bot state (hangar schedule, subscriptions, API cache) is stored in a SQLite database at `/app/data/bot.db`, persisted via the `bot-data` Docker volume.
+
+## Releases
+
+Releases are managed automatically by [release-please](https://github.com/googleapis/release-please). On every merge to `main`, the action opens (or updates) a release PR that bumps the version in `pyproject.toml` and updates `CHANGELOG.md`. Merging that PR creates the git tag and GitHub Release.
+
+## Contributing
+
+Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) format so release-please can determine the next version:
+
+| Prefix | Effect |
+|---|---|
+| `fix:` | patch bump (`0.1.0` → `0.1.1`) |
+| `feat:` | minor bump (`0.1.0` → `0.2.0`) |
+| `feat!:` or `BREAKING CHANGE:` footer | major bump (`0.1.0` → `1.0.0`) |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:` | no version bump |
+
+To enable local commit-message validation after cloning, run:
+
+```bash
+pre-commit install --hook-type commit-msg
+```
