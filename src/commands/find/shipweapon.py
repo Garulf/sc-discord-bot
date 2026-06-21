@@ -8,7 +8,7 @@ from src.commands.formatting import add_shops_field, truncate
 from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api.ship_weapons import ShipWeapon
 
-from .shared import handle_single, SHIP_WEAPON_COLOR
+from .shared import SHIP_WEAPON_COLOR, handle_single
 
 
 def build_ship_weapon_embed(weapon: ShipWeapon) -> discord.Embed:
