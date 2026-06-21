@@ -30,6 +30,53 @@ _CHOICES = [
     for key, (label, minutes) in _TIMERS.items()
 ]
 
+_REDO_TIMEOUT = 300  # seconds the "Redo Timer" button stays active
+
+
+class RestartTimerView(discord.ui.View):
+    """DM view with a 'Redo Timer' button sent when a timer expires."""
+
+    def __init__(self, cog: TimerCog, user_id: int, key: str, label: str, minutes: int) -> None:
+        super().__init__(timeout=_REDO_TIMEOUT)
+        self._cog = cog
+        self._user_id = user_id
+        self._key = key
+        self._label = label
+        self._minutes = minutes
+        self.message: discord.Message | None = None
+
+    async def _handle_redo(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        self._cog._cancel_existing(self._user_id, self._key)
+        task = asyncio.create_task(
+            self._cog._run(self._user_id, self._key, self._label, self._minutes * 60)
+        )
+        self._cog._tasks[(self._user_id, self._key)] = task
+
+        button.disabled = True
+        self.stop()
+
+        expires = datetime.now(timezone.utc) + timedelta(minutes=self._minutes)
+        await interaction.response.edit_message(
+            content=(
+                f"⏰ **{self._label}** timer is up!\n"
+                f"⏱️ Restarted — {self._minutes} min ({discord.utils.format_dt(expires, 'R')})"
+            ),
+            view=self,
+        )
+
+    @discord.ui.button(label="Redo Timer", style=discord.ButtonStyle.primary, emoji="⏱️")
+    async def redo(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._handle_redo(interaction, button)
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True  # type: ignore[union-attr]
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
 
 class TimerCog(commands.Cog):
     """Personal countdown timers for Star Citizen in-game events."""
@@ -48,10 +95,11 @@ class TimerCog(commands.Cog):
             return True
         return False
 
-    async def _notify(self, user_id: int, label: str) -> None:
+    async def _notify(self, user_id: int, key: str, label: str, minutes: int) -> None:
         try:
             user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
-            await user.send(f"⏰ **{label}** timer is up!")
+            view = RestartTimerView(self, user_id, key, label, minutes)
+            view.message = await user.send(f"⏰ **{label}** timer is up!", view=view)
         except discord.Forbidden:
             logger.warning("Cannot DM user %d — DMs are disabled", user_id)
         except Exception:
@@ -60,7 +108,7 @@ class TimerCog(commands.Cog):
     async def _run(self, user_id: int, key: str, label: str, seconds: int) -> None:
         try:
             await asyncio.sleep(seconds)
-            await self._notify(user_id, label)
+            await self._notify(user_id, key, label, seconds // 60)
         except asyncio.CancelledError:
             pass
         finally:

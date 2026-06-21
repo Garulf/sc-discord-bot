@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import discord
 import pytest
 
-from src.commands.timer import TimerCog
+from src.commands.timer import RestartTimerView, TimerCog
 
 
 def _make_cog() -> TimerCog:
@@ -21,7 +22,15 @@ def _make_interaction(user_id: int = 42) -> MagicMock:
     interaction = MagicMock()
     interaction.user.id = user_id
     interaction.response.send_message = AsyncMock()
+    interaction.response.edit_message = AsyncMock()
     return interaction
+
+
+def _make_view(cog: TimerCog | None = None, user_id: int = 1, key: str = "keycard") -> RestartTimerView:
+    if cog is None:
+        cog = _make_cog()
+    label, minutes = {"keycard": ("Key Card", 30), "vault": ("Ghost Arena Vault Door", 20)}[key]
+    return RestartTimerView(cog, user_id, key, label, minutes)
 
 
 class TestCancelExisting:
@@ -144,23 +153,106 @@ class TestNotify:
     async def test_dms_user_on_fire(self):
         cog = _make_cog()
         user = MagicMock()
-        user.send = AsyncMock()
+        user.send = AsyncMock(return_value=MagicMock())
         cog.bot.fetch_user = AsyncMock(return_value=user)
-        await cog._notify(99, "Key Card")
+        await cog._notify(99, "keycard", "Key Card", 30)
         user.send.assert_awaited_once()
         assert "Key Card" in user.send.call_args[0][0]
+
+    async def test_notify_sends_view(self):
+        cog = _make_cog()
+        user = MagicMock()
+        user.send = AsyncMock(return_value=MagicMock())
+        cog.bot.fetch_user = AsyncMock(return_value=user)
+        await cog._notify(99, "keycard", "Key Card", 30)
+        _, kwargs = user.send.call_args
+        assert isinstance(kwargs.get("view"), RestartTimerView)
+
+    async def test_notify_stores_message_on_view(self):
+        cog = _make_cog()
+        sent_message = MagicMock()
+        user = MagicMock()
+        user.send = AsyncMock(return_value=sent_message)
+        cog.bot.fetch_user = AsyncMock(return_value=user)
+        await cog._notify(99, "keycard", "Key Card", 30)
+        view: RestartTimerView = user.send.call_args[1]["view"]
+        assert view.message is sent_message
 
     async def test_forbidden_error_is_swallowed(self):
         cog = _make_cog()
         user = MagicMock()
         user.send = AsyncMock(side_effect=Exception("Forbidden"))
         cog.bot.fetch_user = AsyncMock(return_value=user)
-        await cog._notify(99, "Key Card")  # must not raise
+        await cog._notify(99, "keycard", "Key Card", 30)  # must not raise
 
     async def test_uses_cached_user_when_available(self):
         cog = _make_cog()
         user = MagicMock()
-        user.send = AsyncMock()
+        user.send = AsyncMock(return_value=MagicMock())
         cog.bot.get_user.return_value = user
-        await cog._notify(99, "Key Card")
+        await cog._notify(99, "keycard", "Key Card", 30)
         cog.bot.fetch_user.assert_not_awaited()
+
+
+class TestRestartTimerView:
+    async def test_redo_button_starts_new_task(self):
+        cog = _make_cog()
+        view = _make_view(cog, user_id=5, key="keycard")
+        interaction = _make_interaction(user_id=5)
+        button = MagicMock(spec=discord.ui.Button)
+        with patch("asyncio.create_task", side_effect=_fake_create_task):
+            await view._handle_redo(interaction, button)
+        assert (5, "keycard") in cog._tasks
+
+    async def test_redo_button_disables_itself(self):
+        cog = _make_cog()
+        view = _make_view(cog, user_id=5, key="vault")
+        interaction = _make_interaction()
+        button = MagicMock(spec=discord.ui.Button)
+        with patch("asyncio.create_task", side_effect=_fake_create_task):
+            await view._handle_redo(interaction, button)
+        assert button.disabled is True
+
+    async def test_redo_button_edits_message_with_restarted_text(self):
+        cog = _make_cog()
+        view = _make_view(cog, user_id=5, key="keycard")
+        interaction = _make_interaction()
+        button = MagicMock(spec=discord.ui.Button)
+        with patch("asyncio.create_task", side_effect=_fake_create_task):
+            await view._handle_redo(interaction, button)
+        edited_content = interaction.response.edit_message.call_args[1]["content"]
+        assert "Restarted" in edited_content
+        assert "Key Card" in edited_content
+
+    async def test_redo_button_cancels_existing_timer(self):
+        cog = _make_cog()
+        view = _make_view(cog, user_id=5, key="keycard")
+        existing = MagicMock(spec=asyncio.Task)
+        existing.done.return_value = False
+        cog._tasks[(5, "keycard")] = existing
+        interaction = _make_interaction()
+        button = MagicMock(spec=discord.ui.Button)
+        with patch("asyncio.create_task", side_effect=_fake_create_task):
+            await view._handle_redo(interaction, button)
+        existing.cancel.assert_called_once()
+
+    async def test_timeout_disables_button(self):
+        view = _make_view()
+        view.message = None
+        await view.on_timeout()
+        assert all(item.disabled for item in view.children)
+
+    async def test_timeout_edits_message_when_stored(self):
+        view = _make_view()
+        msg = MagicMock()
+        msg.edit = AsyncMock()
+        view.message = msg
+        await view.on_timeout()
+        msg.edit.assert_awaited_once()
+
+    async def test_timeout_edit_failure_is_swallowed(self):
+        view = _make_view()
+        msg = MagicMock()
+        msg.edit = AsyncMock(side_effect=Exception("gone"))
+        view.message = msg
+        await view.on_timeout()  # must not raise
