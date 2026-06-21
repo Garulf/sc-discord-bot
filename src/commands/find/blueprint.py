@@ -71,13 +71,19 @@ async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
         results = await cog.bot.blueprints_api.search(query=current or None, page_size=MAX_AUTOCOMPLETE_CHOICES)
     except Exception:  # noqa: BLE001
         return []
-    return [
-        app_commands.Choice(
+    seen: set[str] = set()
+    choices: list[app_commands.Choice[str]] = []
+    for bp in sorted(results, key=lambda bp: len(bp.name)):
+        if bp.name in seen:
+            continue
+        seen.add(bp.name)
+        choices.append(app_commands.Choice(
             name=bp.name[:MAX_CHOICE_LABEL],
             value=bp.uuid[:MAX_CHOICE_LABEL],
-        )
-        for bp in sorted(results, key=lambda bp: len(bp.name))
-    ]
+        ))
+        if len(choices) >= MAX_AUTOCOMPLETE_CHOICES:
+            break
+    return choices
 
 
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:
