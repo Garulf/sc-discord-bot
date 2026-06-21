@@ -6,13 +6,14 @@ import discord
 from discord import app_commands
 
 from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
+from src.commands.find.shared import BLUEPRINT_COLOR
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.blueprints import Blueprint
 from src.starcitizenwiki_api.client import NotFoundError
 
 
 def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
-    embed = discord.Embed(title=blueprint.name, url=blueprint.web_url, color=0xF97316)
+    embed = discord.Embed(title=blueprint.name, url=blueprint.web_url, color=BLUEPRINT_COLOR)
 
     if blueprint.output_type_label:
         embed.description = blueprint.output_type_label

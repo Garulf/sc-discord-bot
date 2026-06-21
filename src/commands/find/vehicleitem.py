@@ -7,12 +7,12 @@ import discord
 from src.commands.formatting import add_shops_field, truncate
 from src.starcitizenwiki_api.vehicle_items import VehicleItem
 
-from .shared import handle_single
+from .shared import handle_single, VEHICLE_ITEM_COLOR
 
 
 def build_vehicle_item_embed(item: VehicleItem) -> discord.Embed:
     title = f"{item.manufacturer} {item.name}" if item.manufacturer else item.name
-    embed = discord.Embed(title=title, url=item.web_url or None, color=0x22C55E)
+    embed = discord.Embed(title=title, url=item.web_url or None, color=VEHICLE_ITEM_COLOR)
 
     if item.description:
         embed.description = truncate(item.description)
