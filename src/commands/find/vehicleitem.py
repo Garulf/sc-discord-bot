@@ -7,7 +7,7 @@ import discord
 from src.commands.formatting import add_shops_field, truncate
 from src.starcitizenwiki_api.vehicle_items import VehicleItem
 
-from .shared import handle_single, VEHICLE_ITEM_COLOR
+from .shared import VEHICLE_ITEM_COLOR, handle_single
 
 
 def build_vehicle_item_embed(item: VehicleItem) -> discord.Embed:

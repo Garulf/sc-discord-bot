@@ -77,10 +77,12 @@ async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
         if bp.name in seen:
             continue
         seen.add(bp.name)
-        choices.append(app_commands.Choice(
-            name=bp.name[:MAX_CHOICE_LABEL],
-            value=bp.uuid[:MAX_CHOICE_LABEL],
-        ))
+        choices.append(
+            app_commands.Choice(
+                name=bp.name[:MAX_CHOICE_LABEL],
+                value=bp.uuid[:MAX_CHOICE_LABEL],
+            )
+        )
         if len(choices) >= MAX_AUTOCOMPLETE_CHOICES:
             break
     return choices

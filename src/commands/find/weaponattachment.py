@@ -7,7 +7,7 @@ import discord
 from src.commands.formatting import add_shops_field, truncate
 from src.starcitizenwiki_api.weapon_attachments import WeaponAttachment
 
-from .shared import handle_single, WEAPON_ATTACHMENT_COLOR
+from .shared import WEAPON_ATTACHMENT_COLOR, handle_single
 
 
 def build_weapon_attachment_embed(item: WeaponAttachment) -> discord.Embed:
