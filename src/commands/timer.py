@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import discord
 from discord import app_commands
@@ -26,8 +26,7 @@ _TIMERS: dict[str, tuple[str, int]] = {
 }
 
 _CHOICES = [
-    app_commands.Choice(name=f"{label} ({minutes} min)", value=key)
-    for key, (label, minutes) in _TIMERS.items()
+    app_commands.Choice(name=f"{label} ({minutes} min)", value=key) for key, (label, minutes) in _TIMERS.items()
 ]
 
 _REDO_TIMEOUT = 300  # seconds the "Redo Timer" button stays active
@@ -47,15 +46,13 @@ class RestartTimerView(discord.ui.View):
 
     async def _handle_redo(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self._cog._cancel_existing(self._user_id, self._key)
-        task = asyncio.create_task(
-            self._cog._run(self._user_id, self._key, self._label, self._minutes * 60)
-        )
+        task = asyncio.create_task(self._cog._run(self._user_id, self._key, self._label, self._minutes * 60))
         self._cog._tasks[(self._user_id, self._key)] = task
 
         button.disabled = True
         self.stop()
 
-        expires = datetime.now(timezone.utc) + timedelta(minutes=self._minutes)
+        expires = datetime.now(UTC) + timedelta(minutes=self._minutes)
         await interaction.response.edit_message(
             content=(
                 f"⏰ **{self._label}** timer is up!\n"
@@ -122,7 +119,7 @@ class TimerCog(commands.Cog):
         task = asyncio.create_task(self._run(user_id, key, label, minutes * 60))
         self._tasks[(user_id, key)] = task
 
-        expires = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+        expires = datetime.now(UTC) + timedelta(minutes=minutes)
         prefix = "Restarted — " if restarted else ""
         await interaction.response.send_message(
             f"⏱️ {prefix}**{label}** — {minutes} min "
@@ -145,13 +142,9 @@ class TimerCog(commands.Cog):
     async def cancel(self, interaction: discord.Interaction, kind: str) -> None:
         label, _ = _TIMERS[kind]
         if self._cancel_existing(interaction.user.id, kind):
-            await interaction.response.send_message(
-                f"✅ Cancelled your **{label}** timer.", ephemeral=True
-            )
+            await interaction.response.send_message(f"✅ Cancelled your **{label}** timer.", ephemeral=True)
         else:
-            await interaction.response.send_message(
-                f"No active **{label}** timer found.", ephemeral=True
-            )
+            await interaction.response.send_message(f"No active **{label}** timer found.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:

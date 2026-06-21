@@ -6,13 +6,14 @@ import discord
 from discord import app_commands
 
 from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
+from src.commands.find.shared import BLUEPRINT_COLOR
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.blueprints import Blueprint
 from src.starcitizenwiki_api.client import NotFoundError
 
 
 def build_blueprint_embed(blueprint: Blueprint) -> discord.Embed:
-    embed = discord.Embed(title=blueprint.name, url=blueprint.web_url, color=0xF97316)
+    embed = discord.Embed(title=blueprint.name, url=blueprint.web_url, color=BLUEPRINT_COLOR)
 
     if blueprint.output_type_label:
         embed.description = blueprint.output_type_label
@@ -70,13 +71,21 @@ async def autocomplete(cog, current: str) -> list[app_commands.Choice[str]]:
         results = await cog.bot.blueprints_api.search(query=current or None, page_size=MAX_AUTOCOMPLETE_CHOICES)
     except Exception:  # noqa: BLE001
         return []
-    return [
-        app_commands.Choice(
-            name=bp.name[:MAX_CHOICE_LABEL],
-            value=bp.uuid[:MAX_CHOICE_LABEL],
+    seen: set[str] = set()
+    choices: list[app_commands.Choice[str]] = []
+    for bp in sorted(results, key=lambda bp: len(bp.name)):
+        if bp.name in seen:
+            continue
+        seen.add(bp.name)
+        choices.append(
+            app_commands.Choice(
+                name=bp.name[:MAX_CHOICE_LABEL],
+                value=bp.uuid[:MAX_CHOICE_LABEL],
+            )
         )
-        for bp in sorted(results, key=lambda bp: len(bp.name))
-    ]
+        if len(choices) >= MAX_AUTOCOMPLETE_CHOICES:
+            break
+    return choices
 
 
 async def handle(cog, interaction: discord.Interaction, name: str) -> None:
