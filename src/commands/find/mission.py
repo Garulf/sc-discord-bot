@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 
 from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
+from src.commands.find.shared import MISSION_COLOR
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.client import NotFoundError
 from src.starcitizenwiki_api.missions import Mission
@@ -14,7 +15,7 @@ _DESCRIPTION_MAX = 350
 
 
 def build_mission_embed(mission: Mission) -> discord.Embed:
-    embed = discord.Embed(title=mission.title, url=mission.web_url, color=0x5865F2)
+    embed = discord.Embed(title=mission.title, url=mission.web_url, color=MISSION_COLOR)
 
     if mission.description:
         desc = mission.description

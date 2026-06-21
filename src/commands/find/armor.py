@@ -8,12 +8,12 @@ from src.commands.formatting import add_shops_field, truncate
 from src.commands.formatting import format_number as _format_number
 from src.starcitizenwiki_api.armor import ArmorItem
 
-from .shared import handle_single
+from .shared import ARMOR_COLOR, handle_single
 
 
 def build_armor_embed(item: ArmorItem) -> discord.Embed:
     title = f"{item.manufacturer} {item.name}" if item.manufacturer else item.name
-    embed = discord.Embed(title=title, url=item.web_url or None, color=0x4A90D9)
+    embed = discord.Embed(title=title, url=item.web_url or None, color=ARMOR_COLOR)
 
     if item.description:
         embed.description = truncate(item.description)
