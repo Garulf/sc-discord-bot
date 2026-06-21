@@ -7,12 +7,12 @@ import discord
 from src.commands.formatting import add_shops_field, truncate
 from src.starcitizenwiki_api.clothes import ClothingItem
 
-from .shared import handle_single
+from .shared import CLOTHES_COLOR, handle_single
 
 
 def build_clothes_embed(item: ClothingItem) -> discord.Embed:
     title = f"{item.manufacturer} {item.name}" if item.manufacturer else item.name
-    embed = discord.Embed(title=title, url=item.web_url or None, color=0xA855F7)
+    embed = discord.Embed(title=title, url=item.web_url or None, color=CLOTHES_COLOR)
 
     if item.description:
         embed.description = truncate(item.description)

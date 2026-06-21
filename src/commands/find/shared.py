@@ -18,6 +18,16 @@ from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api.client import NotFoundError
 
+BLUEPRINT_COLOR = 0xF97316
+MISSION_COLOR = 0x5865F2
+WEAPON_COLOR = 0xE07B1B
+SHIP_WEAPON_COLOR = 0x1B7BE0
+ARMOR_COLOR = 0x4A90D9
+CLOTHES_COLOR = 0xA855F7
+VEHICLE_ITEM_COLOR = 0x22C55E
+WEAPON_ATTACHMENT_COLOR = 0xF59E0B
+ITEM_COLOR = 0x6B7280
+
 CATEGORIES = [
     ("weapon", "Weapon"),
     ("ship-weapon", "Ship Weapon"),
