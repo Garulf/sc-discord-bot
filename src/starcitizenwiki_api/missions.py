@@ -28,6 +28,44 @@ class BlueprintStub:
 
 
 @dataclass(frozen=True)
+class RewardItem:
+    name: str
+    uuid: str
+    amount: int
+    web_url: str | None
+    link: str | None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> RewardItem:
+        return cls(
+            name=data.get("name") or "Unknown",
+            uuid=data.get("uuid") or "",
+            amount=data.get("amount") or 1,
+            web_url=data.get("web_url"),
+            link=data.get("link"),
+        )
+
+
+@dataclass(frozen=True)
+class HaulingOrder:
+    name: str
+    uuid: str
+    min_amount: int | None
+    max_amount: int | None
+    web_url: str | None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> HaulingOrder:
+        return cls(
+            name=data.get("name") or "Unknown",
+            uuid=data.get("uuid") or "",
+            min_amount=data.get("min_amount"),
+            max_amount=data.get("max_amount"),
+            web_url=data.get("web_url"),
+        )
+
+
+@dataclass(frozen=True)
 class ReputationGain:
     faction: str
     faction_uuid: str
@@ -78,6 +116,8 @@ class Mission:
     web_url: str | None
     reputation_gained: list[ReputationGain] = field(default_factory=list)
     blueprints: list[BlueprintStub] = field(default_factory=list)
+    reward_items: list[RewardItem] = field(default_factory=list)
+    hauling_orders: list[HaulingOrder] = field(default_factory=list)
 
     @property
     def slug(self) -> str | None:
@@ -134,6 +174,12 @@ class Mission:
                 if isinstance(pool, dict)
                 for item in (pool.get("items") or [])
                 if isinstance(item, dict)
+            ],
+            reward_items=[
+                RewardItem.from_api(item) for item in (data.get("reward_items") or []) if isinstance(item, dict)
+            ],
+            hauling_orders=[
+                HaulingOrder.from_api(item) for item in (data.get("hauling_orders") or []) if isinstance(item, dict)
             ],
         )
 
