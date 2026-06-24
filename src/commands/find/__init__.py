@@ -21,6 +21,8 @@ from .shipweapon import handle as _handle_shipweapon
 from .vehicleitem import handle as _handle_vehicleitem
 from .weapon import handle as _handle_weapon
 from .weaponattachment import handle as _handle_weaponattachment
+from .wikelo import autocomplete as _wikelo_autocomplete
+from .wikelo import handle as _handle_wikelo
 
 
 def _autocomplete_for(api_attr: str):
@@ -59,6 +61,9 @@ class FindCog(commands.Cog):
 
     async def mission_autocomplete(self, interaction: discord.Interaction, current: str):
         return await _mission_autocomplete(self, current)
+
+    async def wikelo_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await _wikelo_autocomplete(self, current)
 
     async def all_autocomplete(self, interaction: discord.Interaction, current: str):
         return await autocomplete_all(self, current)
@@ -122,6 +127,12 @@ class FindCog(commands.Cog):
     @app_commands.autocomplete(name=mission_autocomplete)
     async def mission(self, interaction: discord.Interaction, name: str) -> None:
         await _handle_mission(self, interaction, name)
+
+    @find.command(name="wikelo", description="Find a Wikelo Emporium mission by reward item")
+    @app_commands.describe(reward="The item Wikelo crafts for you (e.g. Anvil F8C Lightning Wikelo War Special)")
+    @app_commands.autocomplete(reward=wikelo_autocomplete)
+    async def wikelo(self, interaction: discord.Interaction, reward: str) -> None:
+        await _handle_wikelo(self, interaction, reward)
 
 
 async def setup(bot: commands.Bot) -> None:
