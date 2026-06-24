@@ -188,12 +188,12 @@ class TestBuildWikeloEmbed:
         from src.commands.find.wikelo import build_wikelo_embed
         embed = build_wikelo_embed(self._make_mission())
         names = [f.name for f in embed.fields]
-        assert "Hauling Orders" in names
+        assert "Requirements" in names
 
     def test_hauling_orders_content(self):
         from src.commands.find.wikelo import build_wikelo_embed
         embed = build_wikelo_embed(self._make_mission())
-        field = next(f for f in embed.fields if f.name == "Hauling Orders")
+        field = next(f for f in embed.fields if f.name == "Requirements")
         assert "Wikelo Favor" in field.value
         assert "up to ×40" in field.value
         assert "Carinite (Pure)" in field.value

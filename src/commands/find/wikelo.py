@@ -58,7 +58,7 @@ def build_wikelo_embed(mission: Mission, image_url: str | None = None) -> discor
                 visible.append(line)
                 total += len(line) + 1
             text = "\n".join(visible)
-        embed.add_field(name="Hauling Orders", value=text, inline=False)
+        embed.add_field(name="Requirements", value=text, inline=False)
 
     if mission.reputation_gained:
         rep = mission.reputation_gained[0]
