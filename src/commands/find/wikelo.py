@@ -47,11 +47,23 @@ def build_wikelo_embed(mission: Mission, image_url: str | None = None) -> discor
         for order in mission.hauling_orders:
             amount = format_amount(order)
             lines.append(f"{order.name} {amount}".strip())
-        embed.add_field(name="Hauling Orders", value="\n".join(lines), inline=False)
+        text = "\n".join(lines)
+        if len(text) > 1024:
+            visible: list[str] = []
+            total = 0
+            for line in lines:
+                if total + len(line) + 1 > 1000:
+                    visible.append(f"… and {len(lines) - len(visible)} more")
+                    break
+                visible.append(line)
+                total += len(line) + 1
+            text = "\n".join(visible)
+        embed.add_field(name="Hauling Orders", value=text, inline=False)
 
     if mission.reputation_gained:
         rep = mission.reputation_gained[0]
-        embed.add_field(name="Reputation", value=f"+{rep.amount} {rep.faction}", inline=True)
+        if rep.amount is not None:
+            embed.add_field(name="Reputation", value=f"+{rep.amount} {rep.faction}", inline=True)
 
     embed.set_footer(text="Source: star-citizen.wiki")
     return embed
@@ -120,15 +132,19 @@ async def handle(cog, interaction: discord.Interaction, reward: str) -> None:
         return
 
     mission = next(
-        (m for m in missions if any(ri.name == reward for ri in m.reward_items)),
+        (m for m in missions if any(ri.name[:MAX_CHOICE_LABEL] == reward for ri in m.reward_items)),
         None,
     )
     if mission is None:
         await interaction.followup.send(f"No Wikelo mission found rewarding **{reward}**.", ephemeral=True)
         return
 
+    matched_reward = next(
+        (ri for ri in mission.reward_items if ri.name[:MAX_CHOICE_LABEL] == reward),
+        mission.reward_items[0],
+    )
     image_url: str | None = None
-    if mission.reward_items and mission.reward_items[0].link:
-        image_url = await _fetch_item_image(cog.bot, mission.reward_items[0].link)
+    if matched_reward.link:
+        image_url = await _fetch_item_image(cog.bot, matched_reward.link)
 
     await interaction.followup.send(embed=build_wikelo_embed(mission, image_url))
