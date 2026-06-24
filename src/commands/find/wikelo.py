@@ -7,11 +7,13 @@ from discord import app_commands
 
 from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
 from src.commands.find.shared import MISSION_COLOR
+from src.http_cache import TTLCache
 from src.starcitizenwiki_api import StarCitizenWikiError
 from src.starcitizenwiki_api._common import first_image
 from src.starcitizenwiki_api.missions import HaulingOrder, Mission
 
 _WIKELO_FACTION = "Wikelo Emporium"
+_missions_cache: TTLCache = TTLCache()
 
 
 def format_amount(order: HaulingOrder) -> str:
@@ -56,12 +58,21 @@ def build_wikelo_embed(mission: Mission, image_url: str | None = None) -> discor
 
 
 async def _get_wikelo_missions(bot) -> list[Mission]:
-    missions = await bot.missions_api.search(faction=_WIKELO_FACTION, page_size=200)
-    details = await asyncio.gather(
-        *[bot.missions_api.get(m.uuid) for m in missions],
-        return_exceptions=True,
-    )
-    return [m for m in details if isinstance(m, Mission)]
+    cached = await _missions_cache.get("wikelo_missions")
+    if cached is not None:
+        return cached
+    async with _missions_cache.lock("wikelo_missions"):
+        cached = await _missions_cache.get("wikelo_missions")
+        if cached is not None:
+            return cached
+        missions = await bot.missions_api.search(faction=_WIKELO_FACTION, page_size=200)
+        details = await asyncio.gather(
+            *[bot.missions_api.get(m.uuid) for m in missions],
+            return_exceptions=True,
+        )
+        result = [m for m in details if isinstance(m, Mission)]
+        await _missions_cache.set("wikelo_missions", result)
+        return result
 
 
 async def _fetch_item_image(bot, link: str) -> str | None:
