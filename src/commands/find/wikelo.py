@@ -8,6 +8,7 @@ from discord import app_commands
 from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
 from src.commands.find.shared import MISSION_COLOR
 from src.starcitizenwiki_api import StarCitizenWikiError
+from src.starcitizenwiki_api._common import first_image
 from src.starcitizenwiki_api.missions import HaulingOrder, Mission
 
 _WIKELO_FACTION = "Wikelo Emporium"
@@ -66,9 +67,8 @@ async def _get_wikelo_missions(bot) -> list[Mission]:
 async def _fetch_item_image(bot, link: str) -> str | None:
     try:
         payload = await bot.sc_client.get(link)
-        images = (payload.get("data") or {}).get("images") or []
-        if images and isinstance(images[0], dict):
-            return images[0].get("thumbnail_url")
+        data = (payload.get("data") or {})
+        return first_image(data.get("images"))
     except Exception:  # noqa: BLE001
         pass
     return None
