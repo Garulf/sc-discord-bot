@@ -26,7 +26,7 @@ from .remove_set import handle as _handle_remove_set
 from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
 from .subscribe import handle as _handle_subscribe
-from .subscriptions import cleanup_expired_notifications
+from .subscriptions import cleanup_expired_notifications, refresh_live_status
 from .unsubscribe import handle as _handle_unsubscribe
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,11 @@ class InventoryCog(commands.Cog):
 
     async def cog_load(self) -> None:
         self.cleanup_loop.start()
+        self.refresh_loop.start()
 
     async def cog_unload(self) -> None:
         self.cleanup_loop.cancel()
+        self.refresh_loop.cancel()
 
     @tasks.loop(minutes=10)
     async def cleanup_loop(self) -> None:
@@ -73,6 +75,25 @@ class InventoryCog(commands.Cog):
     @cleanup_loop.before_loop
     async def before_cleanup_loop(self) -> None:
         await self.bot.wait_until_ready()
+
+    @cleanup_loop.error
+    async def cleanup_loop_error(self, error: Exception) -> None:
+        logger.exception("Inventory cleanup loop error: %s", error)
+
+    @tasks.loop(minutes=5)
+    async def refresh_loop(self) -> None:
+        for guild in self.bot.guilds:
+            await refresh_live_status(self, guild.id)
+
+    @refresh_loop.before_loop
+    async def before_refresh_loop(self) -> None:
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            await refresh_live_status(self, guild.id)
+
+    @refresh_loop.error
+    async def refresh_loop_error(self, error: Exception) -> None:
+        logger.exception("Inventory refresh loop error: %s", error)
 
     @cleanup_loop.error
     async def cleanup_loop_error(self, error: Exception) -> None:
