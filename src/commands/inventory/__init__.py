@@ -19,7 +19,6 @@ from .admin.remove import handle as _handle_admin_remove
 from .clear import handle as _handle_clear
 from .remove import handle as _handle_remove
 from .remove_set import handle as _handle_remove_set
-from .shared import item_choices
 from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
 
@@ -50,9 +49,6 @@ class InventoryCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-
-    async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-        return item_choices(current)
 
     @inventory.command(name="add", description="Add DCHS cards to your inventory")
     @app_commands.rename(
@@ -144,29 +140,69 @@ class InventoryCog(commands.Cog):
     async def status_everyone(self, interaction: discord.Interaction) -> None:
         await _handle_status_everyone(self, interaction)
 
-    @admin_group.command(name="add", description="Add a DCHS item to a member's inventory")
-    @app_commands.describe(
-        member="The member to add the item for",
-        item="The DCHS item to add (DCHS-01 through DCHS-07)",
-        count="How many to add (default 1)",
+    @admin_group.command(name="add", description="Add DCHS cards to a member's inventory")
+    @app_commands.rename(
+        dchs_01="dchs-01", dchs_02="dchs-02", dchs_03="dchs-03",
+        dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
     )
-    @app_commands.autocomplete(item=item_autocomplete)
+    @app_commands.describe(
+        member="The member to add cards for",
+        dchs_01="Number of DCHS-01 to add", dchs_02="Number of DCHS-02 to add",
+        dchs_03="Number of DCHS-03 to add", dchs_04="Number of DCHS-04 to add",
+        dchs_05="Number of DCHS-05 to add", dchs_06="Number of DCHS-06 to add",
+        dchs_07="Number of DCHS-07 to add",
+    )
     async def admin_add(
-        self, interaction: discord.Interaction, member: discord.Member, item: str, count: int = 1
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        dchs_01: int | None = None, dchs_02: int | None = None, dchs_03: int | None = None,
+        dchs_04: int | None = None, dchs_05: int | None = None, dchs_06: int | None = None,
+        dchs_07: int | None = None,
     ) -> None:
-        await _handle_admin_add(self, interaction, member, item, count)
+        entries = [
+            (item, count) for item, count in [
+                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+                ("DCHS-07", dchs_07),
+            ] if count is not None
+        ]
+        if not entries:
+            await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
+            return
+        await _handle_admin_add(self, interaction, member, entries)
 
-    @admin_group.command(name="remove", description="Remove a DCHS item from a member's inventory")
-    @app_commands.describe(
-        member="The member to remove the item from",
-        item="The DCHS item to remove",
-        count="How many to remove (default 1)",
+    @admin_group.command(name="remove", description="Remove DCHS cards from a member's inventory")
+    @app_commands.rename(
+        dchs_01="dchs-01", dchs_02="dchs-02", dchs_03="dchs-03",
+        dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
     )
-    @app_commands.autocomplete(item=item_autocomplete)
+    @app_commands.describe(
+        member="The member to remove cards from",
+        dchs_01="Number of DCHS-01 to remove", dchs_02="Number of DCHS-02 to remove",
+        dchs_03="Number of DCHS-03 to remove", dchs_04="Number of DCHS-04 to remove",
+        dchs_05="Number of DCHS-05 to remove", dchs_06="Number of DCHS-06 to remove",
+        dchs_07="Number of DCHS-07 to remove",
+    )
     async def admin_remove(
-        self, interaction: discord.Interaction, member: discord.Member, item: str, count: int = 1
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        dchs_01: int | None = None, dchs_02: int | None = None, dchs_03: int | None = None,
+        dchs_04: int | None = None, dchs_05: int | None = None, dchs_06: int | None = None,
+        dchs_07: int | None = None,
     ) -> None:
-        await _handle_admin_remove(self, interaction, member, item, count)
+        entries = [
+            (item, count) for item, count in [
+                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+                ("DCHS-07", dchs_07),
+            ] if count is not None
+        ]
+        if not entries:
+            await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
+            return
+        await _handle_admin_remove(self, interaction, member, entries)
 
     @admin_group.command(name="clear", description="Clear all DCHS items from a member's inventory")
     @app_commands.describe(member="The member whose inventory to clear")
