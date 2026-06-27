@@ -32,6 +32,17 @@ from .unsubscribe import handle as _handle_unsubscribe
 logger = logging.getLogger(__name__)
 
 
+async def _count_autocomplete(
+    interaction: discord.Interaction, current: str
+) -> list[app_commands.Choice[str]]:
+    options = ["1", "2", "3", "4", "5"]
+    return [
+        app_commands.Choice(name=v, value=v)
+        for v in options
+        if v.startswith(current)
+    ]
+
+
 class InventoryCog(commands.Cog):
     """DCHS collectible set inventory tracking."""
 
@@ -109,34 +120,42 @@ class InventoryCog(commands.Cog):
         dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
     )
     @app_commands.describe(
-        dchs_01="Number of DCHS-01 to add",
-        dchs_02="Number of DCHS-02 to add",
-        dchs_03="Number of DCHS-03 to add",
-        dchs_04="Number of DCHS-04 to add",
-        dchs_05="Number of DCHS-05 to add",
-        dchs_06="Number of DCHS-06 to add",
-        dchs_07="Number of DCHS-07 to add",
+        dchs_01="Count to add (default 1)",
+        dchs_02="Count to add (default 1)",
+        dchs_03="Count to add (default 1)",
+        dchs_04="Count to add (default 1)",
+        dchs_05="Count to add (default 1)",
+        dchs_06="Count to add (default 1)",
+        dchs_07="Count to add (default 1)",
+    )
+    @app_commands.autocomplete(
+        dchs_01=_count_autocomplete, dchs_02=_count_autocomplete,
+        dchs_03=_count_autocomplete, dchs_04=_count_autocomplete,
+        dchs_05=_count_autocomplete, dchs_06=_count_autocomplete,
+        dchs_07=_count_autocomplete,
     )
     async def add(
         self,
         interaction: discord.Interaction,
-        dchs_01: int = 1,
-        dchs_02: int = 1,
-        dchs_03: int = 1,
-        dchs_04: int = 1,
-        dchs_05: int = 1,
-        dchs_06: int = 1,
-        dchs_07: int = 1,
+        dchs_01: str | None = None,
+        dchs_02: str | None = None,
+        dchs_03: str | None = None,
+        dchs_04: str | None = None,
+        dchs_05: str | None = None,
+        dchs_06: str | None = None,
+        dchs_07: str | None = None,
     ) -> None:
-        provided = {opt["name"] for opt in interaction.data.get("options", [])}
-        entries = [
-            (item, count) for item, count, name in [
-                ("DCHS-01", dchs_01, "dchs-01"), ("DCHS-02", dchs_02, "dchs-02"),
-                ("DCHS-03", dchs_03, "dchs-03"), ("DCHS-04", dchs_04, "dchs-04"),
-                ("DCHS-05", dchs_05, "dchs-05"), ("DCHS-06", dchs_06, "dchs-06"),
-                ("DCHS-07", dchs_07, "dchs-07"),
-            ] if name in provided
+        raw_pairs = [
+            ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+            ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+            ("DCHS-07", dchs_07),
         ]
+        entries = []
+        for item, raw in raw_pairs:
+            if raw is None:
+                continue
+            count = int(raw.strip()) if raw.strip().isdigit() else 1
+            entries.append((item, count))
         if not entries:
             await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
             return
