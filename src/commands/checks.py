@@ -27,3 +27,9 @@ async def admin_or_sc_bot(interaction: discord.Interaction) -> bool:
     raise app_commands.CheckFailure(
         f"You need the **{_SC_BOT_ROLE}** role or administrator permissions to use this command."
     )
+
+
+async def is_bot_owner(interaction: discord.Interaction) -> bool:
+    if not await interaction.client.is_owner(interaction.user):
+        raise app_commands.CheckFailure("This command is only available to the bot creator.")
+    return True

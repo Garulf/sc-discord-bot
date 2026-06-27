@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import discord
 
-from .shared import save_state
+from .shared import get_schedule_for_guild, save_state
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +20,22 @@ _EVENTS = [
 
 
 async def refresh_warnings(cog) -> None:
-    if cog.schedule is None or not cog.subscriptions:
+    if not cog.subscriptions:
         return
 
     now = datetime.now(UTC)
-    event_times = {
-        "open":  cog.schedule.next_open(now),
-        "close": cog.schedule.next_close(now),
-    }
-
     changed = False
 
     for sub in cog.subscriptions:
+        schedule, _ = get_schedule_for_guild(cog, sub.get("guild_id"))
+        if schedule is None:
+            continue
+
+        event_times = {
+            "open":  schedule.next_open(now),
+            "close": schedule.next_close(now),
+        }
+
         channel_id = sub["channel_id"]
         channel_key = str(channel_id)
         channel_warnings: dict = cog.warnings.setdefault(channel_key, {})
