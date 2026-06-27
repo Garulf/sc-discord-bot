@@ -72,6 +72,7 @@ async def refresh_live_status(cog, guild_id: int) -> None:
     data = await get_guild_subs(cog, guild_id)
     if not data["subscriptions"]:
         return
+    logger.info("Refreshing %d inventory subscription(s) for guild %d", len(data["subscriptions"]), guild_id)
 
     embed = await _build_live_embed(cog, guild)
     survivors = []

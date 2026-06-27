@@ -88,16 +88,15 @@ class InventoryCog(commands.Cog):
     @refresh_loop.before_loop
     async def before_refresh_loop(self) -> None:
         await self.bot.wait_until_ready()
-        for guild in self.bot.guilds:
-            await refresh_live_status(self, guild.id)
+        try:
+            for guild in self.bot.guilds:
+                await refresh_live_status(self, guild.id)
+        except Exception:
+            logger.exception("Error during initial inventory refresh")
 
     @refresh_loop.error
     async def refresh_loop_error(self, error: Exception) -> None:
         logger.exception("Inventory refresh loop error: %s", error)
-
-    @cleanup_loop.error
-    async def cleanup_loop_error(self, error: Exception) -> None:
-        logger.exception("Inventory cleanup loop error: %s", error)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
