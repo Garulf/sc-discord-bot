@@ -47,7 +47,6 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
 
     guild_inv[user_key] = user_inv
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
-    await refresh_live_status(cog, interaction.guild_id)
 
     if len(removed_parts) == 1:
         card, count, remaining = removed_parts[0]
@@ -56,3 +55,4 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
         parts = ", ".join(f"×{count} **{card}**" for card, count, _ in removed_parts)
         msg = f"Removed {parts} from your inventory."
     await interaction.response.send_message(msg, ephemeral=True)
+    await refresh_live_status(cog, interaction.guild_id)

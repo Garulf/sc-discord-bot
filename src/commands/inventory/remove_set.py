@@ -28,5 +28,5 @@ async def handle(cog, interaction: discord.Interaction) -> None:
 
     guild_inv[user_key] = user_inv
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
-    await refresh_live_status(cog, interaction.guild_id)
     await interaction.response.send_message("Removed one complete set (DCHS-01 through DCHS-07) from your inventory.", ephemeral=True)
+    await refresh_live_status(cog, interaction.guild_id)
