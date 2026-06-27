@@ -76,11 +76,11 @@ def build_status_table(
         if name is None:
             continue
         card_parts = " · ".join(
-            f"{item.removeprefix('DCHS-')}:×{user_inv.get(item, 0)}" for item in ITEMS
+            f"**{item.removeprefix('DCHS-')}**:×{user_inv.get(item, 0)}" for item in ITEMS
         )
         sets = complete_sets(user_inv)
-        lines.append(f"**{name}** · {card_parts} · Sets: ×{sets}")
-    return "\n".join(lines)
+        lines.append(f"**{name}** (Sets: ×{sets})\n{card_parts}")
+    return "\n\n".join(lines)
 
 
 def format_mine(inventory: dict[str, int]) -> str:
