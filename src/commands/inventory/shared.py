@@ -79,8 +79,8 @@ def build_status_table(
         row = [name]
         for item in ITEMS:
             count = user_inv.get(item, 0)
-            row.append(f"×{count}" if count > 0 else "")
-        row.append(f"×{complete_sets(user_inv)}")
+            row.append(f"x{count}" if count > 0 else "")
+        row.append(f"x{complete_sets(user_inv)}")
         body.append(row)
 
     if not body:
