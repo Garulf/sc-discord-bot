@@ -6,9 +6,12 @@ subcommands.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 import discord
+
+logger = logging.getLogger(__name__)
 
 from src.exec_hangars import HangarSchedule, build_status, format_relative_time
 
@@ -75,6 +78,10 @@ async def refresh_subscriptions(cog) -> None:
             except (discord.NotFound, discord.Forbidden):
                 changed = True
                 continue
+            except discord.HTTPException as exc:
+                logger.warning("Failed to fetch channel for hangar subscription %s: %s", sub, exc)
+                survivors.append(sub)
+                continue
         try:
             message = await channel.fetch_message(sub["message_id"])
             await message.edit(embed=embed)
@@ -82,6 +89,9 @@ async def refresh_subscriptions(cog) -> None:
         except discord.NotFound:
             changed = True
         except discord.Forbidden:
+            survivors.append(sub)
+        except discord.HTTPException as exc:
+            logger.warning("Failed to update hangar subscription %s: %s", sub, exc)
             survivors.append(sub)
 
     if changed:

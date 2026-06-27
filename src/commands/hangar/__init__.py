@@ -7,11 +7,14 @@ contains only the Cog class (command registration and task-loop wiring)."""
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
+
+logger = logging.getLogger(__name__)
 
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 from src.exec_hangars import HangarSchedule
@@ -50,6 +53,10 @@ class HangarCog(commands.Cog):
     @update_loop.before_loop
     async def before_update_loop(self) -> None:
         await self.bot.wait_until_ready()
+
+    @update_loop.error
+    async def update_loop_error(self, error: Exception) -> None:
+        logger.exception("Hangar update loop stopped unexpectedly: %s", error)
 
     @hangar.command(name="status", description="Show the current Executive Hangar status")
     async def status(self, interaction: discord.Interaction):
