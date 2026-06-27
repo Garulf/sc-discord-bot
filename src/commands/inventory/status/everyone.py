@@ -21,7 +21,11 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         await interaction.followup.send("No inventory data found for this server.")
         return
 
-    total_sets = sum(complete_sets(inv) for inv in active.values())
+    pooled: dict[str, int] = {}
+    for inv in active.values():
+        for item, count in inv.items():
+            pooled[item] = pooled.get(item, 0) + count
+    total_sets = complete_sets(pooled)
     embed = discord.Embed(
         title="DCHS Inventory Status",
         color=0x57F287 if total_sets > 0 else 0x5865F2,
