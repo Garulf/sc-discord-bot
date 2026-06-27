@@ -90,15 +90,14 @@ def build_status_table(
     for user_inv in active.values():
         for item, count in user_inv.items():
             pooled[item] = pooled.get(item, 0) + count
-    total_row = ["Server total"]
+    footer = ["Server total"]
     for item in ITEMS:
         count = pooled.get(item, 0)
-        total_row.append(f"x{count}" if count > 0 else "")
-    total_row.append(f"x{complete_sets(pooled)}")
-    body.append(total_row)
+        footer.append(f"x{count}" if count > 0 else "")
+    footer.append(f"x{complete_sets(pooled)}")
 
     header = ["User", "01", "02", "03", "04", "05", "06", "07", "Sets"]
-    return table2ascii(header=header, body=body, style=PresetStyle.thin_compact)
+    return table2ascii(header=header, body=body, footer=footer, style=PresetStyle.thin_compact)
 
 
 def format_mine(inventory: dict[str, int]) -> str:
