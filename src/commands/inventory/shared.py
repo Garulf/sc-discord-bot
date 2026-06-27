@@ -29,6 +29,14 @@ def complete_sets(inventory: dict[str, int]) -> int:
     return min(inventory.get(item, 0) for item in ITEMS)
 
 
+def pool_sets(guild_inv: dict[str, dict[str, int]]) -> int:
+    pooled: dict[str, int] = {}
+    for inv in guild_inv.values():
+        for item, count in inv.items():
+            pooled[item] = pooled.get(item, 0) + count
+    return complete_sets(pooled)
+
+
 def embed_color(inventory: dict[str, int]) -> int:
     if complete_sets(inventory) > 0:
         return 0x57F287  # green

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .shared import ITEMS, complete_sets, get_guild_inventory, save_guild_inventory
+from .shared import ITEMS, complete_sets, get_guild_inventory, pool_sets, save_guild_inventory
 from .subscriptions import notify_added, refresh_live_status
 
 
@@ -29,15 +29,7 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
     user_inv = dict(guild_inv.get(user_key, {}))
 
     sets_before = complete_sets(user_inv)
-
-    def _pool(inv_dict: dict) -> int:
-        pooled: dict[str, int] = {}
-        for inv in inv_dict.values():
-            for item, count in inv.items():
-                pooled[item] = pooled.get(item, 0) + count
-        return complete_sets(pooled)
-
-    pool_before = _pool(guild_inv)
+    pool_before = pool_sets(guild_inv)
 
     totals: dict[str, int] = {}
     for card, count in entries:
@@ -48,7 +40,7 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
 
     sets_after = complete_sets(user_inv)
-    pool_after = _pool(guild_inv)
+    pool_after = pool_sets(guild_inv)
 
     sets = sets_after
     if len(totals) == 1:
