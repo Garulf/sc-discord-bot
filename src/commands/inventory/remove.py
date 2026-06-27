@@ -50,7 +50,8 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
 
     if len(removed_parts) == 1:
         card, count, remaining = removed_parts[0]
-        msg = f"Removed ×{count} **{card}** from your inventory. You now have ×{remaining}."
+        remainder_str = f"You now have ×{remaining}." if remaining > 0 else "You have none left."
+        msg = f"Removed ×{count} **{card}** from your inventory. {remainder_str}"
     else:
         parts = ", ".join(f"×{count} **{card}**" for card, count, _ in removed_parts)
         msg = f"Removed {parts} from your inventory."
