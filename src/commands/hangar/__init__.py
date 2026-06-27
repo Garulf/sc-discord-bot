@@ -16,9 +16,10 @@ from discord.ext import commands, tasks
 
 logger = logging.getLogger(__name__)
 
-from src.commands.checks import admin_or_sc_bot, handle_check_failure
+from src.commands.checks import admin_or_sc_bot, handle_check_failure, is_bot_owner
 from src.exec_hangars import HangarSchedule
 
+from .global_set import handle as _handle_global_set
 from .set import handle as _handle_set
 from .shared import load_state, refresh_subscriptions
 from .status import handle as _handle_status
@@ -34,10 +35,19 @@ class HangarCog(commands.Cog):
 
     hangar = app_commands.Group(name="hangar", description="Executive Hangar tracking")
 
+    global_group = app_commands.Group(
+        name="global",
+        description="Global Executive Hangar settings",
+        parent=hangar,
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.schedule: HangarSchedule | None = None
-        self.set_at: datetime | None = None
+        self.global_schedule: HangarSchedule | None = None
+        self.global_set_at: datetime | None = None
+        self.guild_schedules: dict[int, HangarSchedule] = {}
+        self.guild_set_at: dict[int, datetime] = {}
         self.subscriptions: list[dict] = []
         self.warnings: dict = {}
 
@@ -65,7 +75,7 @@ class HangarCog(commands.Cog):
     async def status(self, interaction: discord.Interaction):
         await _handle_status(self, interaction)
 
-    @hangar.command(name="set", description="Set the current Executive Hangar state")
+    @hangar.command(name="set", description="Set the current Executive Hangar state for this server")
     @app_commands.describe(
         phase="The phase the hangar is currently in",
         lights="Charging: green lights lit. Open: lights already expired. (0-5)",
@@ -100,6 +110,27 @@ class HangarCog(commands.Cog):
     @app_commands.check(admin_or_sc_bot)
     async def unsubscribe(self, interaction: discord.Interaction):
         await _handle_unsubscribe(self, interaction)
+
+    @global_group.command(name="set", description="Set the global Executive Hangar state (bot owner only)")
+    @app_commands.describe(
+        phase="The phase the hangar is currently in",
+        lights="Charging: green lights lit. Open: lights already expired. (0-5)",
+    )
+    @app_commands.choices(
+        phase=[
+            app_commands.Choice(name="Charging (closed, lights filling green)", value="charging"),
+            app_commands.Choice(name="Open (active, lights expiring)", value="active"),
+            app_commands.Choice(name="Resetting (orange / blinking)", value="reset"),
+        ]
+    )
+    @app_commands.check(is_bot_owner)
+    async def global_set(
+        self,
+        interaction: discord.Interaction,
+        phase: app_commands.Choice[str],
+        lights: app_commands.Range[int, 0, 5] = 0,
+    ):
+        await _handle_global_set(self, interaction, phase, lights)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
