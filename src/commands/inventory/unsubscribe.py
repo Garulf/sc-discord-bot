@@ -27,5 +27,15 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             pass
 
+    channel_notifs = [n for n in data.get("notifications", []) if n["channel_id"] == interaction.channel_id]
+    data["notifications"] = [n for n in data.get("notifications", []) if n["channel_id"] != interaction.channel_id]
+
+    for notif in channel_notifs:
+        try:
+            msg = await interaction.channel.fetch_message(notif["message_id"])
+            await msg.delete()
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+
     await save_guild_subs(cog, interaction.guild_id, data)
     await interaction.response.send_message("Live inventory status removed.", ephemeral=True)
