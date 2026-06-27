@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import discord
 
+from .image import build_status_image
 from .shared import build_status_table, get_guild_inventory
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,10 @@ async def save_guild_subs(cog, guild_id: int, data: dict) -> None:
 # Live-status embed
 # ---------------------------------------------------------------------------
 
-async def _build_live_content(cog, guild: discord.Guild) -> str:
+_HEADER = "**DCHS Inventory Status**"
+
+
+async def _build_live_content(cog, guild: discord.Guild) -> tuple[str, discord.File | None]:
     guild_inv = await get_guild_inventory(cog, guild.id)
     active = {uid: inv for uid, inv in guild_inv.items() if inv}
 
@@ -50,8 +54,8 @@ async def _build_live_content(cog, guild: discord.Guild) -> str:
 
     table = build_status_table(active, member_names)
     if table:
-        return f"**DCHS Inventory Status**\n```\n{table}\n```"
-    return "**DCHS Inventory Status**\n*No inventory data yet.*"
+        return _HEADER, discord.File(build_status_image(table), filename="status.png")
+    return f"{_HEADER}\n*No inventory data yet.*", None
 
 
 async def refresh_live_status(cog, guild_id: int) -> None:
@@ -63,7 +67,7 @@ async def refresh_live_status(cog, guild_id: int) -> None:
         return
     logger.info("Refreshing %d inventory subscription(s) for guild %d", len(data["subscriptions"]), guild_id)
 
-    content = await _build_live_content(cog, guild)
+    content, file = await _build_live_content(cog, guild)
     survivors = []
     changed = False
 
@@ -81,7 +85,11 @@ async def refresh_live_status(cog, guild_id: int) -> None:
                 continue
         try:
             message = await channel.fetch_message(sub["message_id"])
-            await message.edit(content=content, embed=None)
+            if file is not None:
+                file.fp.seek(0)
+                await message.edit(content=content, embed=None, attachments=[file])
+            else:
+                await message.edit(content=content, embed=None, attachments=[])
             survivors.append(sub)
         except discord.NotFound:
             changed = True
