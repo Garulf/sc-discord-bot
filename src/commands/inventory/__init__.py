@@ -54,68 +54,70 @@ class InventoryCog(commands.Cog):
     async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         return item_choices(current)
 
-    @inventory.command(name="add", description="Add one or more DCHS cards to your inventory")
+    @inventory.command(name="add", description="Add DCHS cards to your inventory")
     @app_commands.describe(
-        card="DCHS card to add",  count="Quantity (default 1)",
-        card2="DCHS card to add", count2="Quantity (default 1)",
-        card3="DCHS card to add", count3="Quantity (default 1)",
-        card4="DCHS card to add", count4="Quantity (default 1)",
-        card5="DCHS card to add", count5="Quantity (default 1)",
-        card6="DCHS card to add", count6="Quantity (default 1)",
-        card7="DCHS card to add", count7="Quantity (default 1)",
-    )
-    @app_commands.autocomplete(
-        card=item_autocomplete,  card2=item_autocomplete, card3=item_autocomplete,
-        card4=item_autocomplete, card5=item_autocomplete, card6=item_autocomplete,
-        card7=item_autocomplete,
+        dchs_01="Number of DCHS-01 to add",
+        dchs_02="Number of DCHS-02 to add",
+        dchs_03="Number of DCHS-03 to add",
+        dchs_04="Number of DCHS-04 to add",
+        dchs_05="Number of DCHS-05 to add",
+        dchs_06="Number of DCHS-06 to add",
+        dchs_07="Number of DCHS-07 to add",
     )
     async def add(
         self,
         interaction: discord.Interaction,
-        card: str,               count: int = 1,
-        card2: str | None = None, count2: int = 1,
-        card3: str | None = None, count3: int = 1,
-        card4: str | None = None, count4: int = 1,
-        card5: str | None = None, count5: int = 1,
-        card6: str | None = None, count6: int = 1,
-        card7: str | None = None, count7: int = 1,
+        dchs_01: int | None = None,
+        dchs_02: int | None = None,
+        dchs_03: int | None = None,
+        dchs_04: int | None = None,
+        dchs_05: int | None = None,
+        dchs_06: int | None = None,
+        dchs_07: int | None = None,
     ) -> None:
-        entries = [(card, count)]
-        for c, n in [(card2, count2), (card3, count3), (card4, count4), (card5, count5), (card6, count6), (card7, count7)]:
-            if c is not None:
-                entries.append((c, n))
+        entries = [
+            (item, count) for item, count in [
+                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+                ("DCHS-07", dchs_07),
+            ] if count is not None
+        ]
+        if not entries:
+            await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
+            return
         await _handle_add(self, interaction, entries)
 
-    @remove_group.command(name="item", description="Remove one or more DCHS cards from your inventory")
+    @remove_group.command(name="item", description="Remove DCHS cards from your inventory")
     @app_commands.describe(
-        card="DCHS card to remove",  count="Quantity (default 1)",
-        card2="DCHS card to remove", count2="Quantity (default 1)",
-        card3="DCHS card to remove", count3="Quantity (default 1)",
-        card4="DCHS card to remove", count4="Quantity (default 1)",
-        card5="DCHS card to remove", count5="Quantity (default 1)",
-        card6="DCHS card to remove", count6="Quantity (default 1)",
-        card7="DCHS card to remove", count7="Quantity (default 1)",
-    )
-    @app_commands.autocomplete(
-        card=item_autocomplete,  card2=item_autocomplete, card3=item_autocomplete,
-        card4=item_autocomplete, card5=item_autocomplete, card6=item_autocomplete,
-        card7=item_autocomplete,
+        dchs_01="Number of DCHS-01 to remove",
+        dchs_02="Number of DCHS-02 to remove",
+        dchs_03="Number of DCHS-03 to remove",
+        dchs_04="Number of DCHS-04 to remove",
+        dchs_05="Number of DCHS-05 to remove",
+        dchs_06="Number of DCHS-06 to remove",
+        dchs_07="Number of DCHS-07 to remove",
     )
     async def remove_item(
         self,
         interaction: discord.Interaction,
-        card: str,                count: int = 1,
-        card2: str | None = None, count2: int = 1,
-        card3: str | None = None, count3: int = 1,
-        card4: str | None = None, count4: int = 1,
-        card5: str | None = None, count5: int = 1,
-        card6: str | None = None, count6: int = 1,
-        card7: str | None = None, count7: int = 1,
+        dchs_01: int | None = None,
+        dchs_02: int | None = None,
+        dchs_03: int | None = None,
+        dchs_04: int | None = None,
+        dchs_05: int | None = None,
+        dchs_06: int | None = None,
+        dchs_07: int | None = None,
     ) -> None:
-        entries = [(card, count)]
-        for c, n in [(card2, count2), (card3, count3), (card4, count4), (card5, count5), (card6, count6), (card7, count7)]:
-            if c is not None:
-                entries.append((c, n))
+        entries = [
+            (item, count) for item, count in [
+                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+                ("DCHS-07", dchs_07),
+            ] if count is not None
+        ]
+        if not entries:
+            await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
+            return
         await _handle_remove(self, interaction, entries)
 
     @remove_group.command(name="set", description="Remove one complete set (DCHS-01 through DCHS-07) from your inventory")
