@@ -55,6 +55,10 @@ class InventoryCog(commands.Cog):
         return item_choices(current)
 
     @inventory.command(name="add", description="Add DCHS cards to your inventory")
+    @app_commands.rename(
+        dchs_01="dchs-01", dchs_02="dchs-02", dchs_03="dchs-03",
+        dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
+    )
     @app_commands.describe(
         dchs_01="Number of DCHS-01 to add",
         dchs_02="Number of DCHS-02 to add",
@@ -88,6 +92,10 @@ class InventoryCog(commands.Cog):
         await _handle_add(self, interaction, entries)
 
     @remove_group.command(name="item", description="Remove DCHS cards from your inventory")
+    @app_commands.rename(
+        dchs_01="dchs-01", dchs_02="dchs-02", dchs_03="dchs-03",
+        dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
+    )
     @app_commands.describe(
         dchs_01="Number of DCHS-01 to remove",
         dchs_02="Number of DCHS-02 to remove",
