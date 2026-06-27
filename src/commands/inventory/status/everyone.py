@@ -42,7 +42,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
                 member = await guild.fetch_member(int(user_key))
             except (discord.NotFound, discord.HTTPException):
                 continue
-        embed.add_field(name=member.display_name, value=format_field(user_inv), inline=True)
+        embed.add_field(name=member.display_name, value=format_field(user_inv), inline=False)
         shown += 1
 
     await interaction.followup.send(embed=embed)
