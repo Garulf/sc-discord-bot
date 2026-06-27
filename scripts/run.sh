@@ -14,6 +14,13 @@ if ! docker info > /dev/null 2>&1; then
     fi
 fi
 
+FORCE=0
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f) FORCE=1 ;;
+    esac
+done
+
 cd "$REPO_DIR"
 
 # Record current commit before pulling
@@ -24,12 +31,16 @@ git pull
 
 AFTER="$(git rev-parse HEAD)"
 
-if [ "$BEFORE" = "$AFTER" ]; then
+if [ "$BEFORE" = "$AFTER" ] && [ "$FORCE" = "0" ]; then
     echo "No new changes — skipping rebuild."
     exit 0
 fi
 
-echo "New commits detected ($BEFORE -> $AFTER), rebuilding..."
+if [ "$BEFORE" = "$AFTER" ]; then
+    echo "No new changes — forcing rebuild anyway."
+else
+    echo "New commits detected ($BEFORE -> $AFTER), rebuilding..."
+fi
 
 # Use docker compose v2 (plugin) if available, fall back to v1 (standalone)
 if $DOCKER compose version > /dev/null 2>&1; then
