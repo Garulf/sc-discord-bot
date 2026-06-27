@@ -51,6 +51,7 @@ async def load_state(cog) -> None:
     if set_at:
         cog.set_at = datetime.fromisoformat(set_at)
     cog.subscriptions = data.get("subscriptions", [])
+    cog.warnings = data.get("warnings", {})
 
 
 async def save_state(cog) -> None:
@@ -58,6 +59,7 @@ async def save_state(cog) -> None:
         "cycle_start": cog.schedule.cycle_start.isoformat() if cog.schedule else None,
         "set_at": cog.set_at.isoformat() if cog.set_at else None,
         "subscriptions": cog.subscriptions,
+        "warnings": cog.warnings,
     }
     await cog.bot.state.set(_STATE_KEY, data)
 

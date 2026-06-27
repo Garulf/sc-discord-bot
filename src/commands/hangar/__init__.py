@@ -24,6 +24,7 @@ from .shared import load_state, refresh_subscriptions
 from .status import handle as _handle_status
 from .subscribe import handle as _handle_subscribe
 from .unsubscribe import handle as _handle_unsubscribe
+from .warnings import refresh_warnings
 
 UPDATE_INTERVAL_SECONDS = 30
 
@@ -38,6 +39,7 @@ class HangarCog(commands.Cog):
         self.schedule: HangarSchedule | None = None
         self.set_at: datetime | None = None
         self.subscriptions: list[dict] = []
+        self.warnings: dict = {}
 
     async def cog_load(self) -> None:
         await load_state(self)
@@ -49,6 +51,7 @@ class HangarCog(commands.Cog):
     @tasks.loop(seconds=UPDATE_INTERVAL_SECONDS)
     async def update_loop(self) -> None:
         await refresh_subscriptions(self)
+        await refresh_warnings(self)
 
     @update_loop.before_loop
     async def before_update_loop(self) -> None:
