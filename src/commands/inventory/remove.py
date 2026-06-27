@@ -5,6 +5,7 @@ from __future__ import annotations
 import discord
 
 from .shared import ITEMS, get_guild_inventory, save_guild_inventory
+from .subscriptions import refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str, int]]) -> None:
@@ -46,6 +47,7 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
 
     guild_inv[user_key] = user_inv
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
+    await refresh_live_status(cog, interaction.guild_id)
 
     if len(removed_parts) == 1:
         card, count, remaining = removed_parts[0]

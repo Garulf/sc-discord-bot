@@ -5,6 +5,7 @@ from __future__ import annotations
 import discord
 
 from .shared import get_guild_inventory, save_guild_inventory
+from .subscriptions import refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -20,4 +21,5 @@ async def handle(cog, interaction: discord.Interaction) -> None:
 
     guild_inv.pop(user_key, None)
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
+    await refresh_live_status(cog, interaction.guild_id)
     await interaction.response.send_message("Your inventory has been cleared.", ephemeral=True)
