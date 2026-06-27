@@ -56,103 +56,89 @@ class InventoryCog(commands.Cog):
 
     @inventory.command(name="add", description="Add one or more DCHS items to your inventory")
     @app_commands.describe(
-        item="First DCHS item to add",
-        count="Quantity of first item (default 1)",
-        item2="Second DCHS item to add",
-        count2="Quantity (default 1)",
-        item3="Third DCHS item to add",
-        count3="Quantity (default 1)",
-        item4="Fourth DCHS item to add",
-        count4="Quantity (default 1)",
-        item5="Fifth DCHS item to add",
-        count5="Quantity (default 1)",
-        item6="Sixth DCHS item to add",
-        count6="Quantity (default 1)",
-        item7="Seventh DCHS item to add",
-        count7="Quantity (default 1)",
+        item="DCHS item to add",     item2="DCHS item to add",  item3="DCHS item to add",
+        item4="DCHS item to add",    item5="DCHS item to add",  item6="DCHS item to add",
+        item7="DCHS item to add",    item8="DCHS item to add",  item9="DCHS item to add",
+        item10="DCHS item to add",   item11="DCHS item to add", item12="DCHS item to add",
+        item13="DCHS item to add",   item14="DCHS item to add", item15="DCHS item to add",
+        item16="DCHS item to add",   item17="DCHS item to add", item18="DCHS item to add",
+        item19="DCHS item to add",   item20="DCHS item to add", item21="DCHS item to add",
+        item22="DCHS item to add",   item23="DCHS item to add", item24="DCHS item to add",
+        item25="DCHS item to add",
     )
     @app_commands.autocomplete(
-        item=item_autocomplete,
-        item2=item_autocomplete,
-        item3=item_autocomplete,
-        item4=item_autocomplete,
-        item5=item_autocomplete,
-        item6=item_autocomplete,
-        item7=item_autocomplete,
+        item=item_autocomplete,   item2=item_autocomplete,  item3=item_autocomplete,
+        item4=item_autocomplete,  item5=item_autocomplete,  item6=item_autocomplete,
+        item7=item_autocomplete,  item8=item_autocomplete,  item9=item_autocomplete,
+        item10=item_autocomplete, item11=item_autocomplete, item12=item_autocomplete,
+        item13=item_autocomplete, item14=item_autocomplete, item15=item_autocomplete,
+        item16=item_autocomplete, item17=item_autocomplete, item18=item_autocomplete,
+        item19=item_autocomplete, item20=item_autocomplete, item21=item_autocomplete,
+        item22=item_autocomplete, item23=item_autocomplete, item24=item_autocomplete,
+        item25=item_autocomplete,
     )
     async def add(
         self,
         interaction: discord.Interaction,
         item: str,
-        count: int = 1,
-        item2: str | None = None,
-        count2: int = 1,
-        item3: str | None = None,
-        count3: int = 1,
-        item4: str | None = None,
-        count4: int = 1,
-        item5: str | None = None,
-        count5: int = 1,
-        item6: str | None = None,
-        count6: int = 1,
-        item7: str | None = None,
-        count7: int = 1,
+        item2: str | None = None,  item3: str | None = None,  item4: str | None = None,
+        item5: str | None = None,  item6: str | None = None,  item7: str | None = None,
+        item8: str | None = None,  item9: str | None = None,  item10: str | None = None,
+        item11: str | None = None, item12: str | None = None, item13: str | None = None,
+        item14: str | None = None, item15: str | None = None, item16: str | None = None,
+        item17: str | None = None, item18: str | None = None, item19: str | None = None,
+        item20: str | None = None, item21: str | None = None, item22: str | None = None,
+        item23: str | None = None, item24: str | None = None, item25: str | None = None,
     ) -> None:
-        entries = [(item, count)]
-        for i, c in [(item2, count2), (item3, count3), (item4, count4), (item5, count5), (item6, count6), (item7, count7)]:
-            if i is not None:
-                entries.append((i, c))
-        await _handle_add(self, interaction, entries)
+        items = [i for i in [
+            item, item2, item3, item4, item5, item6, item7, item8, item9, item10,
+            item11, item12, item13, item14, item15, item16, item17, item18, item19, item20,
+            item21, item22, item23, item24, item25,
+        ] if i is not None]
+        await _handle_add(self, interaction, items)
 
     @remove_group.command(name="item", description="Remove one or more DCHS items from your inventory")
     @app_commands.describe(
-        item="First DCHS item to remove",
-        count="Quantity of first item (default 1)",
-        item2="Second DCHS item to remove",
-        count2="Quantity (default 1)",
-        item3="Third DCHS item to remove",
-        count3="Quantity (default 1)",
-        item4="Fourth DCHS item to remove",
-        count4="Quantity (default 1)",
-        item5="Fifth DCHS item to remove",
-        count5="Quantity (default 1)",
-        item6="Sixth DCHS item to remove",
-        count6="Quantity (default 1)",
-        item7="Seventh DCHS item to remove",
-        count7="Quantity (default 1)",
+        item="DCHS item to remove",     item2="DCHS item to remove",  item3="DCHS item to remove",
+        item4="DCHS item to remove",    item5="DCHS item to remove",  item6="DCHS item to remove",
+        item7="DCHS item to remove",    item8="DCHS item to remove",  item9="DCHS item to remove",
+        item10="DCHS item to remove",   item11="DCHS item to remove", item12="DCHS item to remove",
+        item13="DCHS item to remove",   item14="DCHS item to remove", item15="DCHS item to remove",
+        item16="DCHS item to remove",   item17="DCHS item to remove", item18="DCHS item to remove",
+        item19="DCHS item to remove",   item20="DCHS item to remove", item21="DCHS item to remove",
+        item22="DCHS item to remove",   item23="DCHS item to remove", item24="DCHS item to remove",
+        item25="DCHS item to remove",
     )
     @app_commands.autocomplete(
-        item=item_autocomplete,
-        item2=item_autocomplete,
-        item3=item_autocomplete,
-        item4=item_autocomplete,
-        item5=item_autocomplete,
-        item6=item_autocomplete,
-        item7=item_autocomplete,
+        item=item_autocomplete,   item2=item_autocomplete,  item3=item_autocomplete,
+        item4=item_autocomplete,  item5=item_autocomplete,  item6=item_autocomplete,
+        item7=item_autocomplete,  item8=item_autocomplete,  item9=item_autocomplete,
+        item10=item_autocomplete, item11=item_autocomplete, item12=item_autocomplete,
+        item13=item_autocomplete, item14=item_autocomplete, item15=item_autocomplete,
+        item16=item_autocomplete, item17=item_autocomplete, item18=item_autocomplete,
+        item19=item_autocomplete, item20=item_autocomplete, item21=item_autocomplete,
+        item22=item_autocomplete, item23=item_autocomplete, item24=item_autocomplete,
+        item25=item_autocomplete,
     )
     async def remove_item(
         self,
         interaction: discord.Interaction,
         item: str,
-        count: int = 1,
-        item2: str | None = None,
-        count2: int = 1,
-        item3: str | None = None,
-        count3: int = 1,
-        item4: str | None = None,
-        count4: int = 1,
-        item5: str | None = None,
-        count5: int = 1,
-        item6: str | None = None,
-        count6: int = 1,
-        item7: str | None = None,
-        count7: int = 1,
+        item2: str | None = None,  item3: str | None = None,  item4: str | None = None,
+        item5: str | None = None,  item6: str | None = None,  item7: str | None = None,
+        item8: str | None = None,  item9: str | None = None,  item10: str | None = None,
+        item11: str | None = None, item12: str | None = None, item13: str | None = None,
+        item14: str | None = None, item15: str | None = None, item16: str | None = None,
+        item17: str | None = None, item18: str | None = None, item19: str | None = None,
+        item20: str | None = None, item21: str | None = None, item22: str | None = None,
+        item23: str | None = None, item24: str | None = None, item25: str | None = None,
     ) -> None:
-        entries = [(item, count)]
-        for i, c in [(item2, count2), (item3, count3), (item4, count4), (item5, count5), (item6, count6), (item7, count7)]:
-            if i is not None:
-                entries.append((i, c))
-        await _handle_remove(self, interaction, entries)
+        items = [i for i in [
+            item, item2, item3, item4, item5, item6, item7, item8, item9, item10,
+            item11, item12, item13, item14, item15, item16, item17, item18, item19, item20,
+            item21, item22, item23, item24, item25,
+        ] if i is not None]
+        await _handle_remove(self, interaction, items)
 
     @remove_group.command(name="set", description="Remove one complete set (DCHS-01 through DCHS-07) from your inventory")
     async def remove_set(self, interaction: discord.Interaction) -> None:
