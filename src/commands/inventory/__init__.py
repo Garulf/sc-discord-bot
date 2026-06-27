@@ -104,11 +104,55 @@ class InventoryCog(commands.Cog):
                 entries.append((i, c))
         await _handle_add(self, interaction, entries)
 
-    @remove_group.command(name="item", description="Remove a DCHS item from your inventory")
-    @app_commands.describe(item="The DCHS item to remove", count="How many to remove (default 1)")
-    @app_commands.autocomplete(item=item_autocomplete)
-    async def remove_item(self, interaction: discord.Interaction, item: str, count: int = 1) -> None:
-        await _handle_remove(self, interaction, item, count)
+    @remove_group.command(name="item", description="Remove one or more DCHS items from your inventory")
+    @app_commands.describe(
+        item="First DCHS item to remove",
+        count="Quantity of first item (default 1)",
+        item2="Second DCHS item to remove",
+        count2="Quantity (default 1)",
+        item3="Third DCHS item to remove",
+        count3="Quantity (default 1)",
+        item4="Fourth DCHS item to remove",
+        count4="Quantity (default 1)",
+        item5="Fifth DCHS item to remove",
+        count5="Quantity (default 1)",
+        item6="Sixth DCHS item to remove",
+        count6="Quantity (default 1)",
+        item7="Seventh DCHS item to remove",
+        count7="Quantity (default 1)",
+    )
+    @app_commands.autocomplete(
+        item=item_autocomplete,
+        item2=item_autocomplete,
+        item3=item_autocomplete,
+        item4=item_autocomplete,
+        item5=item_autocomplete,
+        item6=item_autocomplete,
+        item7=item_autocomplete,
+    )
+    async def remove_item(
+        self,
+        interaction: discord.Interaction,
+        item: str,
+        count: int = 1,
+        item2: str | None = None,
+        count2: int = 1,
+        item3: str | None = None,
+        count3: int = 1,
+        item4: str | None = None,
+        count4: int = 1,
+        item5: str | None = None,
+        count5: int = 1,
+        item6: str | None = None,
+        count6: int = 1,
+        item7: str | None = None,
+        count7: int = 1,
+    ) -> None:
+        entries = [(item, count)]
+        for i, c in [(item2, count2), (item3, count3), (item4, count4), (item5, count5), (item6, count6), (item7, count7)]:
+            if i is not None:
+                entries.append((i, c))
+        await _handle_remove(self, interaction, entries)
 
     @remove_group.command(name="set", description="Remove one complete set (DCHS-01 through DCHS-07) from your inventory")
     async def remove_set(self, interaction: discord.Interaction) -> None:
