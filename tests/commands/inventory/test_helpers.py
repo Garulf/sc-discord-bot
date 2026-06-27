@@ -7,6 +7,7 @@ from src.commands.inventory.shared import (
     format_field,
     format_mine,
     guild_key,
+    pool_sets,
 )
 
 _ALL_ONE = {item: 1 for item in ITEMS}
@@ -89,6 +90,29 @@ class TestFormatField:
     def test_all_items_represented(self):
         result = format_field(_EMPTY)
         assert result.count("\n") == len(ITEMS)  # one line per item + footer
+
+
+class TestPoolSets:
+    def test_empty_guild_is_zero(self):
+        assert pool_sets({}) == 0
+
+    def test_single_user_with_complete_set(self):
+        inv = {"1": {item: 1 for item in ITEMS}}
+        assert pool_sets(inv) == 1
+
+    def test_two_users_each_with_complete_set(self):
+        inv = {
+            "1": {item: 1 for item in ITEMS},
+            "2": {item: 1 for item in ITEMS},
+        }
+        assert pool_sets(inv) == 2
+
+    def test_pool_bottlenecked_by_lowest_item_total(self):
+        inv = {
+            "1": {item: 1 for item in ITEMS},
+            "2": {item: 1 for item in ITEMS[1:]},
+        }
+        assert pool_sets(inv) == 1
 
 
 class TestFormatMine:
