@@ -3,3 +3,4 @@ python-dotenv
 aiohttp==3.14.1
 aiosqlite==0.20.0
 table2ascii==1.2.0
+Pillow>=10.0
