@@ -20,9 +20,9 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         )
         return
 
-    content = await _build_live_content(cog, interaction.guild)
+    content, file = await _build_live_content(cog, interaction.guild)
     await interaction.response.defer(ephemeral=True)
-    message = await interaction.channel.send(content)
+    message = await interaction.channel.send(content, file=file) if file else await interaction.channel.send(content)
     data["subscriptions"].append({"channel_id": message.channel.id, "message_id": message.id})
     await save_guild_subs(cog, interaction.guild_id, data)
     await interaction.followup.send("Live inventory status posted — it will update as cards are added.", ephemeral=True)
