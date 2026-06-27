@@ -18,6 +18,7 @@ from .admin.clear_all import handle as _handle_admin_clear_all
 from .admin.remove import handle as _handle_admin_remove
 from .clear import handle as _handle_clear
 from .remove import handle as _handle_remove
+from .remove_set import handle as _handle_remove_set
 from .shared import item_choices
 from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
@@ -27,6 +28,12 @@ class InventoryCog(commands.Cog):
     """DCHS collectible set inventory tracking."""
 
     inventory = app_commands.Group(name="inventory", description="DCHS collectible set inventory")
+
+    remove_group = app_commands.Group(
+        name="remove",
+        description="Remove DCHS items from your inventory",
+        parent=inventory,
+    )
 
     status_group = app_commands.Group(
         name="status",
@@ -47,17 +54,65 @@ class InventoryCog(commands.Cog):
     async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         return item_choices(current)
 
-    @inventory.command(name="add", description="Add a DCHS item to your inventory")
-    @app_commands.describe(item="The DCHS item to add (DCHS-01 through DCHS-07)", count="How many to add (default 1)")
-    @app_commands.autocomplete(item=item_autocomplete)
-    async def add(self, interaction: discord.Interaction, item: str, count: int = 1) -> None:
-        await _handle_add(self, interaction, item, count)
+    @inventory.command(name="add", description="Add one or more DCHS items to your inventory")
+    @app_commands.describe(
+        item="First DCHS item to add",
+        count="Quantity of first item (default 1)",
+        item2="Second DCHS item to add",
+        count2="Quantity (default 1)",
+        item3="Third DCHS item to add",
+        count3="Quantity (default 1)",
+        item4="Fourth DCHS item to add",
+        count4="Quantity (default 1)",
+        item5="Fifth DCHS item to add",
+        count5="Quantity (default 1)",
+        item6="Sixth DCHS item to add",
+        count6="Quantity (default 1)",
+        item7="Seventh DCHS item to add",
+        count7="Quantity (default 1)",
+    )
+    @app_commands.autocomplete(
+        item=item_autocomplete,
+        item2=item_autocomplete,
+        item3=item_autocomplete,
+        item4=item_autocomplete,
+        item5=item_autocomplete,
+        item6=item_autocomplete,
+        item7=item_autocomplete,
+    )
+    async def add(
+        self,
+        interaction: discord.Interaction,
+        item: str,
+        count: int = 1,
+        item2: str | None = None,
+        count2: int = 1,
+        item3: str | None = None,
+        count3: int = 1,
+        item4: str | None = None,
+        count4: int = 1,
+        item5: str | None = None,
+        count5: int = 1,
+        item6: str | None = None,
+        count6: int = 1,
+        item7: str | None = None,
+        count7: int = 1,
+    ) -> None:
+        entries = [(item, count)]
+        for i, c in [(item2, count2), (item3, count3), (item4, count4), (item5, count5), (item6, count6), (item7, count7)]:
+            if i is not None:
+                entries.append((i, c))
+        await _handle_add(self, interaction, entries)
 
-    @inventory.command(name="remove", description="Remove a DCHS item from your inventory")
+    @remove_group.command(name="item", description="Remove a DCHS item from your inventory")
     @app_commands.describe(item="The DCHS item to remove", count="How many to remove (default 1)")
     @app_commands.autocomplete(item=item_autocomplete)
-    async def remove(self, interaction: discord.Interaction, item: str, count: int = 1) -> None:
+    async def remove_item(self, interaction: discord.Interaction, item: str, count: int = 1) -> None:
         await _handle_remove(self, interaction, item, count)
+
+    @remove_group.command(name="set", description="Remove one complete set (DCHS-01 through DCHS-07) from your inventory")
+    async def remove_set(self, interaction: discord.Interaction) -> None:
+        await _handle_remove_set(self, interaction)
 
     @inventory.command(name="clear", description="Clear all DCHS items from your inventory")
     async def clear(self, interaction: discord.Interaction) -> None:
