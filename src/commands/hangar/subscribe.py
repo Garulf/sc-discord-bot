@@ -14,6 +14,10 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         )
         return
 
+    if any(sub["channel_id"] == interaction.channel_id for sub in cog.subscriptions):
+        await interaction.response.send_message("This channel already has a live status. Use `/hangar unsubscribe` first.", ephemeral=True)
+        return
+
     message = await interaction.channel.send(embed=build_embed(cog.schedule, set_at=cog.set_at))
     cog.subscriptions.append({"channel_id": message.channel.id, "message_id": message.id})
     await save_state(cog)
