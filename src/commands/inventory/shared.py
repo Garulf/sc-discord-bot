@@ -66,20 +66,28 @@ def format_field(inventory: dict[str, int]) -> str:
     )
 
 
-def format_row(inventory: dict[str, int]) -> str:
-    """Single-line format with all 7 cards horizontal — one per cell."""
-    parts = []
-    for item in ITEMS:
-        num = item.removeprefix("DCHS-")
-        count = inventory.get(item, 0)
-        if count > 0:
-            suffix = f"×{count}" if count > 1 else ""
-            parts.append(f"✅{num}{suffix}")
-        else:
-            parts.append(f"❌{num}")
-    sets = complete_sets(inventory)
-    set_line = f"🏆 {sets} set{'s' if sets != 1 else ''}" if sets else "*no complete set*"
-    return "  ".join(parts) + "\n" + set_line
+def build_status_table(
+    active: dict[str, dict[str, int]],
+    member_names: dict[str, str],
+) -> str:
+    """Markdown table: one row per user, one column per card."""
+    headers = ["Users", "01", "02", "03", "04", "05", "06", "07", "Sets"]
+    header_row = "| " + " | ".join(headers) + " |"
+    separator  = "| " + " | ".join(["---"] + ["--"] * (len(headers) - 1)) + " |"
+
+    rows = []
+    for user_key, user_inv in sorted(active.items(), key=lambda kv: complete_sets(kv[1]), reverse=True):
+        name = member_names.get(user_key)
+        if name is None:
+            continue
+        cells = [name]
+        for item in ITEMS:
+            count = user_inv.get(item, 0)
+            cells.append(f"×{count}" if count > 0 else "")
+        cells.append(f"×{complete_sets(user_inv)}")
+        rows.append("| " + " | ".join(cells) + " |")
+
+    return "\n".join([header_row, separator] + rows)
 
 
 def format_mine(inventory: dict[str, int]) -> str:

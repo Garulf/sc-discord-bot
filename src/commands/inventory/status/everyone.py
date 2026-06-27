@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from ..shared import MAX_EMBED_FIELDS, complete_sets, format_row, get_guild_inventory
+from ..shared import build_status_table, complete_sets, get_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -26,23 +26,21 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         for item, count in inv.items():
             pooled[item] = pooled.get(item, 0) + count
     total_sets = complete_sets(pooled)
-    embed = discord.Embed(
-        title="DCHS Inventory Status",
-        color=0x57F287 if total_sets > 0 else 0x5865F2,
-    )
-    embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")
-
-    shown = 0
-    for user_key, user_inv in sorted(active.items(), key=lambda kv: complete_sets(kv[1]), reverse=True):
-        if shown >= MAX_EMBED_FIELDS:
-            break
+    member_names: dict[str, str] = {}
+    for user_key in active:
         member = guild.get_member(int(user_key))
         if member is None:
             try:
                 member = await guild.fetch_member(int(user_key))
             except (discord.NotFound, discord.HTTPException):
                 continue
-        embed.add_field(name=member.display_name, value=format_row(user_inv), inline=False)
-        shown += 1
+        member_names[user_key] = member.display_name
 
+    table = build_status_table(active, member_names)
+    embed = discord.Embed(
+        title="DCHS Inventory Status",
+        description=table,
+        color=0x57F287 if total_sets > 0 else 0x5865F2,
+    )
+    embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")
     await interaction.followup.send(embed=embed)
