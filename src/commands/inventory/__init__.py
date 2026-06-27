@@ -120,20 +120,22 @@ class InventoryCog(commands.Cog):
     async def add(
         self,
         interaction: discord.Interaction,
-        dchs_01: int | None = None,
-        dchs_02: int | None = None,
-        dchs_03: int | None = None,
-        dchs_04: int | None = None,
-        dchs_05: int | None = None,
-        dchs_06: int | None = None,
-        dchs_07: int | None = None,
+        dchs_01: int = 1,
+        dchs_02: int = 1,
+        dchs_03: int = 1,
+        dchs_04: int = 1,
+        dchs_05: int = 1,
+        dchs_06: int = 1,
+        dchs_07: int = 1,
     ) -> None:
+        provided = {opt["name"] for opt in interaction.data.get("options", [])}
         entries = [
-            (item, count) for item, count in [
-                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
-                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
-                ("DCHS-07", dchs_07),
-            ] if count is not None
+            (item, count) for item, count, name in [
+                ("DCHS-01", dchs_01, "dchs-01"), ("DCHS-02", dchs_02, "dchs-02"),
+                ("DCHS-03", dchs_03, "dchs-03"), ("DCHS-04", dchs_04, "dchs-04"),
+                ("DCHS-05", dchs_05, "dchs-05"), ("DCHS-06", dchs_06, "dchs-06"),
+                ("DCHS-07", dchs_07, "dchs-07"),
+            ] if name in provided
         ]
         if not entries:
             await interaction.response.send_message("Please specify at least one card.", ephemeral=True)
