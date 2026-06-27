@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 import discord
 
 from .subscriptions import _build_live_content, get_guild_subs, save_guild_subs
+
+logger = logging.getLogger(__name__)
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -20,8 +24,10 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         )
         return
 
+    logger.info("Subscribing channel %s in guild %s", interaction.channel_id, interaction.guild_id)
     content, file = await _build_live_content(cog, interaction.guild)
     await interaction.response.defer(ephemeral=True)
+    logger.debug("Sending live status message to channel %s", interaction.channel_id)
     message = await interaction.channel.send(content, file=file) if file else await interaction.channel.send(content)
     data["subscriptions"].append({"channel_id": message.channel.id, "message_id": message.id})
     await save_guild_subs(cog, interaction.guild_id, data)
