@@ -55,9 +55,10 @@ async def _build_live_embed(cog, guild: discord.Guild) -> discord.Embed:
         member_names[user_key] = member.display_name
 
     table = build_status_table(active, member_names)
+    description = f"```\n{table}\n```" if table else "*No inventory data yet.*"
     embed = discord.Embed(
         title="DCHS Inventory Status",
-        description=table or "*No inventory data yet.*",
+        description=description,
         color=0x57F287 if total_sets > 0 else 0x5865F2,
     )
     embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")

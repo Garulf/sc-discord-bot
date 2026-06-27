@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from discord import app_commands
+from table2ascii import PresetStyle, table2ascii
 
 ITEMS = [f"DCHS-{i:02d}" for i in range(1, 8)]
 _STATE_KEY_PREFIX = "inventory"
@@ -70,17 +71,23 @@ def build_status_table(
     active: dict[str, dict[str, int]],
     member_names: dict[str, str],
 ) -> str:
-    lines = []
+    body = []
     for user_key, user_inv in sorted(active.items(), key=lambda kv: complete_sets(kv[1]), reverse=True):
         name = member_names.get(user_key)
         if name is None:
             continue
-        card_parts = " · ".join(
-            f"**{item.removeprefix('DCHS-')}**:×{user_inv.get(item, 0)}" for item in ITEMS
-        )
-        sets = complete_sets(user_inv)
-        lines.append(f"**{name}** (Sets: ×{sets})\n{card_parts}")
-    return "\n\n".join(lines)
+        row = [name]
+        for item in ITEMS:
+            count = user_inv.get(item, 0)
+            row.append(f"×{count}" if count > 0 else "")
+        row.append(f"×{complete_sets(user_inv)}")
+        body.append(row)
+
+    if not body:
+        return ""
+
+    header = ["User", "01", "02", "03", "04", "05", "06", "07", "Sets"]
+    return table2ascii(header=header, body=body, style=PresetStyle.thin_compact)
 
 
 def format_mine(inventory: dict[str, int]) -> str:
