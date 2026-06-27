@@ -37,10 +37,6 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         member_names[user_key] = member.display_name
 
     table = build_status_table(active, member_names)
-    embed = discord.Embed(
-        title="DCHS Inventory Status",
-        description=f"```\n{table}\n```" if table else None,
-        color=0x57F287 if total_sets > 0 else 0x5865F2,
-    )
-    embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")
-    await interaction.followup.send(embed=embed)
+    sets_text = f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}"
+    content = f"**DCHS Inventory Status**\n```\n{table}\n```\n{sets_text}" if table else f"**DCHS Inventory Status**\n*No inventory data found.*"
+    await interaction.followup.send(content)
