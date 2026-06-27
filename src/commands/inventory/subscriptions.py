@@ -120,7 +120,7 @@ async def notify_added(
             f"🏆 **{user.display_name}** completed {'a' if gained == 1 else str(gained)} "
             f"DCHS set{'s' if gained != 1 else ''}!"
         )
-    if pool_after > pool_before:
+    if pool_after > pool_before and sets_after == sets_before:
         gained = pool_after - pool_before
         messages.append(
             f"🎉 The server pool has reached **{pool_after} complete set{'s' if pool_after != 1 else ''}**!"
