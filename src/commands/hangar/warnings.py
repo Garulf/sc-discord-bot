@@ -1,4 +1,4 @@
-"""Post and clean up 5-minute advance warnings for hangar open/close events."""
+"""Post 5-minute advance warnings for hangar open/close events; clean up on status change."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 import discord
+
+from src.exec_hangars import HangarPhase
 
 from .shared import get_schedule_for_guild, save_state
 
@@ -54,10 +56,15 @@ async def refresh_warnings(cog) -> None:
 
             if existing:
                 stored_time = datetime.fromisoformat(existing["event_time"])
-                # Keep the warning if it's for this exact event and hasn't fired yet
-                if stored_time == event_time and now < event_time:
+                snapshot = schedule.snapshot(now)
+                status_unchanged = (
+                    (event_name == "open" and snapshot.phase != HangarPhase.ACTIVE) or
+                    (event_name == "close" and snapshot.phase == HangarPhase.ACTIVE)
+                )
+                # Keep the warning if it's for this exact event and status hasn't changed yet
+                if stored_time == event_time and status_unchanged:
                     continue
-                # Otherwise delete it (event passed or a new cycle started)
+                # Otherwise delete it (status changed or a new cycle started)
                 try:
                     msg = await channel.fetch_message(existing["message_id"])
                     await msg.delete()
