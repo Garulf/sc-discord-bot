@@ -109,29 +109,34 @@ async def refresh_live_status(cog, guild_id: int) -> None:
 # Notifications
 # ---------------------------------------------------------------------------
 
-def _format_added(entries: list[tuple[str, int]]) -> str:
-    return ", ".join(f"{item}×{count}" for item, count in entries)
-
-
 async def notify_added(
     cog,
     guild_id: int,
     user: discord.Member,
-    entries: list[tuple[str, int]],
     sets_before: int,
     sets_after: int,
+    pool_before: int,
+    pool_after: int,
 ) -> None:
     data = await get_guild_subs(cog, guild_id)
     if not data["subscriptions"]:
         return
 
-    messages = [f"**{user.display_name}** has added {_format_added(entries)} to their inventory!"]
+    messages = []
     if sets_after > sets_before:
         gained = sets_after - sets_before
         messages.append(
             f"🏆 **{user.display_name}** completed {'a' if gained == 1 else str(gained)} "
             f"DCHS set{'s' if gained != 1 else ''}!"
         )
+    if pool_after > pool_before:
+        gained = pool_after - pool_before
+        messages.append(
+            f"🎉 The server pool has reached **{pool_after} complete set{'s' if pool_after != 1 else ''}**!"
+        )
+
+    if not messages:
+        return
 
     expires_at = (datetime.now(UTC) + NOTIFICATION_LIFETIME).isoformat()
     changed = False

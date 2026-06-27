@@ -30,6 +30,15 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
 
     sets_before = complete_sets(user_inv)
 
+    def _pool(inv_dict: dict) -> int:
+        pooled: dict[str, int] = {}
+        for inv in inv_dict.values():
+            for item, count in inv.items():
+                pooled[item] = pooled.get(item, 0) + count
+        return complete_sets(pooled)
+
+    pool_before = _pool(guild_inv)
+
     totals: dict[str, int] = {}
     for card, count in entries:
         user_inv[card] = user_inv.get(card, 0) + count
@@ -39,6 +48,7 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
 
     sets_after = complete_sets(user_inv)
+    pool_after = _pool(guild_inv)
 
     sets = sets_after
     if len(totals) == 1:
@@ -51,5 +61,5 @@ async def handle(cog, interaction: discord.Interaction, entries: list[tuple[str,
         msg += f" You have **{sets} complete set{'s' if sets != 1 else ''}**!"
     await interaction.response.send_message(msg, ephemeral=True)
 
-    await notify_added(cog, interaction.guild_id, interaction.user, list(totals.items()), sets_before, sets_after)
+    await notify_added(cog, interaction.guild_id, interaction.user, sets_before, sets_after, pool_before, pool_after)
     await refresh_live_status(cog, interaction.guild_id)
