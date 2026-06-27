@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from ..shared import MAX_EMBED_FIELDS, complete_sets, format_field, get_guild_inventory
+from ..shared import MAX_EMBED_FIELDS, complete_sets, format_row, get_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -42,7 +42,7 @@ async def handle(cog, interaction: discord.Interaction) -> None:
                 member = await guild.fetch_member(int(user_key))
             except (discord.NotFound, discord.HTTPException):
                 continue
-        embed.add_field(name=member.display_name, value=format_field(user_inv), inline=False)
+        embed.add_field(name=member.display_name, value=format_row(user_inv), inline=False)
         shown += 1
 
     await interaction.followup.send(embed=embed)

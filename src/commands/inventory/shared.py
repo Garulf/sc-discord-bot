@@ -66,6 +66,22 @@ def format_field(inventory: dict[str, int]) -> str:
     )
 
 
+def format_row(inventory: dict[str, int]) -> str:
+    """Single-line format with all 7 cards horizontal — one per cell."""
+    parts = []
+    for item in ITEMS:
+        num = item.removeprefix("DCHS-")
+        count = inventory.get(item, 0)
+        if count > 0:
+            suffix = f"×{count}" if count > 1 else ""
+            parts.append(f"✅{num}{suffix}")
+        else:
+            parts.append(f"❌{num}")
+    sets = complete_sets(inventory)
+    set_line = f"🏆 {sets} set{'s' if sets != 1 else ''}" if sets else "*no complete set*"
+    return "  ".join(parts) + "\n" + set_line
+
+
 def format_mine(inventory: dict[str, int]) -> str:
     return _format_items(
         inventory,
