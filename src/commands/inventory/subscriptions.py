@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import discord
 
-from .shared import build_status_table, complete_sets, get_guild_inventory
+from .shared import build_status_table, get_guild_inventory
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,6 @@ async def _build_live_content(cog, guild: discord.Guild) -> str:
     guild_inv = await get_guild_inventory(cog, guild.id)
     active = {uid: inv for uid, inv in guild_inv.items() if inv}
 
-    pooled: dict[str, int] = {}
-    for inv in active.values():
-        for item, count in inv.items():
-            pooled[item] = pooled.get(item, 0) + count
-    total_sets = complete_sets(pooled)
-
     member_names: dict[str, str] = {}
     for user_key in active:
         member = guild.get_member(int(user_key))
@@ -55,10 +49,9 @@ async def _build_live_content(cog, guild: discord.Guild) -> str:
         member_names[user_key] = member.display_name
 
     table = build_status_table(active, member_names)
-    sets_text = f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}"
     if table:
-        return f"**DCHS Inventory Status**\n```\n{table}\n```\n{sets_text}"
-    return f"**DCHS Inventory Status**\n*No inventory data yet.*\n{sets_text}"
+        return f"**DCHS Inventory Status**\n```\n{table}\n```"
+    return "**DCHS Inventory Status**\n*No inventory data yet.*"
 
 
 async def refresh_live_status(cog, guild_id: int) -> None:
