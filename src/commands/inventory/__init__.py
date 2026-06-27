@@ -54,91 +54,69 @@ class InventoryCog(commands.Cog):
     async def item_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         return item_choices(current)
 
-    @inventory.command(name="add", description="Add one or more DCHS items to your inventory")
+    @inventory.command(name="add", description="Add one or more DCHS cards to your inventory")
     @app_commands.describe(
-        item="DCHS item to add",     item2="DCHS item to add",  item3="DCHS item to add",
-        item4="DCHS item to add",    item5="DCHS item to add",  item6="DCHS item to add",
-        item7="DCHS item to add",    item8="DCHS item to add",  item9="DCHS item to add",
-        item10="DCHS item to add",   item11="DCHS item to add", item12="DCHS item to add",
-        item13="DCHS item to add",   item14="DCHS item to add", item15="DCHS item to add",
-        item16="DCHS item to add",   item17="DCHS item to add", item18="DCHS item to add",
-        item19="DCHS item to add",   item20="DCHS item to add", item21="DCHS item to add",
-        item22="DCHS item to add",   item23="DCHS item to add", item24="DCHS item to add",
-        item25="DCHS item to add",
+        card="DCHS card to add",  count="Quantity (default 1)",
+        card2="DCHS card to add", count2="Quantity (default 1)",
+        card3="DCHS card to add", count3="Quantity (default 1)",
+        card4="DCHS card to add", count4="Quantity (default 1)",
+        card5="DCHS card to add", count5="Quantity (default 1)",
+        card6="DCHS card to add", count6="Quantity (default 1)",
+        card7="DCHS card to add", count7="Quantity (default 1)",
     )
     @app_commands.autocomplete(
-        item=item_autocomplete,   item2=item_autocomplete,  item3=item_autocomplete,
-        item4=item_autocomplete,  item5=item_autocomplete,  item6=item_autocomplete,
-        item7=item_autocomplete,  item8=item_autocomplete,  item9=item_autocomplete,
-        item10=item_autocomplete, item11=item_autocomplete, item12=item_autocomplete,
-        item13=item_autocomplete, item14=item_autocomplete, item15=item_autocomplete,
-        item16=item_autocomplete, item17=item_autocomplete, item18=item_autocomplete,
-        item19=item_autocomplete, item20=item_autocomplete, item21=item_autocomplete,
-        item22=item_autocomplete, item23=item_autocomplete, item24=item_autocomplete,
-        item25=item_autocomplete,
+        card=item_autocomplete,  card2=item_autocomplete, card3=item_autocomplete,
+        card4=item_autocomplete, card5=item_autocomplete, card6=item_autocomplete,
+        card7=item_autocomplete,
     )
     async def add(
         self,
         interaction: discord.Interaction,
-        item: str,
-        item2: str | None = None,  item3: str | None = None,  item4: str | None = None,
-        item5: str | None = None,  item6: str | None = None,  item7: str | None = None,
-        item8: str | None = None,  item9: str | None = None,  item10: str | None = None,
-        item11: str | None = None, item12: str | None = None, item13: str | None = None,
-        item14: str | None = None, item15: str | None = None, item16: str | None = None,
-        item17: str | None = None, item18: str | None = None, item19: str | None = None,
-        item20: str | None = None, item21: str | None = None, item22: str | None = None,
-        item23: str | None = None, item24: str | None = None, item25: str | None = None,
+        card: str,               count: int = 1,
+        card2: str | None = None, count2: int = 1,
+        card3: str | None = None, count3: int = 1,
+        card4: str | None = None, count4: int = 1,
+        card5: str | None = None, count5: int = 1,
+        card6: str | None = None, count6: int = 1,
+        card7: str | None = None, count7: int = 1,
     ) -> None:
-        items = [i for i in [
-            item, item2, item3, item4, item5, item6, item7, item8, item9, item10,
-            item11, item12, item13, item14, item15, item16, item17, item18, item19, item20,
-            item21, item22, item23, item24, item25,
-        ] if i is not None]
-        await _handle_add(self, interaction, items)
+        entries = [(card, count)]
+        for c, n in [(card2, count2), (card3, count3), (card4, count4), (card5, count5), (card6, count6), (card7, count7)]:
+            if c is not None:
+                entries.append((c, n))
+        await _handle_add(self, interaction, entries)
 
-    @remove_group.command(name="item", description="Remove one or more DCHS items from your inventory")
+    @remove_group.command(name="item", description="Remove one or more DCHS cards from your inventory")
     @app_commands.describe(
-        item="DCHS item to remove",     item2="DCHS item to remove",  item3="DCHS item to remove",
-        item4="DCHS item to remove",    item5="DCHS item to remove",  item6="DCHS item to remove",
-        item7="DCHS item to remove",    item8="DCHS item to remove",  item9="DCHS item to remove",
-        item10="DCHS item to remove",   item11="DCHS item to remove", item12="DCHS item to remove",
-        item13="DCHS item to remove",   item14="DCHS item to remove", item15="DCHS item to remove",
-        item16="DCHS item to remove",   item17="DCHS item to remove", item18="DCHS item to remove",
-        item19="DCHS item to remove",   item20="DCHS item to remove", item21="DCHS item to remove",
-        item22="DCHS item to remove",   item23="DCHS item to remove", item24="DCHS item to remove",
-        item25="DCHS item to remove",
+        card="DCHS card to remove",  count="Quantity (default 1)",
+        card2="DCHS card to remove", count2="Quantity (default 1)",
+        card3="DCHS card to remove", count3="Quantity (default 1)",
+        card4="DCHS card to remove", count4="Quantity (default 1)",
+        card5="DCHS card to remove", count5="Quantity (default 1)",
+        card6="DCHS card to remove", count6="Quantity (default 1)",
+        card7="DCHS card to remove", count7="Quantity (default 1)",
     )
     @app_commands.autocomplete(
-        item=item_autocomplete,   item2=item_autocomplete,  item3=item_autocomplete,
-        item4=item_autocomplete,  item5=item_autocomplete,  item6=item_autocomplete,
-        item7=item_autocomplete,  item8=item_autocomplete,  item9=item_autocomplete,
-        item10=item_autocomplete, item11=item_autocomplete, item12=item_autocomplete,
-        item13=item_autocomplete, item14=item_autocomplete, item15=item_autocomplete,
-        item16=item_autocomplete, item17=item_autocomplete, item18=item_autocomplete,
-        item19=item_autocomplete, item20=item_autocomplete, item21=item_autocomplete,
-        item22=item_autocomplete, item23=item_autocomplete, item24=item_autocomplete,
-        item25=item_autocomplete,
+        card=item_autocomplete,  card2=item_autocomplete, card3=item_autocomplete,
+        card4=item_autocomplete, card5=item_autocomplete, card6=item_autocomplete,
+        card7=item_autocomplete,
     )
     async def remove_item(
         self,
         interaction: discord.Interaction,
-        item: str,
-        item2: str | None = None,  item3: str | None = None,  item4: str | None = None,
-        item5: str | None = None,  item6: str | None = None,  item7: str | None = None,
-        item8: str | None = None,  item9: str | None = None,  item10: str | None = None,
-        item11: str | None = None, item12: str | None = None, item13: str | None = None,
-        item14: str | None = None, item15: str | None = None, item16: str | None = None,
-        item17: str | None = None, item18: str | None = None, item19: str | None = None,
-        item20: str | None = None, item21: str | None = None, item22: str | None = None,
-        item23: str | None = None, item24: str | None = None, item25: str | None = None,
+        card: str,                count: int = 1,
+        card2: str | None = None, count2: int = 1,
+        card3: str | None = None, count3: int = 1,
+        card4: str | None = None, count4: int = 1,
+        card5: str | None = None, count5: int = 1,
+        card6: str | None = None, count6: int = 1,
+        card7: str | None = None, count7: int = 1,
     ) -> None:
-        items = [i for i in [
-            item, item2, item3, item4, item5, item6, item7, item8, item9, item10,
-            item11, item12, item13, item14, item15, item16, item17, item18, item19, item20,
-            item21, item22, item23, item24, item25,
-        ] if i is not None]
-        await _handle_remove(self, interaction, items)
+        entries = [(card, count)]
+        for c, n in [(card2, count2), (card3, count3), (card4, count4), (card5, count5), (card6, count6), (card7, count7)]:
+            if c is not None:
+                entries.append((c, n))
+        await _handle_remove(self, interaction, entries)
 
     @remove_group.command(name="set", description="Remove one complete set (DCHS-01 through DCHS-07) from your inventory")
     async def remove_set(self, interaction: discord.Interaction) -> None:
