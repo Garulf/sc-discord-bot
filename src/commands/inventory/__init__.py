@@ -7,9 +7,13 @@ Discord member display names at call time so display names stay current.
 
 from __future__ import annotations
 
+import logging
+
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
+
+from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from .add import handle as _handle_add
 from .admin.add import handle as _handle_admin_add
@@ -21,6 +25,11 @@ from .remove import handle as _handle_remove
 from .remove_set import handle as _handle_remove_set
 from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
+from .subscribe import handle as _handle_subscribe
+from .subscriptions import cleanup_expired_notifications
+from .unsubscribe import handle as _handle_unsubscribe
+
+logger = logging.getLogger(__name__)
 
 
 class InventoryCog(commands.Cog):
@@ -49,6 +58,30 @@ class InventoryCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+
+    async def cog_load(self) -> None:
+        self.cleanup_loop.start()
+
+    async def cog_unload(self) -> None:
+        self.cleanup_loop.cancel()
+
+    @tasks.loop(minutes=10)
+    async def cleanup_loop(self) -> None:
+        for guild in self.bot.guilds:
+            await cleanup_expired_notifications(self, guild.id)
+
+    @cleanup_loop.before_loop
+    async def before_cleanup_loop(self) -> None:
+        await self.bot.wait_until_ready()
+
+    @cleanup_loop.error
+    async def cleanup_loop_error(self, error: Exception) -> None:
+        logger.exception("Inventory cleanup loop error: %s", error)
+
+    async def cog_app_command_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ) -> None:
+        await handle_check_failure(interaction, error)
 
     @inventory.command(name="add", description="Add DCHS cards to your inventory")
     @app_commands.rename(
@@ -131,6 +164,16 @@ class InventoryCog(commands.Cog):
     @inventory.command(name="clear", description="Clear all DCHS items from your inventory")
     async def clear(self, interaction: discord.Interaction) -> None:
         await _handle_clear(self, interaction)
+
+    @inventory.command(name="subscribe", description="Post a live DCHS inventory status in this channel")
+    @app_commands.check(admin_or_sc_bot)
+    async def subscribe(self, interaction: discord.Interaction) -> None:
+        await _handle_subscribe(self, interaction)
+
+    @inventory.command(name="unsubscribe", description="Remove the live DCHS inventory status from this channel")
+    @app_commands.check(admin_or_sc_bot)
+    async def unsubscribe(self, interaction: discord.Interaction) -> None:
+        await _handle_unsubscribe(self, interaction)
 
     @status_group.command(name="mine", description="Show your own DCHS inventory")
     async def status_mine(self, interaction: discord.Interaction) -> None:
