@@ -127,8 +127,29 @@ class SCBot(commands.Bot):
         except Exception:  # noqa: BLE001 - log and keep running
             logger.exception("Failed to sync commands")
 
+        @self.tree.error
+        async def on_tree_error(
+            interaction: discord.Interaction,
+            error: discord.app_commands.AppCommandError,
+        ) -> None:
+            logger.exception("Unhandled app command error in /%s: %s", interaction.command and interaction.command.qualified_name, error)
+            msg = "Something went wrong. Check the bot logs for details."
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+            except Exception:
+                pass
+
     async def on_ready(self) -> None:
         logger.info("Logged in as %s", self.user.name if self.user else "?")
+
+    async def on_app_command_completion(
+        self, interaction: discord.Interaction, command: discord.app_commands.Command | discord.app_commands.ContextMenu
+    ) -> None:
+        guild = interaction.guild.name if interaction.guild else "DM"
+        logger.info("Command /%s completed — user=%s guild=%s", command.qualified_name, interaction.user, guild)
 
     async def close(self) -> None:
         await self.sc_client.close()

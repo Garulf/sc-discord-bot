@@ -20,6 +20,7 @@ from .admin.add import handle as _handle_admin_add
 from .admin.clear import handle as _handle_admin_clear
 from .admin.clear_all import handle as _handle_admin_clear_all
 from .admin.remove import handle as _handle_admin_remove
+from .admin.transfer_set import handle as _handle_admin_transfer_set
 from .clear import handle as _handle_clear
 from .remove import handle as _handle_remove
 from .remove_set import handle as _handle_remove_set
@@ -27,6 +28,8 @@ from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
 from .subscribe import handle as _handle_subscribe
 from .subscriptions import cleanup_expired_notifications, refresh_live_status
+from .transfer import handle as _handle_transfer
+from .transfer_set import handle as _handle_transfer_set
 from .unsubscribe import handle as _handle_unsubscribe
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,12 @@ class InventoryCog(commands.Cog):
         description="Manage other members' DCHS inventories (admins/sc-bot only)",
         parent=inventory,
         default_permissions=discord.Permissions(administrator=True),
+    )
+
+    transfer_group = app_commands.Group(
+        name="transfer",
+        description="Transfer DCHS items to another member",
+        parent=inventory,
     )
 
     def __init__(self, bot: commands.Bot) -> None:
@@ -112,7 +121,15 @@ class InventoryCog(commands.Cog):
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ) -> None:
-        await handle_check_failure(interaction, error)
+        if isinstance(error, app_commands.CheckFailure):
+            await handle_check_failure(interaction, error)
+            return
+        logger.exception("Unhandled error in inventory command: %s", error)
+        msg = "Something went wrong. Check the bot logs for details."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
 
     @inventory.command(name="add", description="Add DCHS cards to your inventory")
     @app_commands.rename(
@@ -206,6 +223,50 @@ class InventoryCog(commands.Cog):
     async def clear(self, interaction: discord.Interaction) -> None:
         await _handle_clear(self, interaction)
 
+    @transfer_group.command(name="item", description="Transfer DCHS cards from your inventory to another member")
+    @app_commands.rename(
+        dchs_01="dchs-01", dchs_02="dchs-02", dchs_03="dchs-03",
+        dchs_04="dchs-04", dchs_05="dchs-05", dchs_06="dchs-06", dchs_07="dchs-07",
+    )
+    @app_commands.describe(
+        recipient="The member to receive the cards",
+        dchs_01="Number of DCHS-01 to transfer",
+        dchs_02="Number of DCHS-02 to transfer",
+        dchs_03="Number of DCHS-03 to transfer",
+        dchs_04="Number of DCHS-04 to transfer",
+        dchs_05="Number of DCHS-05 to transfer",
+        dchs_06="Number of DCHS-06 to transfer",
+        dchs_07="Number of DCHS-07 to transfer",
+    )
+    async def transfer_item(
+        self,
+        interaction: discord.Interaction,
+        recipient: discord.Member,
+        dchs_01: int | None = None,
+        dchs_02: int | None = None,
+        dchs_03: int | None = None,
+        dchs_04: int | None = None,
+        dchs_05: int | None = None,
+        dchs_06: int | None = None,
+        dchs_07: int | None = None,
+    ) -> None:
+        entries = [
+            (item, count) for item, count in [
+                ("DCHS-01", dchs_01), ("DCHS-02", dchs_02), ("DCHS-03", dchs_03),
+                ("DCHS-04", dchs_04), ("DCHS-05", dchs_05), ("DCHS-06", dchs_06),
+                ("DCHS-07", dchs_07),
+            ] if count is not None
+        ]
+        if not entries:
+            await interaction.response.send_message("Please specify at least one card to transfer.", ephemeral=True)
+            return
+        await _handle_transfer(self, interaction, recipient, entries)
+
+    @transfer_group.command(name="set", description="Transfer one complete set (DCHS-01 through DCHS-07) to another member")
+    @app_commands.describe(recipient="The member to receive the set")
+    async def transfer_set_cmd(self, interaction: discord.Interaction, recipient: discord.Member) -> None:
+        await _handle_transfer_set(self, interaction, recipient)
+
     @inventory.command(name="subscribe", description="Post a live DCHS inventory status in this channel")
     @app_commands.check(admin_or_sc_bot)
     async def subscribe(self, interaction: discord.Interaction) -> None:
@@ -296,6 +357,16 @@ class InventoryCog(commands.Cog):
     @admin_group.command(name="clear-all", description="Clear all members' inventories")
     async def admin_clear_all(self, interaction: discord.Interaction) -> None:
         await _handle_admin_clear_all(self, interaction)
+
+    @admin_group.command(name="transfer-set", description="Transfer one complete set from one member to another")
+    @app_commands.describe(sender="The member to transfer from", recipient="The member to transfer to")
+    async def admin_transfer_set(
+        self,
+        interaction: discord.Interaction,
+        sender: discord.Member,
+        recipient: discord.Member,
+    ) -> None:
+        await _handle_admin_transfer_set(self, interaction, sender, recipient)
 
 
 async def setup(bot: commands.Bot) -> None:

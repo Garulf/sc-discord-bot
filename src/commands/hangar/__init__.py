@@ -135,7 +135,15 @@ class HangarCog(commands.Cog):
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ) -> None:
-        await handle_check_failure(interaction, error)
+        if isinstance(error, app_commands.CheckFailure):
+            await handle_check_failure(interaction, error)
+            return
+        logger.exception("Unhandled error in hangar command: %s", error)
+        msg = "Something went wrong. Check the bot logs for details."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
