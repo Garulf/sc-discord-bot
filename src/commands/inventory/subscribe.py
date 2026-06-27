@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from .subscriptions import _build_live_embed, get_guild_subs, save_guild_subs
+from .subscriptions import _build_live_content, get_guild_subs, save_guild_subs
 
 
 async def handle(cog, interaction: discord.Interaction) -> None:
@@ -20,9 +20,9 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         )
         return
 
-    embed = await _build_live_embed(cog, interaction.guild)
+    content = await _build_live_content(cog, interaction.guild)
     await interaction.response.defer(ephemeral=True)
-    message = await interaction.channel.send(embed=embed)
+    message = await interaction.channel.send(content)
     data["subscriptions"].append({"channel_id": message.channel.id, "message_id": message.id})
     await save_guild_subs(cog, interaction.guild_id, data)
     await interaction.followup.send("Live inventory status posted — it will update as cards are added.", ephemeral=True)

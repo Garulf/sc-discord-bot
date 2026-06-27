@@ -34,7 +34,7 @@ async def save_guild_subs(cog, guild_id: int, data: dict) -> None:
 # Live-status embed
 # ---------------------------------------------------------------------------
 
-async def _build_live_embed(cog, guild: discord.Guild) -> discord.Embed:
+async def _build_live_content(cog, guild: discord.Guild) -> str:
     guild_inv = await get_guild_inventory(cog, guild.id)
     active = {uid: inv for uid, inv in guild_inv.items() if inv}
 
@@ -55,14 +55,10 @@ async def _build_live_embed(cog, guild: discord.Guild) -> discord.Embed:
         member_names[user_key] = member.display_name
 
     table = build_status_table(active, member_names)
-    description = f"```\n{table}\n```" if table else "*No inventory data yet.*"
-    embed = discord.Embed(
-        title="DCHS Inventory Status",
-        description=description,
-        color=0x57F287 if total_sets > 0 else 0x5865F2,
-    )
-    embed.set_footer(text=f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}")
-    return embed
+    sets_text = f"Server total: {total_sets} complete set{'s' if total_sets != 1 else ''}"
+    if table:
+        return f"**DCHS Inventory Status**\n```\n{table}\n```\n{sets_text}"
+    return f"**DCHS Inventory Status**\n*No inventory data yet.*\n{sets_text}"
 
 
 async def refresh_live_status(cog, guild_id: int) -> None:
@@ -74,7 +70,7 @@ async def refresh_live_status(cog, guild_id: int) -> None:
         return
     logger.info("Refreshing %d inventory subscription(s) for guild %d", len(data["subscriptions"]), guild_id)
 
-    embed = await _build_live_embed(cog, guild)
+    content = await _build_live_content(cog, guild)
     survivors = []
     changed = False
 
@@ -92,7 +88,7 @@ async def refresh_live_status(cog, guild_id: int) -> None:
                 continue
         try:
             message = await channel.fetch_message(sub["message_id"])
-            await message.edit(embed=embed)
+            await message.edit(content=content, embed=None)
             survivors.append(sub)
         except discord.NotFound:
             changed = True
