@@ -28,8 +28,6 @@ async def handle(cog, interaction: discord.Interaction, recipient: discord.Membe
         return
 
     recipient_inv = dict(guild_inv.get(recipient_key, {}))
-    recipient_sets_before = complete_sets(recipient_inv)
-    pool_before = pool_sets(guild_inv)
 
     for item in ITEMS:
         sender_inv[item] = sender_inv[item] - 1
