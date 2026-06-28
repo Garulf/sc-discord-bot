@@ -285,7 +285,7 @@ class InventoryCog(commands.Cog):
     async def status_mine(self, interaction: discord.Interaction) -> None:
         await _handle_status_mine(self, interaction)
 
-    @status_group.command(name="everyone", description="Show all members' DCHS inventory and complete sets")
+    @status_group.command(name="server", description="Show all members' DCHS inventory and complete sets")
     async def status_everyone(self, interaction: discord.Interaction) -> None:
         await _handle_status_everyone(self, interaction)
 
