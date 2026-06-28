@@ -5,7 +5,7 @@ from __future__ import annotations
 import discord
 
 from .shared import ITEMS, complete_sets, get_guild_inventory, save_guild_inventory
-from .subscriptions import refresh_live_status
+from .subscriptions import notify_transfer, refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction, recipient: discord.Member) -> None:
@@ -43,4 +43,5 @@ async def handle(cog, interaction: discord.Interaction, recipient: discord.Membe
         f"Transferred one complete set (DCHS-01 through DCHS-07) to {recipient.mention}.",
         ephemeral=True,
     )
+    await notify_transfer(cog, interaction.guild_id, interaction.user, recipient, None)
     await refresh_live_status(cog, interaction.guild_id)
