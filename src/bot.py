@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+import traceback
 
 import discord
 from discord.ext import commands
@@ -132,7 +134,10 @@ class SCBot(commands.Bot):
             interaction: discord.Interaction,
             error: discord.app_commands.AppCommandError,
         ) -> None:
-            logger.exception("Unhandled app command error in /%s: %s", interaction.command and interaction.command.qualified_name, error)
+            cmd = interaction.command.qualified_name if interaction.command else "unknown"
+            logger.exception("Unhandled app command error in /%s: %s", cmd, error)
+            tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            await self.dm_owner(f"**Error in `/{cmd}`**\n```\n{tb[:1900]}\n```")
             msg = "Something went wrong. Check the bot logs for details."
             try:
                 if interaction.response.is_done():
@@ -141,6 +146,20 @@ class SCBot(commands.Bot):
                     await interaction.response.send_message(msg, ephemeral=True)
             except Exception:
                 pass
+
+    _dm_cooldown_until: float = 0.0
+    _DM_COOLDOWN = 60.0
+
+    async def dm_owner(self, content: str) -> None:
+        now = time.monotonic()
+        if now < self._dm_cooldown_until:
+            return
+        self._dm_cooldown_until = now + self._DM_COOLDOWN
+        try:
+            info = await self.application_info()
+            await info.owner.send(content)
+        except Exception:
+            logger.exception("Failed to DM owner")
 
     async def on_ready(self) -> None:
         logger.info("Logged in as %s", self.user.name if self.user else "?")
