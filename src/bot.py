@@ -169,7 +169,13 @@ class SCBot(commands.Bot):
     ) -> None:
         guild = interaction.guild.name if interaction.guild else "DM"
         params = {k: v for k, v in interaction.namespace.__dict__.items() if v is not None}
-        logger.info("Command /%s completed — user=%s guild=%s params=%s", command.qualified_name, interaction.user, guild, params)
+        logger.info(
+            "Command /%s completed — user=%s guild=%s params=%s",
+            command.qualified_name,
+            interaction.user,
+            guild,
+            params,
+        )
 
     async def close(self) -> None:
         await self.sc_client.close()
