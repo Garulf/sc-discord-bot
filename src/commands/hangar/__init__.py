@@ -8,6 +8,7 @@ contains only the Cog class (command registration and task-loop wiring)."""
 from __future__ import annotations
 
 import logging
+import traceback
 from datetime import datetime
 
 import discord
@@ -138,7 +139,10 @@ class HangarCog(commands.Cog):
         if isinstance(error, app_commands.CheckFailure):
             await handle_check_failure(interaction, error)
             return
+        cmd = interaction.command.qualified_name if interaction.command else "unknown"
         logger.exception("Unhandled error in hangar command: %s", error)
+        tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        await interaction.client.dm_owner(f"**Error in `/{cmd}`**\n```\n{tb[:1900]}\n```")
         msg = "Something went wrong. Check the bot logs for details."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)

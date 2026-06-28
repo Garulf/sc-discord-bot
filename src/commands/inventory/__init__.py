@@ -8,6 +8,7 @@ Discord member display names at call time so display names stay current.
 from __future__ import annotations
 
 import logging
+import traceback
 
 import discord
 from discord import app_commands
@@ -124,7 +125,10 @@ class InventoryCog(commands.Cog):
         if isinstance(error, app_commands.CheckFailure):
             await handle_check_failure(interaction, error)
             return
+        cmd = interaction.command.qualified_name if interaction.command else "unknown"
         logger.exception("Unhandled error in inventory command: %s", error)
+        tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        await interaction.client.dm_owner(f"**Error in `/{cmd}`**\n```\n{tb[:1900]}\n```")
         msg = "Something went wrong. Check the bot logs for details."
         if interaction.response.is_done():
             await interaction.followup.send(msg, ephemeral=True)
