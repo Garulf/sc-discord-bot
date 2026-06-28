@@ -13,7 +13,6 @@ from .shared import build_status_table, get_guild_inventory
 logger = logging.getLogger(__name__)
 
 _SUB_KEY_PREFIX = "inventory_subscriptions"
-NOTIFICATION_LIFETIME = timedelta(hours=12)
 _MAX_NOTIFICATIONS_PER_CHANNEL = 5
 _BUMP_EXPIRY = timedelta(hours=1)
 
@@ -159,7 +158,6 @@ async def notify_added(
         return
 
     now = datetime.now(UTC)
-    expires_at = (now + NOTIFICATION_LIFETIME).isoformat()
     changed = False
 
     for sub in data["subscriptions"]:
@@ -177,7 +175,7 @@ async def notify_added(
                     {
                         "channel_id": sub["channel_id"],
                         "message_id": msg.id,
-                        "expires_at": expires_at,
+                        "expires_at": None,
                     }
                 )
                 _trim_channel_notifications(data, sub["channel_id"], now)
@@ -214,7 +212,6 @@ async def notify_transfer(
         text = f"{sender.mention} transferred {parts} to {recipient.mention}."
 
     now = datetime.now(UTC)
-    expires_at = (now + NOTIFICATION_LIFETIME).isoformat()
     changed = False
 
     for sub in data["subscriptions"]:
@@ -230,7 +227,7 @@ async def notify_transfer(
                 {
                     "channel_id": sub["channel_id"],
                     "message_id": msg.id,
-                    "expires_at": expires_at,
+                    "expires_at": None,
                 }
             )
             _trim_channel_notifications(data, sub["channel_id"], now)
@@ -257,6 +254,9 @@ async def cleanup_expired_notifications(cog, guild_id: int) -> None:
     changed = False
 
     for notif in data["notifications"]:
+        if notif["expires_at"] is None:
+            survivors.append(notif)
+            continue
         expires_at = datetime.fromisoformat(notif["expires_at"])
         if now < expires_at:
             survivors.append(notif)
