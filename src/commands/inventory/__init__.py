@@ -29,6 +29,7 @@ from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
 from .subscribe import handle as _handle_subscribe
 from .subscriptions import cleanup_expired_notifications, refresh_live_status
+from .context_transfer import handle as _handle_context_transfer
 from .transfer import handle as _handle_transfer
 from .transfer_set import handle as _handle_transfer_set
 from .unsubscribe import handle as _handle_unsubscribe
@@ -443,3 +444,5 @@ class InventoryCog(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(InventoryCog(bot))
+    transfer_cards = app_commands.ContextMenu(name="Transfer Cards", callback=_handle_context_transfer)
+    bot.tree.add_command(transfer_cards)
