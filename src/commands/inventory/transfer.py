@@ -5,7 +5,7 @@ from __future__ import annotations
 import discord
 
 from .shared import ITEMS, get_guild_inventory, save_guild_inventory
-from .subscriptions import refresh_live_status
+from .subscriptions import notify_transfer, refresh_live_status
 
 
 async def handle(
@@ -71,4 +71,5 @@ async def handle(
         parts = ", ".join(f"×{count} **{card}**" for card, count in totals.items())
         msg = f"Transferred {parts} to {recipient.mention}."
     await interaction.response.send_message(msg, ephemeral=True)
+    await notify_transfer(cog, interaction.guild_id, interaction.user, recipient, list(totals.items()))
     await refresh_live_status(cog, interaction.guild_id)

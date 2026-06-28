@@ -167,6 +167,57 @@ async def notify_added(
         await save_guild_subs(cog, guild_id, data)
 
 
+async def notify_transfer(
+    cog,
+    guild_id: int,
+    sender: discord.Member,
+    recipient: discord.Member,
+    entries: list[tuple[str, int]] | None,
+) -> None:
+    """Post a transfer notification to all subscribed channels.
+
+    Pass entries=None to indicate a full set transfer.
+    """
+    data = await get_guild_subs(cog, guild_id)
+    if not data["subscriptions"]:
+        return
+
+    if entries is None:
+        text = f"{sender.mention} transferred a complete set (DCHS-01 through DCHS-07) to {recipient.mention}."
+    elif len(entries) == 1:
+        card, count = entries[0]
+        text = f"{sender.mention} transferred ×{count} **{card}** to {recipient.mention}."
+    else:
+        parts = ", ".join(f"×{count} **{card}**" for card, count in entries)
+        text = f"{sender.mention} transferred {parts} to {recipient.mention}."
+
+    expires_at = (datetime.now(UTC) + NOTIFICATION_LIFETIME).isoformat()
+    changed = False
+
+    for sub in data["subscriptions"]:
+        channel = cog.bot.get_channel(sub["channel_id"])
+        if channel is None:
+            try:
+                channel = await cog.bot.fetch_channel(sub["channel_id"])
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                continue
+        try:
+            msg = await channel.send(text)
+            data["notifications"].append(
+                {
+                    "channel_id": sub["channel_id"],
+                    "message_id": msg.id,
+                    "expires_at": expires_at,
+                }
+            )
+            changed = True
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
+            logger.warning("Failed to post transfer notification to %s: %s", sub["channel_id"], exc)
+
+    if changed:
+        await save_guild_subs(cog, guild_id, data)
+
+
 # ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
