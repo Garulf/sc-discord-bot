@@ -32,5 +32,9 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         member_names[user_key] = member.display_name
 
     table = build_status_table(active, member_names)
-    content = f"**DCHS Inventory Status**\n```\n{table}\n```" if table else "**DCHS Inventory Status**\n*No inventory data found.*"
+    content = (
+        f"**DCHS Inventory Status**\n```\n{table}\n```"
+        if table
+        else "**DCHS Inventory Status**\n*No inventory data found.*"
+    )
     await interaction.followup.send(content)

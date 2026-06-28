@@ -108,6 +108,7 @@ async def refresh_live_status(cog, guild_id: int) -> None:
 # Notifications
 # ---------------------------------------------------------------------------
 
+
 async def notify_added(
     cog,
     guild_id: int,
@@ -151,11 +152,13 @@ async def notify_added(
         for text in messages:
             try:
                 msg = await channel.send(text)
-                data["notifications"].append({
-                    "channel_id": sub["channel_id"],
-                    "message_id": msg.id,
-                    "expires_at": expires_at,
-                })
+                data["notifications"].append(
+                    {
+                        "channel_id": sub["channel_id"],
+                        "message_id": msg.id,
+                        "expires_at": expires_at,
+                    }
+                )
                 changed = True
             except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
                 logger.warning("Failed to post inventory notification to %s: %s", sub["channel_id"], exc)
@@ -167,6 +170,7 @@ async def notify_added(
 # ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
+
 
 async def cleanup_expired_notifications(cog, guild_id: int) -> None:
     data = await get_guild_subs(cog, guild_id)
