@@ -23,13 +23,13 @@ from .admin.clear_all import handle as _handle_admin_clear_all
 from .admin.remove import handle as _handle_admin_remove
 from .admin.transfer_set import handle as _handle_admin_transfer_set
 from .clear import handle as _handle_clear
+from .context_transfer_set import handle as _handle_context_transfer_set
 from .remove import handle as _handle_remove
 from .remove_set import handle as _handle_remove_set
 from .status.everyone import handle as _handle_status_everyone
 from .status.mine import handle as _handle_status_mine
 from .subscribe import handle as _handle_subscribe
 from .subscriptions import cleanup_expired_notifications, refresh_live_status
-from .context_transfer_set import handle as _handle_context_transfer_set
 from .transfer import handle as _handle_transfer
 from .transfer_set import handle as _handle_transfer_set
 from .unsubscribe import handle as _handle_unsubscribe
