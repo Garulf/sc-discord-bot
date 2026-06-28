@@ -8,6 +8,7 @@ from discord import app_commands
 from src.commands.checks import admin_or_sc_bot
 
 from ..shared import get_guild_inventory, save_guild_inventory
+from ..subscriptions import refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction, member: discord.Member) -> None:
@@ -29,3 +30,4 @@ async def handle(cog, interaction: discord.Interaction, member: discord.Member) 
     guild_inv.pop(user_key, None)
     await save_guild_inventory(cog, interaction.guild_id, guild_inv)
     await interaction.response.send_message(f"{member.display_name}'s inventory has been cleared.", ephemeral=True)
+    await refresh_live_status(cog, interaction.guild_id)
