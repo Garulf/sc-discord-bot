@@ -90,7 +90,7 @@ async def _get_wikelo_missions(bot) -> list[Mission]:
 async def _fetch_item_image(bot, link: str) -> str | None:
     try:
         payload = await bot.sc_client.get(link)
-        data = (payload.get("data") or {})
+        data = payload.get("data") or {}
         return first_image(data.get("images"))
     except Exception:  # noqa: BLE001
         pass

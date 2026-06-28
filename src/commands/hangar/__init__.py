@@ -15,8 +15,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-logger = logging.getLogger(__name__)
-
 from src.commands.checks import admin_or_sc_bot, handle_check_failure, is_bot_owner
 from src.exec_hangars import HangarSchedule
 
@@ -27,6 +25,8 @@ from .status import handle as _handle_status
 from .subscribe import handle as _handle_subscribe
 from .unsubscribe import handle as _handle_unsubscribe
 from .warnings import refresh_warnings
+
+logger = logging.getLogger(__name__)
 
 UPDATE_INTERVAL_SECONDS = 30
 
