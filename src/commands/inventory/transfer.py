@@ -53,8 +53,6 @@ async def handle(
             return
 
     recipient_inv = dict(guild_inv.get(recipient_key, {}))
-    recipient_sets_before = complete_sets(recipient_inv)
-    pool_before = pool_sets(guild_inv)
 
     for card, count in totals.items():
         sender_inv[card] = sender_inv[card] - count
