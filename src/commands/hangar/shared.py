@@ -11,9 +11,9 @@ from datetime import UTC, datetime
 
 import discord
 
-logger = logging.getLogger(__name__)
-
 from src.exec_hangars import HangarSchedule, build_status, format_relative_time
+
+logger = logging.getLogger(__name__)
 
 _STATE_KEY = "hangar"
 

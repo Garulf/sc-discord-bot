@@ -10,8 +10,8 @@ from PIL import Image, ImageDraw, ImageFont
 _FONT_PATH = Path(__file__).parent / "fonts" / "LiberationMono-Regular.ttf"
 _FONT_SIZE = 14
 _PADDING = 16
-_BG_COLOR = (43, 45, 49, 255)   # #2b2d31 — Discord dark theme
-_TEXT_COLOR = (220, 221, 222)    # #dcddde — Discord primary text
+_BG_COLOR = (43, 45, 49, 255)  # #2b2d31 — Discord dark theme
+_TEXT_COLOR = (220, 221, 222)  # #dcddde — Discord primary text
 
 _font = ImageFont.truetype(str(_FONT_PATH), _FONT_SIZE)
 
