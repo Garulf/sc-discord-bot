@@ -14,30 +14,20 @@ if ! docker info > /dev/null 2>&1; then
     fi
 fi
 
-FORCE=0
-for arg in "$@"; do
-    case "$arg" in
-        --force|-f) FORCE=1 ;;
-    esac
-done
-
 cd "$REPO_DIR"
 
 # Record current commit before pulling
 BEFORE="$(git rev-parse HEAD)"
 
 echo "Pulling latest changes..."
-git pull
+if ! git pull; then
+    echo "git pull failed — continuing with current code."
+fi
 
 AFTER="$(git rev-parse HEAD)"
 
-if [ "$BEFORE" = "$AFTER" ] && [ "$FORCE" = "0" ]; then
-    echo "No new changes — skipping rebuild."
-    exit 0
-fi
-
 if [ "$BEFORE" = "$AFTER" ]; then
-    echo "No new changes — forcing rebuild anyway."
+    echo "No new changes — rebuilding anyway."
 else
     echo "New commits detected ($BEFORE -> $AFTER), rebuilding..."
 fi
