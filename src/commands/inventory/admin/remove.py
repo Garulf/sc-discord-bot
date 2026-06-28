@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from ..shared import ITEMS, get_guild_inventory, save_guild_inventory
+from ..shared import get_guild_inventory, save_guild_inventory
 
 
 async def handle(cog, interaction: discord.Interaction, member: discord.Member, entries: list[tuple[str, int]]) -> None:

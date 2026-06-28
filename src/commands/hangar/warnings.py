@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 WARNING_WINDOW = timedelta(minutes=5)
 
 _EVENTS = [
-    ("open",  "🟢 The Executive Hangar is opening in ~5 minutes!"),
+    ("open", "🟢 The Executive Hangar is opening in ~5 minutes!"),
     ("close", "🔴 The Executive Hangar is closing in ~5 minutes!"),
 ]
 
@@ -34,7 +34,7 @@ async def refresh_warnings(cog) -> None:
             continue
 
         event_times = {
-            "open":  schedule.next_open(now),
+            "open": schedule.next_open(now),
             "close": schedule.next_close(now),
         }
 
@@ -57,9 +57,8 @@ async def refresh_warnings(cog) -> None:
             if existing:
                 stored_time = datetime.fromisoformat(existing["event_time"])
                 snapshot = schedule.snapshot(now)
-                status_unchanged = (
-                    (event_name == "open" and snapshot.phase != HangarPhase.ACTIVE) or
-                    (event_name == "close" and snapshot.phase == HangarPhase.ACTIVE)
+                status_unchanged = (event_name == "open" and snapshot.phase != HangarPhase.ACTIVE) or (
+                    event_name == "close" and snapshot.phase == HangarPhase.ACTIVE
                 )
                 # Keep the warning if it's for this exact event and status hasn't changed yet
                 if stored_time == event_time and status_unchanged:
