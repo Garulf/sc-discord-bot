@@ -50,7 +50,7 @@ async def _count_autocomplete(
 class InventoryCog(commands.Cog):
     """DCHS collectible set inventory tracking."""
 
-    inventory = app_commands.Group(name="inventory", description="DCHS collectible set inventory")
+    inventory = app_commands.Group(name="inv", description="DCHS collectible set inventory")
 
     remove_group = app_commands.Group(
         name="remove",
