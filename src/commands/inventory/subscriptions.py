@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 _SUB_KEY_PREFIX = "inventory_subscriptions"
 NOTIFICATION_LIFETIME = timedelta(hours=12)
+_MAX_NOTIFICATIONS_PER_CHANNEL = 5
+_BUMP_EXPIRY = timedelta(hours=1)
 
 
 def _sub_key(guild_id: int) -> str:
@@ -109,6 +111,24 @@ async def refresh_live_status(cog, guild_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _trim_channel_notifications(data: dict, channel_id: int, now: datetime) -> None:
+    """Cap per-channel notifications at _MAX_NOTIFICATIONS_PER_CHANNEL.
+
+    Notifications bumped out of the top 5 get their expiry reduced to 1 hour
+    from now (or keep their existing expiry if it's already sooner).
+    """
+    channel_notifs = [n for n in data["notifications"] if n["channel_id"] == channel_id]
+    if len(channel_notifs) <= _MAX_NOTIFICATIONS_PER_CHANNEL:
+        return
+    channel_notifs.sort(key=lambda n: n["message_id"])
+    bump_expires = now + _BUMP_EXPIRY
+    excess = channel_notifs[: len(channel_notifs) - _MAX_NOTIFICATIONS_PER_CHANNEL]
+    for notif in excess:
+        current = datetime.fromisoformat(notif["expires_at"])
+        if current > bump_expires:
+            notif["expires_at"] = bump_expires.isoformat()
+
+
 async def notify_added(
     cog,
     guild_id: int,
@@ -138,7 +158,8 @@ async def notify_added(
     if not messages:
         return
 
-    expires_at = (datetime.now(UTC) + NOTIFICATION_LIFETIME).isoformat()
+    now = datetime.now(UTC)
+    expires_at = (now + NOTIFICATION_LIFETIME).isoformat()
     changed = False
 
     for sub in data["subscriptions"]:
@@ -159,6 +180,7 @@ async def notify_added(
                         "expires_at": expires_at,
                     }
                 )
+                _trim_channel_notifications(data, sub["channel_id"], now)
                 changed = True
             except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
                 logger.warning("Failed to post inventory notification to %s: %s", sub["channel_id"], exc)
@@ -191,7 +213,8 @@ async def notify_transfer(
         parts = ", ".join(f"×{count} **{card}**" for card, count in entries)
         text = f"{sender.mention} transferred {parts} to {recipient.mention}."
 
-    expires_at = (datetime.now(UTC) + NOTIFICATION_LIFETIME).isoformat()
+    now = datetime.now(UTC)
+    expires_at = (now + NOTIFICATION_LIFETIME).isoformat()
     changed = False
 
     for sub in data["subscriptions"]:
@@ -210,6 +233,7 @@ async def notify_transfer(
                     "expires_at": expires_at,
                 }
             )
+            _trim_channel_notifications(data, sub["channel_id"], now)
             changed = True
         except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
             logger.warning("Failed to post transfer notification to %s: %s", sub["channel_id"], exc)
