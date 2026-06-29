@@ -1,4 +1,4 @@
-"""Post 5-minute advance warnings for hangar open/close events; clean up on status change."""
+"""Manage per-channel event notification messages for hangar open/close transitions."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import discord
 
 from src.exec_hangars import HangarPhase
+from src.exec_hangars.constants import ACTIVE_DURATION, CHARGING_DURATION, RESET_DURATION
 
 from .shared import get_schedule_for_guild, save_state
 
@@ -15,13 +16,61 @@ logger = logging.getLogger(__name__)
 
 WARNING_WINDOW = timedelta(minutes=5)
 
-_EVENTS = [
-    ("open", "🟢 The Executive Hangar is opening in ~5 minutes!"),
-    ("close", "🔴 The Executive Hangar is closing in ~5 minutes!"),
-]
+
+def _ts(dt: datetime) -> str:
+    return f"<t:{int(dt.timestamp())}:R>"
 
 
-async def refresh_warnings(cog) -> None:
+def _open_time(schedule, now: datetime) -> datetime:
+    """When the current (or most recent) ACTIVE phase started."""
+    return schedule.next_close(now) - ACTIVE_DURATION
+
+
+def _close_time(schedule, now: datetime) -> datetime:
+    """When the current non-ACTIVE phase started (i.e. when hangar last closed)."""
+    return schedule.next_open(now) - CHARGING_DURATION - RESET_DURATION
+
+
+async def _post(channel: discord.TextChannel, text: str) -> int | None:
+    try:
+        msg = await channel.send(text)
+        return msg.id
+    except (discord.Forbidden, discord.HTTPException) as exc:
+        logger.warning("Failed to post hangar notification to %s: %s", channel.id, exc)
+        return None
+
+
+async def _edit(channel: discord.TextChannel, message_id: int, text: str) -> bool:
+    """Edit a message. Returns False if the message no longer exists."""
+    try:
+        msg = await channel.fetch_message(message_id)
+        await msg.edit(content=text)
+        return True
+    except discord.NotFound:
+        return False
+    except (discord.Forbidden, discord.HTTPException) as exc:
+        logger.warning("Failed to edit hangar notification %s: %s", message_id, exc)
+        return True
+
+
+async def _delete(channel: discord.TextChannel, message_id: int | None) -> None:
+    if message_id is None:
+        return
+    try:
+        msg = await channel.fetch_message(message_id)
+        await msg.delete()
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        pass
+
+
+async def _ensure(channel, mid: int | None, text: str) -> int | None:
+    """Edit existing message, or post a new one if it was deleted."""
+    if mid and await _edit(channel, mid, text):
+        return mid
+    return await _post(channel, text)
+
+
+async def refresh_event_messages(cog) -> None:
     if not cog.subscriptions:
         return
 
@@ -33,15 +82,7 @@ async def refresh_warnings(cog) -> None:
         if schedule is None:
             continue
 
-        event_times = {
-            "open": schedule.next_open(now),
-            "close": schedule.next_close(now),
-        }
-
         channel_id = sub["channel_id"]
-        channel_key = str(channel_id)
-        channel_warnings: dict = cog.warnings.setdefault(channel_key, {})
-
         channel = cog.bot.get_channel(channel_id)
         if channel is None:
             try:
@@ -49,43 +90,62 @@ async def refresh_warnings(cog) -> None:
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 continue
 
-        for event_name, message_text in _EVENTS:
-            event_time = event_times[event_name]
-            time_until = event_time - now
-            existing = channel_warnings.get(event_name)
+        snapshot = schedule.snapshot(now)
+        phase = snapshot.phase
 
-            if existing:
-                stored_time = datetime.fromisoformat(existing["event_time"])
-                snapshot = schedule.snapshot(now)
-                status_unchanged = (event_name == "open" and snapshot.phase != HangarPhase.ACTIVE) or (
-                    event_name == "close" and snapshot.phase == HangarPhase.ACTIVE
-                )
-                # Keep the warning if it's for this exact event and status hasn't changed yet
-                if stored_time == event_time and status_unchanged:
-                    continue
-                # Otherwise delete it (status changed or a new cycle started)
-                try:
-                    msg = await channel.fetch_message(existing["message_id"])
-                    await msg.delete()
-                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                    pass
-                del channel_warnings[event_name]
-                changed = True
+        state = sub.get("notify_state")
+        mid = sub.get("notify_message_id")
+        new_state = state
+        new_mid = mid
 
-            # Post a new warning if we've entered the 5-minute window
-            if event_name not in channel_warnings and timedelta(0) < time_until <= WARNING_WINDOW:
-                try:
-                    msg = await channel.send(message_text)
-                    channel_warnings[event_name] = {
-                        "message_id": msg.id,
-                        "event_time": event_time.isoformat(),
-                    }
-                    changed = True
-                except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
-                    logger.warning("Failed to post hangar warning to channel %s: %s", channel_id, exc)
+        if state is None:
+            if phase is HangarPhase.ACTIVE and snapshot.time_until_close <= WARNING_WINDOW:
+                next_close = schedule.next_close(now)
+                new_mid = await _post(channel, f"⚠️ Executive Hangar closes {_ts(next_close)}!")
+                new_state = "close_warning"
+            elif phase is not HangarPhase.ACTIVE and snapshot.time_until_open <= WARNING_WINDOW:
+                next_open = schedule.next_open(now)
+                new_mid = await _post(channel, f"⚠️ Executive Hangar opens {_ts(next_open)}!")
+                new_state = "open_warning"
 
-    # Prune empty channel entries
-    cog.warnings = {k: v for k, v in cog.warnings.items() if v}
+        elif state == "open_warning":
+            if phase is HangarPhase.ACTIVE:
+                text = f"🟩 Executive Hangar opened {_ts(_open_time(schedule, now))}!"
+                new_mid = await _ensure(channel, mid, text)
+                new_state = "open"
+
+        elif state == "open":
+            if phase is not HangarPhase.ACTIVE:
+                text = f"🟥 Executive Hangar closed {_ts(_close_time(schedule, now))}."
+                new_mid = await _ensure(channel, mid, text)
+                new_state = "closed"
+            elif snapshot.time_until_close <= WARNING_WINDOW:
+                next_close = schedule.next_close(now)
+                await _delete(channel, mid)
+                new_mid = await _post(channel, f"⚠️ Executive Hangar closes {_ts(next_close)}!")
+                new_state = "close_warning"
+
+        elif state == "close_warning":
+            if phase is not HangarPhase.ACTIVE:
+                text = f"🟥 Executive Hangar closed {_ts(_close_time(schedule, now))}."
+                new_mid = await _ensure(channel, mid, text)
+                new_state = "closed"
+
+        elif state == "closed":
+            if phase is HangarPhase.ACTIVE:
+                text = f"🟩 Executive Hangar opened {_ts(_open_time(schedule, now))}!"
+                new_mid = await _ensure(channel, mid, text)
+                new_state = "open"
+            elif snapshot.time_until_open <= WARNING_WINDOW:
+                next_open = schedule.next_open(now)
+                await _delete(channel, mid)
+                new_mid = await _post(channel, f"⚠️ Executive Hangar opens {_ts(next_open)}!")
+                new_state = "open_warning"
+
+        if new_state != state or new_mid != mid:
+            sub["notify_state"] = new_state
+            sub["notify_message_id"] = new_mid
+            changed = True
 
     if changed:
         await save_state(cog)
