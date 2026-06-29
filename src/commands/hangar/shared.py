@@ -11,7 +11,13 @@ from datetime import UTC, datetime
 
 import discord
 
-from src.exec_hangars import HangarSchedule, build_status, format_relative_time
+from src.exec_hangars import HangarPhase, HangarSchedule, build_status, format_relative_time
+
+_PHASE_NOTIFICATION = {
+    HangarPhase.ACTIVE: "🟩 **Executive Hangar is now Open!**",
+    HangarPhase.RESET: "🟧 **Executive Hangar is now Resetting.**",
+    HangarPhase.CHARGING: "🟥 **Executive Hangar is now Closed (Charging).**",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +99,16 @@ async def save_state(cog) -> None:
     await cog.bot.state.set(_STATE_KEY, data)
 
 
+async def _delete_message(channel: discord.TextChannel, message_id: int | None) -> None:
+    if message_id is None:
+        return
+    try:
+        msg = await channel.fetch_message(message_id)
+        await msg.delete()
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        pass
+
+
 async def refresh_subscriptions(cog) -> None:
     """Edit every subscribed message with the current status, pruning dead ones."""
     if not cog.subscriptions:
@@ -105,6 +121,8 @@ async def refresh_subscriptions(cog) -> None:
         if schedule is None:
             survivors.append(sub)
             continue
+        status = build_status(schedule)
+        current_phase = status["phase"]
         embed = build_embed(schedule, set_at=set_at)
         channel = cog.bot.get_channel(sub["channel_id"])
         if channel is None:
@@ -120,14 +138,31 @@ async def refresh_subscriptions(cog) -> None:
         try:
             message = await channel.fetch_message(sub["message_id"])
             await message.edit(embed=embed)
-            survivors.append(sub)
         except discord.NotFound:
             changed = True
+            continue
         except discord.Forbidden:
             survivors.append(sub)
+            continue
         except discord.HTTPException as exc:
             logger.warning("Failed to update hangar subscription %s: %s", sub, exc)
             survivors.append(sub)
+            continue
+
+        last_phase_str = sub.get("last_phase")
+        current_phase_str = current_phase.name
+        if last_phase_str is not None and last_phase_str != current_phase_str:
+            await _delete_message(channel, sub.get("notify_message_id"))
+            try:
+                notify_msg = await channel.send(_PHASE_NOTIFICATION[current_phase])
+                sub["notify_message_id"] = notify_msg.id
+            except (discord.Forbidden, discord.HTTPException) as exc:
+                logger.warning("Failed to post hangar state notification to %s: %s", sub["channel_id"], exc)
+                sub["notify_message_id"] = None
+            sub["last_phase"] = current_phase_str
+            changed = True
+
+        survivors.append(sub)
 
     if changed:
         cog.subscriptions[:] = survivors
