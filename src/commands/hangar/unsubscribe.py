@@ -17,9 +17,12 @@ async def handle(cog, interaction: discord.Interaction) -> None:
     cog.subscriptions[:] = [sub for sub in cog.subscriptions if sub["channel_id"] != channel_id]
     await save_state(cog)
     for sub in removed:
-        try:
-            message = await interaction.channel.fetch_message(sub["message_id"])
-            await message.delete()
-        except (discord.NotFound, discord.Forbidden):
-            pass
+        for msg_id in (sub["message_id"], sub.get("notify_message_id")):
+            if msg_id is None:
+                continue
+            try:
+                message = await interaction.channel.fetch_message(msg_id)
+                await message.delete()
+            except (discord.NotFound, discord.Forbidden):
+                pass
     await interaction.response.send_message(f"Removed {len(removed)} live status message(s).", ephemeral=True)
