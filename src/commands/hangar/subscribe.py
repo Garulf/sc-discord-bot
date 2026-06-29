@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import discord
 
-from src.exec_hangars import build_status
-
 from .shared import build_embed, get_schedule_for_guild, save_state
 
 
@@ -25,13 +23,12 @@ async def handle(cog, interaction: discord.Interaction) -> None:
         return
 
     message = await interaction.channel.send(embed=build_embed(schedule, set_at=set_at))
-    current_phase = build_status(schedule)["phase"]
     cog.subscriptions.append(
         {
             "channel_id": message.channel.id,
             "message_id": message.id,
             "guild_id": interaction.guild_id,
-            "last_phase": current_phase.name,
+            "notify_state": None,
             "notify_message_id": None,
         }
     )
