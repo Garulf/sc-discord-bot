@@ -64,6 +64,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.inventory",
     "src.commands.timer",
     "src.commands.mine",
+    "src.commands.lookup",
 ]
 
 
