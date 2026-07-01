@@ -104,11 +104,6 @@ class InventoryCog(commands.Cog):
     @refresh_loop.before_loop
     async def before_refresh_loop(self) -> None:
         await self.bot.wait_until_ready()
-        try:
-            for guild in self.bot.guilds:
-                await refresh_live_status(self, guild.id)
-        except Exception:
-            logger.exception("Error during initial inventory refresh")
 
     @refresh_loop.error
     async def refresh_loop_error(self, error: Exception) -> None:
