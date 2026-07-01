@@ -103,7 +103,6 @@ class StreamCog(commands.Cog):
         login = sub["channel_login"]
         display = sub.get("channel_display", login)
         live_id = sub.get("live_id")
-        notif_mid = sub.get("notification_message_id")
 
         if platform == "twitch":
             stream = await self.twitch.get_stream(login)
@@ -134,16 +133,10 @@ class StreamCog(commands.Cog):
                 logger.warning("Failed to post live notification: %s", exc)
 
         elif not stream and live_id:
-            # Stream ended
-            if notif_mid:
-                try:
-                    msg = await channel.fetch_message(notif_mid)
-                    await msg.delete()
-                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                    pass
+            # Stream ended — leave the notification message in the channel
             sub["live_id"] = None
             sub["notification_message_id"] = None
-            logger.info("Cleared live notification for %s/%s", platform, login)
+            logger.info("Stream ended for %s/%s", platform, login)
             return True
 
         return False
