@@ -28,21 +28,11 @@ _PLATFORM_COLORS = {"twitch": 0x9B59B6, "youtube": 0xFF0000, "tiktok": 0x010101}
 _PLATFORM_ICONS = {"twitch": "🟣", "youtube": "🔴", "tiktok": "⚫"}
 
 
-def build_live_embed(stream: StreamInfo) -> discord.Embed:
+def build_live_message(stream: StreamInfo) -> str:
+    """Return message content that Discord will auto-embed as a video preview."""
     label = _PLATFORM_LABELS[stream.platform]
-    embed = discord.Embed(
-        title=f"🔴 {stream.channel_name} is LIVE on {label}!",
-        description=stream.title or None,
-        url=stream.stream_url,
-        color=_PLATFORM_COLORS[stream.platform],
-    )
-    if stream.thumbnail_url:
-        embed.set_image(url=stream.thumbnail_url)
-    if stream.game_or_category:
-        embed.add_field(name="Playing", value=stream.game_or_category, inline=True)
-    if stream.viewer_count is not None:
-        embed.add_field(name="Viewers", value=f"{stream.viewer_count:,}", inline=True)
-    return embed
+    icon = _PLATFORM_ICONS[stream.platform]
+    return f"{icon} **{stream.channel_name}** is LIVE on {label}!\n{stream.stream_url}"
 
 
 class StreamCog(commands.Cog):
@@ -124,7 +114,7 @@ class StreamCog(commands.Cog):
             if sub.get("channel_display") == sub.get("channel_login") and stream.channel_name:
                 sub["channel_display"] = stream.channel_name
             try:
-                msg = await channel.send(embed=build_live_embed(stream))
+                msg = await channel.send(build_live_message(stream))
                 sub["live_id"] = stream.stream_id
                 sub["notification_message_id"] = msg.id
                 logger.info("Posted live notification for %s/%s (stream %s)", platform, login, stream.stream_id)
