@@ -5,6 +5,7 @@ from __future__ import annotations
 import discord
 
 from ..shared import get_guild_inventory, save_guild_inventory
+from ..subscriptions import refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction, member: discord.Member, entries: list[tuple[str, int]]) -> None:
@@ -50,3 +51,4 @@ async def handle(cog, interaction: discord.Interaction, member: discord.Member, 
         parts = ", ".join(f"×{count} **{item}**" for item, count, _ in removed_parts)
         msg = f"Removed {parts} from {member.display_name}'s inventory."
     await interaction.response.send_message(msg, ephemeral=True)
+    await refresh_live_status(cog, interaction.guild_id)

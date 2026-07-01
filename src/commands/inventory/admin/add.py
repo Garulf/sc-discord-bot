@@ -5,6 +5,7 @@ from __future__ import annotations
 import discord
 
 from ..shared import complete_sets, get_guild_inventory, save_guild_inventory
+from ..subscriptions import refresh_live_status
 
 
 async def handle(cog, interaction: discord.Interaction, member: discord.Member, entries: list[tuple[str, int]]) -> None:
@@ -39,3 +40,4 @@ async def handle(cog, interaction: discord.Interaction, member: discord.Member, 
     if sets > 0:
         msg += f" They have **{sets} complete set{'s' if sets != 1 else ''}**!"
     await interaction.response.send_message(msg, ephemeral=True)
+    await refresh_live_status(cog, interaction.guild_id)
