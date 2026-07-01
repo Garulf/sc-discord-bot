@@ -85,6 +85,30 @@ class YouTubeClient:
             return []
         return re.findall(r"<yt:videoId>([^<]+)</yt:videoId>", text)
 
+    async def _live_page_video_id(self, channel_id: str) -> str | None:
+        """Scrape the channel /live page to find the active live video ID.
+
+        YouTube doesn't include spontaneous (non-scheduled) streams in the RSS
+        feed, so this is the only free way to detect them.
+        """
+        session = await self._get_session()
+        try:
+            async with session.get(
+                f"https://www.youtube.com/channel/{channel_id}/live",
+                headers={"Accept-Language": "en-US,en;q=0.9"},
+            ) as r:
+                if r.status != 200:
+                    return None
+                text = await r.text()
+        except aiohttp.ClientError as exc:
+            logger.debug("YouTube live page fetch error for %s: %s", channel_id, exc)
+            return None
+
+        if '"isLive":true' not in text:
+            return None
+        m = re.search(r'"videoId":"([\w-]{11})"', text)
+        return m.group(1) if m else None
+
     async def _check_video_live(self, video_id: str, channel_display: str) -> StreamInfo | None:
         """Return StreamInfo if the video is currently live, else None.
 
@@ -152,12 +176,19 @@ class YouTubeClient:
                     return info
                 # Stream ended — fall through to check RSS for a new one
 
-            # Check only the most recent RSS videos to limit quota use
+            # Check only the most recent RSS videos (scheduled streams appear here)
             video_ids = await self._rss_video_ids(channel_id)
             for vid in video_ids[:_RSS_CHECK_LIMIT]:
                 if vid == known_live_video_id:
                     continue
                 info = await self._check_video_live(vid, channel_display)
+                if info:
+                    return info
+
+            # Fallback: scrape /live page to catch spontaneous (non-scheduled) streams
+            live_vid = await self._live_page_video_id(channel_id)
+            if live_vid and live_vid != known_live_video_id:
+                info = await self._check_video_live(live_vid, channel_display)
                 if info:
                     return info
 
