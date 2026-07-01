@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.5.0](https://github.com/Garulf/sc-discord-bot/compare/v0.4.0...v0.5.0) (2026-07-01)
+
+
+### Features
+
+* add /lookup command for RSI citizen profile ([e52d547](https://github.com/Garulf/sc-discord-bot/commit/e52d54743724c750eea9ca8941294713382b87ea))
+* add /mine command with autocomplete for mining locations ([#26](https://github.com/Garulf/sc-discord-bot/issues/26)) ([f9568c0](https://github.com/Garulf/sc-discord-bot/commit/f9568c0f87b25d1d5cba098b3e73a8b1241618e3))
+* **hangar:** add /hangar sync and /hangar global sync commands ([458cedb](https://github.com/Garulf/sc-discord-bot/commit/458cedb00fc3d356dbdbad62ad2fac165619ea52))
+* **hangar:** post state-change notifications to subscribed channels ([#24](https://github.com/Garulf/sc-discord-bot/issues/24)) ([e9bfb60](https://github.com/Garulf/sc-discord-bot/commit/e9bfb60b31d38e45ed39a1608280272c237a0af8))
+* **hangar:** state-change event notifications with Discord relative timestamps ([#25](https://github.com/Garulf/sc-discord-bot/issues/25)) ([bdda565](https://github.com/Garulf/sc-discord-bot/commit/bdda565e5f50f0144a55b74411a2854afa2f37c1))
+* **inventory:** add Transfer Cards user context menu with modal input ([#20](https://github.com/Garulf/sc-discord-bot/issues/20)) ([c71512c](https://github.com/Garulf/sc-discord-bot/commit/c71512c27222bde4d8004d8b4b45daaa7f678aae))
+* **inventory:** add transfer notifications to subscribed channels ([#21](https://github.com/Garulf/sc-discord-bot/issues/21)) ([9782603](https://github.com/Garulf/sc-discord-bot/commit/9782603ec5b373dd0ff3a9a195d4ce718ceccfcc))
+* **inventory:** cap notifications at 5 per channel, bump older ones to 1hr expiry ([2171592](https://github.com/Garulf/sc-discord-bot/commit/2171592d4264ad28bd2529b26bcf42782eef62b8))
+* **inventory:** cap notifications at 5 per channel, expire bumped ones after 1hr ([#22](https://github.com/Garulf/sc-discord-bot/issues/22)) ([2171592](https://github.com/Garulf/sc-discord-bot/commit/2171592d4264ad28bd2529b26bcf42782eef62b8))
+* **stream:** add live stream notifications for Twitch, YouTube, TikTok ([85a5e19](https://github.com/Garulf/sc-discord-bot/commit/85a5e19052933d4a8d6162194e02b888c512034d))
+* **stream:** keep live notification after stream ends ([a11d666](https://github.com/Garulf/sc-discord-bot/commit/a11d66645a873706c9bf77acc12aaa0327efe47f))
+* **stream:** send URL as message content for native Discord video embed ([04ce358](https://github.com/Garulf/sc-discord-bot/commit/04ce358cc4720df32e06eba8a216f19c94a4d810))
+
+
+### Bug Fixes
+
+* **hangar:** reset notify_state and refresh immediately on /hangar set ([cad2efb](https://github.com/Garulf/sc-discord-bot/commit/cad2efbe9371f49c1552f201a7d52a612295583d))
+* **inventory:** only expire notifications bumped past the 5-per-channel limit ([#23](https://github.com/Garulf/sc-discord-bot/issues/23)) ([f3c1901](https://github.com/Garulf/sc-discord-bot/commit/f3c1901032db663056ac2f93c6c2166370805f3b))
+* **inventory:** refresh live status after admin add/remove ([abf3cef](https://github.com/Garulf/sc-discord-bot/commit/abf3ceffdae741b174be30c354a4553d5a4c0b88))
+* **inventory:** remove duplicate startup refresh from before_loop hook ([b8897bc](https://github.com/Garulf/sc-discord-bot/commit/b8897bc97cb8a67833750a11128ec6c5b0dcea9b))
+* **lint:** sort imports and format bot.py ([c0cf5b1](https://github.com/Garulf/sc-discord-bot/commit/c0cf5b1ab492dba58ca517d7c38148db75963459))
+* **mine:** limit locations to 5 per system ([7574a1d](https://github.com/Garulf/sc-discord-bot/commit/7574a1d8a705407da50488cb0c015e22fa10db5c))
+* **scripts:** always rebuild in run.sh, log instead of exit on git pull failure ([6191f49](https://github.com/Garulf/sc-discord-bot/commit/6191f495512f6bfbd7f83eb9a6d6c1f0fa97e0b3))
+* **scripts:** always rebuild in run.sh, log instead of exit on git pull failure ([aa2f6a9](https://github.com/Garulf/sc-discord-bot/commit/aa2f6a99acef973e0e489b137766e702de1df59c))
+* **stream:** detect spontaneous YouTube live streams via /live page scrape ([ee8dbdf](https://github.com/Garulf/sc-discord-bot/commit/ee8dbdf1f832a81bbb4538360a048da006808131))
+* **stream:** fix unsubscribe matching and display name backfill ([a99bc32](https://github.com/Garulf/sc-discord-bot/commit/a99bc32683c7c0df033b9aa5ad8ad429debebfdc))
+* **stream:** skip YouTube API for channel ID input, fix quota errors ([f19e6e7](https://github.com/Garulf/sc-discord-bot/commit/f19e6e7743bac493e28c519e5d8b3cea50416d23))
+* **stream:** stop quota spam, limit YouTube RSS checks to 3 most recent ([12211cb](https://github.com/Garulf/sc-discord-bot/commit/12211cb2f54e6d6a660ff5bfd4a54668c0c38758))
+* **stream:** use liveBroadcastContent instead of concurrentViewers for live detection ([f636bdf](https://github.com/Garulf/sc-discord-bot/commit/f636bdfcce8909f1b86d35649315c34f37d9e9f1))
+
+
+### Documentation
+
+* update README with full command guide ([c13d604](https://github.com/Garulf/sc-discord-bot/commit/c13d6040a0eaac7e85abe5034324c4356c6d6327))
+
 ## [0.4.0](https://github.com/Garulf/sc-discord-bot/compare/v0.3.0...v0.4.0) (2026-06-28)
 
 
