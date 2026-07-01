@@ -10,6 +10,7 @@ from discord import app_commands
 from src.exec_hangars import HangarSchedule
 
 from .shared import build_embed, get_schedule_for_guild, refresh_subscriptions, save_state
+from .sync import _reset_notify
 from .warnings import refresh_event_messages
 
 
@@ -31,22 +32,8 @@ async def handle(
 
     cog.guild_set_at[guild_id] = now
 
-    # Reset warning state for all subscriptions in this guild so the state
-    # machine restarts cleanly after a manual schedule change.
-    for sub in cog.subscriptions:
-        if sub.get("guild_id") == guild_id:
-            old_mid = sub.get("notify_message_id")
-            if old_mid is not None:
-                ch = cog.bot.get_channel(sub["channel_id"])
-                if ch:
-                    try:
-                        msg = await ch.fetch_message(old_mid)
-                        await msg.delete()
-                    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                        pass
-            sub["notify_state"] = None
-            sub["notify_message_id"] = None
-
+    # Reset warning state so the state machine restarts cleanly after a manual schedule change.
+    await _reset_notify(cog, guild_id)
     await save_state(cog)
 
     schedule, set_at = get_schedule_for_guild(cog, guild_id)

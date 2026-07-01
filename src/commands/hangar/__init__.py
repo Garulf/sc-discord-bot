@@ -19,10 +19,12 @@ from src.commands.checks import admin_or_sc_bot, handle_check_failure, is_bot_ow
 from src.exec_hangars import HangarSchedule
 
 from .global_set import handle as _handle_global_set
+from .global_sync import handle as _handle_global_sync
 from .set import handle as _handle_set
 from .shared import load_state, refresh_subscriptions
 from .status import handle as _handle_status
 from .subscribe import handle as _handle_subscribe
+from .sync import handle as _handle_sync
 from .unsubscribe import handle as _handle_unsubscribe
 from .warnings import refresh_event_messages
 
@@ -96,6 +98,11 @@ class HangarCog(commands.Cog):
     ):
         await _handle_set(self, interaction, phase, lights)
 
+    @hangar.command(name="sync", description="Sync the hangar schedule from a state timestamp (UTC)")
+    @app_commands.describe(timestamp='State and time, e.g. "Open 7/1/2026, 4:11:31 AM"')
+    async def sync(self, interaction: discord.Interaction, timestamp: str):
+        await _handle_sync(self, interaction, timestamp)
+
     @hangar.command(
         name="subscribe",
         description="Post a live Executive Hangar status in this channel that auto-updates",
@@ -132,6 +139,12 @@ class HangarCog(commands.Cog):
         lights: app_commands.Range[int, 0, 5] = 0,
     ):
         await _handle_global_set(self, interaction, phase, lights)
+
+    @global_group.command(name="sync", description="Sync the global hangar schedule from a state timestamp (UTC)")
+    @app_commands.describe(timestamp='State and time, e.g. "Open 7/1/2026, 4:11:31 AM"')
+    @app_commands.check(is_bot_owner)
+    async def global_sync(self, interaction: discord.Interaction, timestamp: str):
+        await _handle_global_sync(self, interaction, timestamp)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
