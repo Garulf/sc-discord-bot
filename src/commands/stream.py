@@ -121,6 +121,9 @@ class StreamCog(commands.Cog):
 
         if stream and stream.stream_id != live_id:
             # New stream started (or first detection)
+            # Backfill display name if it was stored as a raw channel ID
+            if sub.get("channel_display") == sub.get("channel_login") and stream.channel_name:
+                sub["channel_display"] = stream.channel_name
             try:
                 msg = await channel.send(embed=build_live_embed(stream))
                 sub["live_id"] = stream.stream_id
@@ -248,7 +251,7 @@ class StreamCog(commands.Cog):
         channel: str,
     ) -> None:
         plat = platform.value
-        login = channel.strip().lstrip("@").lower() if plat != "youtube" else channel.strip()
+        login = channel.strip().lstrip("@").lower()
 
         match = next(
             (

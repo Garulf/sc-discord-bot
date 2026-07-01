@@ -63,7 +63,7 @@ class YouTubeClient:
                     data = await r.json()
             except aiohttp.ClientError as exc:
                 logger.warning("YouTube channel lookup error (%s=%s): %s", param_key, param_val, exc)
-                return None
+                continue  # try the next lookup param before giving up
             items = data.get("items", [])
             if items:
                 item = items[0]
@@ -95,7 +95,11 @@ class YouTubeClient:
         try:
             async with session.get(
                 f"https://www.youtube.com/channel/{channel_id}/live",
-                headers={"Accept-Language": "en-US,en;q=0.9"},
+                headers={
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                },
             ) as r:
                 if r.status != 200:
                     return None
