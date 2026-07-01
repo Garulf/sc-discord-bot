@@ -160,7 +160,7 @@ class StreamCog(commands.Cog):
     @stream.command(name="subscribe", description="Subscribe this channel to live stream notifications")
     @app_commands.describe(
         platform="Streaming platform",
-        channel="Username or channel handle (YouTube: @handle or channel ID)",
+        channel="Username or channel ID (YouTube: handle without @, or UCxxxx channel ID)",
     )
     @app_commands.choices(platform=_PLATFORM_CHOICES)
     @app_commands.check(admin_or_sc_bot)
@@ -198,7 +198,7 @@ class StreamCog(commands.Cog):
             result = await self.youtube.resolve_channel(login)
             if result is None:
                 await interaction.followup.send(
-                    f"YouTube channel **{login}** not found. Try the `@handle` format.",
+                    f"YouTube channel **{login}** not found. Try the handle without `@`, or paste the `UCxxxx` channel ID.",
                     ephemeral=True,
                 )
                 return

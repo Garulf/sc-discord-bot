@@ -40,29 +40,32 @@ class YouTubeClient:
             return None
         # Strip URL prefix
         cleaned = re.sub(r"https?://(?:www\.)?youtube\.com/", "", input_str).strip("/")
-        # Already a channel ID
-        if cleaned.startswith("UC") and len(cleaned) == 24:
-            channel_id = cleaned
-            name = await self._channel_name(channel_id)
-            return (channel_id, name) if name else None
+        # Already a channel ID — skip API, display name will be filled in on first live detection
+        if re.fullmatch(r"UC[\w-]{22}", cleaned):
+            return (cleaned, cleaned)
         # Handle format: @username or channel/username
         handle = cleaned.lstrip("@").removeprefix("channel/")
         session = await self._get_session()
-        try:
-            async with session.get(
-                _CHANNELS_URL,
-                params={"part": "id,snippet", "forHandle": f"@{handle}", "key": self._api_key},
-            ) as r:
-                r.raise_for_status()
-                data = await r.json()
-        except aiohttp.ClientError as exc:
-            logger.warning("YouTube channel lookup error: %s", exc)
-            return None
-        items = data.get("items", [])
-        if not items:
-            return None
-        item = items[0]
-        return item["id"], item["snippet"]["title"]
+
+        # Try forHandle first (modern @handle), then forUsername (legacy)
+        for param_key, param_val in (("forHandle", f"@{handle}"), ("forUsername", handle)):
+            try:
+                async with session.get(
+                    _CHANNELS_URL,
+                    params={"part": "id,snippet", param_key: param_val, "key": self._api_key},
+                ) as r:
+                    r.raise_for_status()
+                    data = await r.json()
+            except aiohttp.ClientError as exc:
+                logger.warning("YouTube channel lookup error (%s=%s): %s", param_key, param_val, exc)
+                return None
+            items = data.get("items", [])
+            if items:
+                item = items[0]
+                return item["id"], item["snippet"]["title"]
+            logger.debug("YouTube %s=%s returned no items", param_key, param_val)
+
+        return None
 
     async def _channel_name(self, channel_id: str) -> str | None:
         session = await self._get_session()
@@ -125,7 +128,7 @@ class YouTubeClient:
         return StreamInfo(
             platform="youtube",
             stream_id=video_id,
-            channel_name=channel_display or snippet.get("channelTitle", ""),
+            channel_name=snippet.get("channelTitle") or channel_display or "",
             stream_url=f"https://www.youtube.com/watch?v={video_id}",
             title=snippet.get("title", ""),
             thumbnail_url=snippet.get("thumbnails", {}).get("maxres", {}).get("url")
