@@ -145,14 +145,14 @@ class YouTubeClient:
         if not items:
             return None
         item = items[0]
-        live = item.get("liveStreamingDetails", {})
-        # Live if actualStartTime is set and concurrentViewers is present
-        if not live.get("actualStartTime") or "concurrentViewers" not in live:
-            return None
         snippet = item.get("snippet", {})
+        # liveBroadcastContent is the reliable live indicator; concurrentViewers may be absent
+        if snippet.get("liveBroadcastContent") != "live":
+            return None
+        live = item.get("liveStreamingDetails", {})
         try:
             viewers = int(live["concurrentViewers"])
-        except (ValueError, TypeError):
+        except (KeyError, ValueError, TypeError):
             viewers = None
         return StreamInfo(
             platform="youtube",
