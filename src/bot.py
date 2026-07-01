@@ -34,6 +34,7 @@ from src.starcitizenwiki_api.gravlev_vehicles import GravlevVehicles
 from src.starcitizenwiki_api.ground_vehicles import GroundVehicles
 from src.starcitizenwiki_api.locations import Locations
 from src.starcitizenwiki_api.manufacturers import Manufacturers
+from src.starcitizenwiki_api.mineables import Mineables
 from src.starcitizenwiki_api.missions import Missions
 from src.starcitizenwiki_api.starsystems import StarSystems
 from src.starcitizenwiki_api.stats import Stats
@@ -62,6 +63,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.find",
     "src.commands.inventory",
     "src.commands.timer",
+    "src.commands.mine",
 ]
 
 
@@ -106,6 +108,7 @@ class SCBot(commands.Bot):
         self.factions_api = Factions(self.sc_client)
         self.manufacturers_api = Manufacturers(self.sc_client)
         self.wiki_commodities_api = WikiCommodities(self.sc_client)
+        self.mineables_api = Mineables(self.sc_client)
         self.food_api = Food(self.sc_client)
         self.galactapedia_api = Galactapedia(self.sc_client)
         self.comm_links_api = CommLinks(self.sc_client)
