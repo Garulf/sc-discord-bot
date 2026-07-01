@@ -29,7 +29,7 @@ _TYPE_LABELS = {
     "Settlement": None,
 }
 
-_MAX_LOCS_PER_SYSTEM = 15
+_MAX_LOCS_PER_SYSTEM = 5
 
 
 def _loc_line(loc: MiningLocation) -> str:
