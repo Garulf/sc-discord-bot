@@ -15,6 +15,11 @@ _CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
 _VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _RSS_URL = "https://www.youtube.com/feeds/videos.xml"
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
+_RSS_CHECK_LIMIT = 3  # only check the 3 most recent videos per poll
+
+
+class _QuotaExceeded(Exception):
+    pass
 
 
 class YouTubeClient:
@@ -67,21 +72,6 @@ class YouTubeClient:
 
         return None
 
-    async def _channel_name(self, channel_id: str) -> str | None:
-        session = await self._get_session()
-        try:
-            async with session.get(
-                _CHANNELS_URL,
-                params={"part": "snippet", "id": channel_id, "key": self._api_key},
-            ) as r:
-                r.raise_for_status()
-                data = await r.json()
-        except aiohttp.ClientError as exc:
-            logger.warning("YouTube channel name lookup error: %s", exc)
-            return None
-        items = data.get("items", [])
-        return items[0]["snippet"]["title"] if items else None
-
     async def _rss_video_ids(self, channel_id: str) -> list[str]:
         """Fetch latest video IDs from the channel RSS feed (free, no quota)."""
         session = await self._get_session()
@@ -96,7 +86,11 @@ class YouTubeClient:
         return re.findall(r"<yt:videoId>([^<]+)</yt:videoId>", text)
 
     async def _check_video_live(self, video_id: str, channel_display: str) -> StreamInfo | None:
-        """Return StreamInfo if the video is currently live, else None."""
+        """Return StreamInfo if the video is currently live, else None.
+
+        Raises _QuotaExceeded if the API key is out of quota so the caller
+        can abort the poll cycle instead of spamming further requests.
+        """
         session = await self._get_session()
         try:
             async with session.get(
@@ -107,8 +101,15 @@ class YouTubeClient:
                     "key": self._api_key,
                 },
             ) as r:
+                if r.status == 403:
+                    body = await r.json()
+                    reason = body.get("error", {}).get("errors", [{}])[0].get("reason", "")
+                    if reason == "quotaExceeded":
+                        raise _QuotaExceeded()
                 r.raise_for_status()
                 data = await r.json()
+        except _QuotaExceeded:
+            raise
         except aiohttp.ClientError as exc:
             logger.warning("YouTube video check error: %s", exc)
             return None
@@ -139,29 +140,30 @@ class YouTubeClient:
     async def get_stream(
         self, channel_id: str, channel_display: str, known_live_video_id: str | None
     ) -> StreamInfo | None:
-        """Return StreamInfo if channel is live, else None.
-
-        Pass known_live_video_id so we can re-check an existing stream's status
-        and detect when it ends, without burning RSS quota on every poll.
-        """
+        """Return StreamInfo if channel is live, else None."""
         if not self._configured:
             return None
 
-        # Re-check an ongoing stream first (cheap: 1 API unit)
-        if known_live_video_id:
-            info = await self._check_video_live(known_live_video_id, channel_display)
-            if info:
-                return info
-            # Stream ended — fall through to check RSS for a new one
+        try:
+            # Re-check an ongoing stream first (1 API unit)
+            if known_live_video_id:
+                info = await self._check_video_live(known_live_video_id, channel_display)
+                if info:
+                    return info
+                # Stream ended — fall through to check RSS for a new one
 
-        # Check RSS for new video IDs
-        video_ids = await self._rss_video_ids(channel_id)
-        for vid in video_ids:
-            if vid == known_live_video_id:
-                continue  # already checked above
-            info = await self._check_video_live(vid, channel_display)
-            if info:
-                return info
+            # Check only the most recent RSS videos to limit quota use
+            video_ids = await self._rss_video_ids(channel_id)
+            for vid in video_ids[:_RSS_CHECK_LIMIT]:
+                if vid == known_live_video_id:
+                    continue
+                info = await self._check_video_live(vid, channel_display)
+                if info:
+                    return info
+
+        except _QuotaExceeded:
+            logger.warning("YouTube API quota exceeded — skipping poll cycle for %s", channel_id)
+
         return None
 
     async def close(self) -> None:
