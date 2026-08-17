@@ -1,4 +1,5 @@
 from src.commands.twisc import ScheduleDay, parse_schedule
+from src.starcitizenwiki_api.comm_links import CommLink
 
 SAMPLE_CONTENT = (
     "Happy Monday, everyone!\n"
@@ -76,3 +77,45 @@ def test_parse_schedule_day_with_three_items_then_another_day():
 def test_schedule_day_is_frozen():
     day = ScheduleDay(heading="MONDAY, AUGUST 10, 2026", items=("x",))
     assert day.heading == "MONDAY, AUGUST 10, 2026"
+
+
+def _comm_link(rsi_url="https://robertsspaceindustries.com/comm-link/transmission/21287"):
+    return CommLink(
+        id=21287,
+        title="This Week in Star Citizen",
+        slug="21287",
+        channel="Transmission",
+        category="Undefined",
+        series="None",
+        content=SAMPLE_CONTENT,
+        rsi_url=rsi_url,
+        web_url=None,
+        published_at="2026-08-10T23:00:00+00:00",
+    )
+
+
+def test_build_schedule_embed_layout():
+    from src.commands.twisc import build_schedule_embed
+
+    days = parse_schedule(SAMPLE_CONTENT)
+    embed = build_schedule_embed(_comm_link(), days)
+
+    assert embed.title == "The Weekly Community Content Schedule"
+    assert embed.url == "https://robertsspaceindustries.com/comm-link/transmission/21287"
+    assert embed.colour is not None and embed.colour.value == 0x0099D6
+    assert len(embed.fields) == 5
+    assert embed.fields[0].name == "Monday, August 10, 2026"
+    assert embed.fields[0].value == "- This Week in Star Citizen"
+    assert embed.fields[1].value == (
+        "- August 2026 Monthly Bundle\n- Maintenance: Issue Council, starting at 13:00 UTC"
+    )
+    assert all(not field.inline for field in embed.fields)
+    assert embed.footer.text == "https://robertsspaceindustries.com/comm-link/transmission/21287"
+
+
+def test_build_schedule_embed_without_url():
+    from src.commands.twisc import build_schedule_embed
+
+    embed = build_schedule_embed(_comm_link(rsi_url=None), parse_schedule(SAMPLE_CONTENT))
+    assert embed.url is None
+    assert embed.footer.text is None

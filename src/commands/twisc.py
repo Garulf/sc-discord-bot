@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+import discord
+
+from src.starcitizenwiki_api.comm_links import CommLink
+
 SCHEDULE_TITLE = "The Weekly Community Content Schedule"
 
 _DAY_HEADING = re.compile(r"^(?:MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY, [A-Z]+ \d{1,2}, \d{4}$")
@@ -53,3 +57,16 @@ def parse_schedule(content: str | None) -> list[ScheduleDay]:
     if heading is not None:
         days.append(ScheduleDay(heading=heading, items=tuple(items)))
     return days
+
+
+_EMBED_COLOR = 0x0099D6
+
+
+def build_schedule_embed(comm_link: CommLink, days: list[ScheduleDay]) -> discord.Embed:
+    embed = discord.Embed(title=SCHEDULE_TITLE, url=comm_link.rsi_url, color=_EMBED_COLOR)
+    for day in days:
+        value = "\n".join(f"- {item}" for item in day.items) or "​"
+        embed.add_field(name=day.heading.title(), value=value, inline=False)
+    if comm_link.rsi_url:
+        embed.set_footer(text=comm_link.rsi_url)
+    return embed
