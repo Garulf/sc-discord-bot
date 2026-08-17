@@ -119,3 +119,53 @@ def test_build_schedule_embed_without_url():
     embed = build_schedule_embed(_comm_link(rsi_url=None), parse_schedule(SAMPLE_CONTENT))
     assert embed.url is None
     assert embed.footer.text is None
+
+
+from unittest.mock import AsyncMock, MagicMock
+
+
+def _cog_with(latest, subscriptions, last_posted_id):
+    from src.commands.twisc import TwiscCog
+
+    bot = MagicMock()
+    bot.comm_links_api.search = AsyncMock(return_value=[latest] if latest else [])
+    bot.state.set = AsyncMock()
+    cog = TwiscCog(bot)
+    cog.subscriptions = subscriptions
+    cog.last_posted_id = last_posted_id
+    return cog
+
+
+async def test_first_poll_records_id_without_posting():
+    link = _comm_link()
+    cog = _cog_with(link, subscriptions=[{"discord_channel_id": 1, "guild_id": 2}], last_posted_id=None)
+    await cog._check_latest()
+    assert cog.last_posted_id == 21287
+    cog.bot.get_channel.assert_not_called()
+    cog.bot.state.set.assert_awaited_once()
+
+
+async def test_poll_posts_new_comm_link_to_subscribed_channels():
+    link = _comm_link()
+    cog = _cog_with(link, subscriptions=[{"discord_channel_id": 1, "guild_id": 2}], last_posted_id=21278)
+    channel = MagicMock()
+    channel.send = AsyncMock()
+    cog.bot.get_channel.return_value = channel
+    await cog._check_latest()
+    channel.send.assert_awaited_once()
+    assert channel.send.await_args.kwargs["embed"].title == "The Weekly Community Content Schedule"
+    assert cog.last_posted_id == 21287
+
+
+async def test_poll_skips_already_posted_comm_link():
+    link = _comm_link()
+    cog = _cog_with(link, subscriptions=[{"discord_channel_id": 1, "guild_id": 2}], last_posted_id=21287)
+    await cog._check_latest()
+    cog.bot.get_channel.assert_not_called()
+    cog.bot.state.set.assert_not_awaited()
+
+
+async def test_poll_without_subscriptions_does_nothing():
+    cog = _cog_with(_comm_link(), subscriptions=[], last_posted_id=None)
+    await cog._check_latest()
+    cog.bot.comm_links_api.search.assert_not_awaited()

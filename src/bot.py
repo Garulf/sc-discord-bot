@@ -66,6 +66,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.mine",
     "src.commands.lookup",
     "src.commands.stream",
+    "src.commands.twisc",
 ]
 
 
