@@ -52,19 +52,25 @@ def test_parse_schedule_junk_after_marker_returns_empty():
     assert parse_schedule(content) == []
 
 
-def test_parse_schedule_two_paragraph_signoff_does_not_leak_into_items():
+def test_parse_schedule_day_with_three_items_then_another_day():
     content = (
         "The Weekly Community Content Schedule\n\n\n"
-        "MONDAY, AUGUST 10, 2026\nThis Week in Star Citizen\n\n"
-        "Freyja Vanadis\n\n"
-        "Senior Community Manager\n\n"
-        "Some trailing junk paragraph"
+        "MONDAY, AUGUST 10, 2026\nItem One\n\n"
+        "Item Two\n\n"
+        "Item Three\n\n"
+        "TUESDAY, AUGUST 11, 2026\nOnly Item\n\n"
+        "Freyja Vanadis\nSenior Community Manager\n\n"
+        "SourcePilotVision quest truth trailing lore text"
     )
     days = parse_schedule(content)
-    assert len(days) == 1
-    assert days[0].items == ("This Week in Star Citizen",)
+    assert [d.heading for d in days] == [
+        "MONDAY, AUGUST 10, 2026",
+        "TUESDAY, AUGUST 11, 2026",
+    ]
+    assert days[0].items == ("Item One", "Item Two", "Item Three")
+    assert days[1].items == ("Only Item",)
     all_items = [item for day in days for item in day.items]
-    assert not any("Freyja" in item or "Senior Community Manager" in item or "trailing junk" in item for item in all_items)
+    assert not any("Freyja" in item or "Source" in item for item in all_items)
 
 
 def test_schedule_day_is_frozen():
