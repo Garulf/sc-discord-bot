@@ -46,7 +46,7 @@ Subscribed channels also receive event notifications (set completions, transfers
 
 ### Tickets (`/ticket`)
 
-Post a panel of category buttons that opens a private thread (or forum post) per request, pings the mapped responder role, and tracks claim/close state.
+Post a panel of category buttons that opens a public thread (or forum post) per request, pings the mapped responder role, and tracks claim/close state.
 
 | Command | Description |
 |---|---|
@@ -57,7 +57,7 @@ Post a panel of category buttons that opens a private thread (or forum post) per
 | `/ticket cargo route-from:<system:planet:location> route-to:<system:planet:location> [scu] [notes]` | Request cargo hauling help |
 | `/ticket salvage location:<system:planet:location> [target] [notes]` | Request salvage assistance |
 
-Location fields use the form `system:planet:location`, e.g. `Stanton:Hurston:Lorville` (planet and location are optional). All three parts autocomplete against live star system, celestial object, and point-of-interest data.
+Location fields use the form `system:planet:location`, e.g. `Stanton:Hurston:Lorville` (planet and location are optional). Each segment autocompletes against live star system, celestial object, and point-of-interest data as you type it.
 
 **Admin commands** (requires Administrator permission or the `sc-bot` role):
 
