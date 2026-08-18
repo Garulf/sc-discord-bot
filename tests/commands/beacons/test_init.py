@@ -49,6 +49,13 @@ def test_escort_and_transport_take_optional_destination():
         assert params["destination"].type is AppCommandOptionType.string
 
 
+def test_stats_command_is_registered_and_not_admin_gated():
+    command = BeaconsCog.beacon.get_command("stats")
+    assert command is not None
+    assert command.description == "Beacon statistics for this server"
+    assert admin_or_sc_bot not in command.checks
+
+
 def test_role_category_choices_track_categories():
     params = _params("role")
     assert [(c.name, c.value) for c in params["category"].choices] == [(c.label, c.key) for c in CATEGORIES.values()]
