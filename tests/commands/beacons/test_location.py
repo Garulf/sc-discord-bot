@@ -143,3 +143,32 @@ async def test_route_autocomplete_swallows_api_errors():
     interaction = _interaction()
     interaction.client.locations_api.search = AsyncMock(side_effect=RuntimeError("api down"))
     assert await route_autocomplete(interaction, "lor") == []
+
+
+@pytest.mark.asyncio
+async def test_planet_autocomplete_falls_back_to_raw_interaction_data():
+    interaction = _interaction(pois=[_HURSTON, _BLOOM])
+    interaction.namespace = object()
+    interaction.data = {
+        "options": [
+            {
+                "name": "medic",
+                "type": 1,
+                "options": [
+                    {"name": "system", "type": 3, "value": "Stanton"},
+                    {"name": "planet", "type": 3, "value": "hu", "focused": True},
+                ],
+            }
+        ]
+    }
+    choices = await planet_autocomplete(interaction, "hu")
+    assert [c.value for c in choices] == ["Hurston"]
+
+
+@pytest.mark.asyncio
+async def test_poi_autocomplete_handles_missing_raw_options():
+    interaction = _interaction(pois=[_LORVILLE, _BLOOM])
+    interaction.namespace = object()
+    interaction.data = {}
+    choices = await poi_autocomplete(interaction, "l")
+    assert [c.value for c in choices] == ["Lorville"]

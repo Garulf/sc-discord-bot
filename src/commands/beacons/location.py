@@ -47,8 +47,25 @@ async def _search_pois(interaction: discord.Interaction, query: str) -> list:
         return []
 
 
+def _walk_raw_options(options: list, name: str) -> str | None:
+    for option in options:
+        if option.get("name") == name and not option.get("focused") and isinstance(option.get("value"), str):
+            return option["value"]
+        nested = option.get("options")
+        if nested:
+            found = _walk_raw_options(nested, name)
+            if found is not None:
+                return found
+    return None
+
+
 def _namespace_value(interaction: discord.Interaction, name: str) -> str | None:
     value = getattr(interaction.namespace, name, None)
+    if not isinstance(value, str) or not value.strip():
+        raw = interaction.data or {}
+        value = _walk_raw_options(raw.get("options") or [], name)
+        if value is None:
+            logger.debug("Autocomplete option %r missing from namespace and raw payload: %s", name, raw)
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
