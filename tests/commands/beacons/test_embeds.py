@@ -18,8 +18,43 @@ def _beacon(**overrides):
     return beacon
 
 
-def test_beacon_title():
-    assert beacon_title("medic", "Garulf") == "[Medical] Garulf"
+def test_beacon_title_falls_back_to_username():
+    assert beacon_title("medic", "Garulf", {}) == "[Medical] Garulf"
+
+
+def test_beacon_title_medic_shows_tier_and_place():
+    fields = {"location": "Stanton:Hurston:Lorville", "tier": "T2"}
+    assert beacon_title("medic", "Garulf", fields) == "[Medical] T2 @ Lorville · Garulf"
+
+
+def test_beacon_title_backup_shows_urgency_and_threat():
+    fields = {"location": "Stanton:Daymar", "threat": "Players", "urgency": "Critical"}
+    assert beacon_title("backup", "Garulf", fields) == "[Combat Backup] Critical vs Players @ Daymar · Garulf"
+
+
+def test_beacon_title_cargo_shows_route_and_scu():
+    fields = {"route_from": "Stanton:Hurston:Lorville", "route_to": "Stanton:Crusader:Orison", "scu": "64"}
+    assert beacon_title("cargo", "Garulf", fields) == "[Cargo] Lorville to Orison (64 SCU) · Garulf"
+
+
+def test_beacon_title_escort_shows_destination():
+    fields = {"location": "Stanton:Hurston:Everus Harbor", "destination": "Stanton:Crusader:Orison"}
+    assert beacon_title("escort", "Garulf", fields) == "[Escort] Everus Harbor to Orison · Garulf"
+
+
+def test_beacon_title_contested_shows_objective():
+    fields = {"location": "Pyro:Checkmate", "objective": "Vault run"}
+    assert beacon_title("contested", "Garulf", fields) == "[Contested Zone] Vault run @ Checkmate · Garulf"
+
+
+def test_beacon_title_squad_shows_size():
+    fields = {"location": "Stanton:Yela:Grim HEX", "size": "5"}
+    assert beacon_title("squad", "Garulf", fields) == "[Squad/FPS] 5 needed @ Grim HEX · Garulf"
+
+
+def test_beacon_title_is_capped_to_discord_limit():
+    fields = {"location": "Stanton:Hurston:" + "x" * 120}
+    assert len(beacon_title("mining", "Garulf", fields)) <= 100
 
 
 def test_open_embed_shows_category_requester_and_fields():

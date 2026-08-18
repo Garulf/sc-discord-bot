@@ -93,7 +93,7 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
             "closed_by_id": None,
             "fields": field_values,
         }
-        name = beacon_title(category_key, interaction.user.display_name)
+        name = beacon_title(category_key, interaction.user.display_name, field_values)
         content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
         embed = build_beacon_embed(beacon)
 
