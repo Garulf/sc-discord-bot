@@ -17,7 +17,7 @@ _MAX_FORUM_TAGS = 20
 
 
 class _TagLimitExceeded(Exception):
-    """Raised when a forum channel does not have room for the ticket tags."""
+    """Raised when a forum channel does not have room for the beacon tags."""
 
 
 async def handle_setup(
@@ -34,7 +34,7 @@ async def handle_setup(
     try:
         if isinstance(target, discord.ForumChannel):
             tag_ids = await _ensure_tags(target)
-            created = await target.create_thread(name="Open a ticket", embed=build_panel_embed(), view=cog.panel_view)
+            created = await target.create_thread(name="Open a beacon", embed=build_panel_embed(), view=cog.panel_view)
             await created.thread.edit(pinned=True)
             config = {
                 "channel_id": target.id,
@@ -62,13 +62,13 @@ async def handle_setup(
         await interaction.followup.send(str(error), ephemeral=True)
         return
     except discord.HTTPException as error:
-        logger.exception("Ticket setup failed")
+        logger.exception("Beacon setup failed")
         await interaction.followup.send(
             f"Setup failed: {error}. Check the bot's permissions in this channel.", ephemeral=True
         )
         return
     await store.set_config(cog.bot.state, interaction.guild.id, config)
-    await interaction.followup.send("Ticket system installed.", ephemeral=True)
+    await interaction.followup.send("Beacon system installed.", ephemeral=True)
 
 
 async def _ensure_tags(channel: discord.ForumChannel) -> dict[str, int]:
@@ -81,7 +81,7 @@ async def _ensure_tags(channel: discord.ForumChannel) -> dict[str, int]:
             free = _MAX_FORUM_TAGS - len(channel.available_tags)
             raise _TagLimitExceeded(
                 f"This forum already has {len(channel.available_tags)} tags and only has room for "
-                f"{max(free, 0)} more, but the ticket system needs {len(missing)} tag slots. "
+                f"{max(free, 0)} more, but the beacon system needs {len(missing)} tag slots. "
                 "Remove some existing tags and run setup again."
             )
         updated = await channel.edit(available_tags=[*channel.available_tags, *missing])
@@ -93,9 +93,9 @@ async def _ensure_tags(channel: discord.ForumChannel) -> dict[str, int]:
 async def handle_role(cog, interaction: discord.Interaction, category_key: str, role: discord.Role) -> None:
     config = await store.get_config(cog.bot.state, interaction.guild.id)
     if config is None:
-        await interaction.response.send_message("Run `/ticket setup` first.", ephemeral=True)
+        await interaction.response.send_message("Run `/beacon setup` first.", ephemeral=True)
         return
     config["roles"][category_key] = role.id
     await store.set_config(cog.bot.state, interaction.guild.id, config)
     label = CATEGORIES[category_key].label
-    await interaction.response.send_message(f"{label} tickets will now ping {role.mention}.", ephemeral=True)
+    await interaction.response.send_message(f"{label} beacons will now ping {role.mention}.", ephemeral=True)

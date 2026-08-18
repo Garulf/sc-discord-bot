@@ -1,4 +1,4 @@
-"""Parsing, display, and cascading autocomplete for ticket locations."""
+"""Parsing, display, and cascading autocomplete for beacon locations."""
 
 from __future__ import annotations
 

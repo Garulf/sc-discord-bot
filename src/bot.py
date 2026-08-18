@@ -68,7 +68,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.stream",
     "src.commands.twisc",
     "src.commands.devtracker",
-    "src.commands.tickets",
+    "src.commands.beacons",
 ]
 
 

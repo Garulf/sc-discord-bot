@@ -1,6 +1,6 @@
 import pytest
 
-from src.commands.tickets import store
+from src.commands.beacons import store
 from src.storage import Database, StateStore
 
 
@@ -21,9 +21,9 @@ async def test_config_roundtrip(state):
 
 
 @pytest.mark.asyncio
-async def test_ticket_roundtrip(state):
-    assert await store.get_ticket(state, 99) is None
-    ticket = {
+async def test_beacon_roundtrip(state):
+    assert await store.get_beacon(state, 99) is None
+    beacon = {
         "guild_id": 1,
         "category": "medic",
         "requester_id": 42,
@@ -34,15 +34,15 @@ async def test_ticket_roundtrip(state):
         "closed_by_id": None,
         "fields": {"location": "Stanton:Hurston:Lorville"},
     }
-    await store.save_ticket(state, 99, ticket)
-    assert await store.get_ticket(state, 99) == ticket
+    await store.save_beacon(state, 99, beacon)
+    assert await store.get_beacon(state, 99) == beacon
 
 
 @pytest.mark.asyncio
-async def test_open_ticket_index(state):
-    assert await store.get_open_ticket(state, 1, 42, "medic") is None
-    await store.set_open_ticket(state, 1, 42, "medic", 99)
-    assert await store.get_open_ticket(state, 1, 42, "medic") == 99
-    assert await store.get_open_ticket(state, 1, 42, "mining") is None
-    await store.clear_open_ticket(state, 1, 42, "medic")
-    assert await store.get_open_ticket(state, 1, 42, "medic") is None
+async def test_open_beacon_index(state):
+    assert await store.get_open_beacon(state, 1, 42, "medic") is None
+    await store.set_open_beacon(state, 1, 42, "medic", 99)
+    assert await store.get_open_beacon(state, 1, 42, "medic") == 99
+    assert await store.get_open_beacon(state, 1, 42, "mining") is None
+    await store.clear_open_beacon(state, 1, 42, "medic")
+    assert await store.get_open_beacon(state, 1, 42, "medic") is None

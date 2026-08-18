@@ -1,4 +1,4 @@
-"""Embed builders for the ticket panel and individual tickets."""
+"""Embed builders for the beacon panel and individual beacons."""
 
 from __future__ import annotations
 
@@ -19,45 +19,45 @@ _STATUS_COLORS = {
 }
 
 
-def ticket_title(category_key: str, username: str) -> str:
+def beacon_title(category_key: str, username: str) -> str:
     return f"[{short_label(CATEGORIES[category_key])}] {username}"
 
 
-def build_ticket_embed(ticket: dict[str, Any]) -> discord.Embed:
-    category = CATEGORIES[ticket["category"]]
+def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
+    category = CATEGORIES[beacon["category"]]
     embed = discord.Embed(
-        title=f"{category.emoji} {category.label} ticket",
-        color=_STATUS_COLORS[ticket["status"]],
+        title=f"{category.emoji} {category.label} beacon",
+        color=_STATUS_COLORS[beacon["status"]],
     )
-    embed.add_field(name="Requester", value=f"<@{ticket['requester_id']}>", inline=True)
-    embed.add_field(name="Status", value=_status_text(ticket), inline=True)
+    embed.add_field(name="Requester", value=f"<@{beacon['requester_id']}>", inline=True)
+    embed.add_field(name="Status", value=_status_text(beacon), inline=True)
     for spec in category.fields:
-        value = ticket["fields"].get(spec.key)
+        value = beacon["fields"].get(spec.key)
         if not value:
             continue
         shown = format_breadcrumb(value) if spec.key in _LOCATION_KEYS else value
         embed.add_field(name=spec.label, value=shown, inline=False)
-    embed.add_field(name="Opened", value=f"<t:{int(ticket['opened_at'])}:R>", inline=True)
+    embed.add_field(name="Opened", value=f"<t:{int(beacon['opened_at'])}:R>", inline=True)
     return embed
 
 
-def _status_text(ticket: dict[str, Any]) -> str:
-    if ticket["status"] == STATUS_CLAIMED:
-        return f"Claimed by <@{ticket['claimer_id']}>"
-    if ticket["status"] == STATUS_CLOSED:
-        closed_at = int(ticket["closed_at"]) if ticket["closed_at"] else None
+def _status_text(beacon: dict[str, Any]) -> str:
+    if beacon["status"] == STATUS_CLAIMED:
+        return f"Claimed by <@{beacon['claimer_id']}>"
+    if beacon["status"] == STATUS_CLOSED:
+        closed_at = int(beacon["closed_at"]) if beacon["closed_at"] else None
         when = f" <t:{closed_at}:R>" if closed_at else ""
-        return f"Closed by <@{ticket['closed_by_id']}>{when}"
+        return f"Closed by <@{beacon['closed_by_id']}>{when}"
     return "Open"
 
 
 def build_panel_embed() -> discord.Embed:
     lines = [f"{c.emoji} **{c.label}**" for c in CATEGORIES.values()]
     return discord.Embed(
-        title="Open a ticket",
+        title="Open a beacon",
         description=(
             "Need a hand in the verse? Pick a category below to get the command, "
-            "or run `/ticket <category>` directly.\n\n" + "\n".join(lines)
+            "or run `/beacon <category>` directly.\n\n" + "\n".join(lines)
         ),
         color=discord.Color.blurple(),
     )

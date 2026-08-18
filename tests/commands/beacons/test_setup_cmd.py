@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from src.commands.tickets import setup_cmd
+from src.commands.beacons import setup_cmd
 
 
 def _admin_interaction(channel):
@@ -168,8 +168,8 @@ async def test_role_saves_mapping(monkeypatch):
     assert saved["roles"]["medic"] == 77
 
 
-def test_cog_defines_all_ticket_commands():
-    from src.commands.tickets import TicketsCog
+def test_cog_defines_all_beacon_commands():
+    from src.commands.beacons import BeaconsCog
 
-    names = {cmd.name for cmd in TicketsCog.ticket.commands}
+    names = {cmd.name for cmd in BeaconsCog.beacon.commands}
     assert {"setup", "role", "mining", "medic", "squad", "backup", "cargo", "salvage"} <= names

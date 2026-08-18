@@ -1,4 +1,4 @@
-from src.commands.tickets.categories import CATEGORIES
+from src.commands.beacons.categories import CATEGORIES
 
 
 def test_all_six_categories_present():

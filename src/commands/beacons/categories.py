@@ -1,4 +1,4 @@
-"""Ticket category definitions: labels, emoji, and per-category form fields."""
+"""Beacon category definitions: labels, emoji, and per-category form fields."""
 
 from __future__ import annotations
 

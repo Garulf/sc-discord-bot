@@ -1,4 +1,4 @@
-"""Ticket system: a panel of category buttons and slash commands that open
+"""Beacon system: a panel of category buttons and slash commands that open
 per-request threads, plus admin commands to configure the panel and role
 pings.
 """
@@ -15,43 +15,43 @@ from discord.ext import commands
 
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
-from .lifecycle import open_ticket
+from .lifecycle import open_beacon
 from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
-from .views import PanelView, TicketView
+from .views import PanelView, BeaconView
 
 logger = logging.getLogger(__name__)
 
 _CategoryKey = Literal["mining", "medic", "squad", "backup", "cargo", "salvage"]
 
 
-class TicketsCog(commands.Cog):
-    """Panel-driven support ticket system."""
+class BeaconsCog(commands.Cog):
+    """Panel-driven support beacon system."""
 
-    ticket = app_commands.Group(name="ticket", description="Open and manage support tickets", guild_only=True)
+    beacon = app_commands.Group(name="beacon", description="Open and manage support beacons", guild_only=True)
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self._ticket_command_id: int | None = None
+        self._beacon_command_id: int | None = None
 
     async def cog_load(self) -> None:
         self.panel_view = PanelView(self)
-        self.ticket_view = TicketView(self)
+        self.beacon_view = BeaconView(self)
         self.bot.add_view(self.panel_view)
-        self.bot.add_view(self.ticket_view)
+        self.bot.add_view(self.beacon_view)
         try:
             commands_ = await self.bot.tree.fetch_commands()
             for command in commands_:
-                if command.name == "ticket":
-                    self._ticket_command_id = command.id
+                if command.name == "beacon":
+                    self._beacon_command_id = command.id
                     break
         except discord.HTTPException:
-            logger.warning("Could not fetch app commands to cache the /ticket command id")
+            logger.warning("Could not fetch app commands to cache the /beacon command id")
 
     def command_mention(self, category_key: str) -> str:
-        if self._ticket_command_id is not None:
-            return f"</ticket {category_key}:{self._ticket_command_id}>"
-        return f"`/ticket {category_key}`"
+        if self._beacon_command_id is not None:
+            return f"</beacon {category_key}:{self._beacon_command_id}>"
+        return f"`/beacon {category_key}`"
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
@@ -60,7 +60,7 @@ class TicketsCog(commands.Cog):
             await handle_check_failure(interaction, error)
             return
         cmd = interaction.command.qualified_name if interaction.command else "unknown"
-        logger.exception("Unhandled error in ticket command: %s", error)
+        logger.exception("Unhandled error in beacon command: %s", error)
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
         await interaction.client.dm_owner(f"**Error in `/{cmd}`**\n```\n{tb[:1900]}\n```")
         msg = "Something went wrong. Check the bot logs for details."
@@ -69,7 +69,7 @@ class TicketsCog(commands.Cog):
         else:
             await interaction.response.send_message(msg, ephemeral=True)
 
-    @ticket.command(name="setup", description="Install the ticket panel in this channel")
+    @beacon.command(name="setup", description="Install the beacon panel in this channel")
     @app_commands.describe(channel="Channel to install the panel in (defaults to the current channel)")
     @app_commands.check(admin_or_sc_bot)
     async def setup(
@@ -79,8 +79,8 @@ class TicketsCog(commands.Cog):
     ) -> None:
         await handle_setup(self, interaction, channel)
 
-    @ticket.command(name="role", description="Map a category to a responder role")
-    @app_commands.describe(category="Ticket category", role="Role to ping for this category")
+    @beacon.command(name="role", description="Map a category to a responder role")
+    @app_commands.describe(category="Beacon category", role="Role to ping for this category")
     @app_commands.check(admin_or_sc_bot)
     async def role(
         self,
@@ -90,7 +90,7 @@ class TicketsCog(commands.Cog):
     ) -> None:
         await handle_role(self, interaction, category, role)
 
-    @ticket.command(name="mining", description="Request mining assistance")
+    @beacon.command(name="mining", description="Request mining assistance")
     @app_commands.describe(
         system="Star system you are in",
         planet="Planet or moon",
@@ -113,9 +113,9 @@ class TicketsCog(commands.Cog):
             fields["need"] = need
         if notes:
             fields["notes"] = notes
-        await open_ticket(self, interaction, "mining", fields)
+        await open_beacon(self, interaction, "mining", fields)
 
-    @ticket.command(name="medic", description="Request a medic")
+    @beacon.command(name="medic", description="Request a medic")
     @app_commands.describe(
         system="Star system you are in",
         planet="Planet or moon",
@@ -138,9 +138,9 @@ class TicketsCog(commands.Cog):
             fields["tier"] = tier
         if notes:
             fields["notes"] = notes
-        await open_ticket(self, interaction, "medic", fields)
+        await open_beacon(self, interaction, "medic", fields)
 
-    @ticket.command(name="squad", description="Request squad/FPS backup")
+    @beacon.command(name="squad", description="Request squad/FPS backup")
     @app_commands.describe(
         system="Star system you are in",
         planet="Planet or moon",
@@ -163,9 +163,9 @@ class TicketsCog(commands.Cog):
             fields["size"] = size
         if notes:
             fields["notes"] = notes
-        await open_ticket(self, interaction, "squad", fields)
+        await open_beacon(self, interaction, "squad", fields)
 
-    @ticket.command(name="backup", description="Request backup, you are under attack")
+    @beacon.command(name="backup", description="Request backup, you are under attack")
     @app_commands.describe(
         system="Star system you are in",
         planet="Planet or moon",
@@ -188,9 +188,9 @@ class TicketsCog(commands.Cog):
             fields["threat"] = threat
         if urgency:
             fields["urgency"] = urgency
-        await open_ticket(self, interaction, "backup", fields)
+        await open_beacon(self, interaction, "backup", fields)
 
-    @ticket.command(name="cargo", description="Request cargo hauling help")
+    @beacon.command(name="cargo", description="Request cargo hauling help")
     @app_commands.rename(route_from="route-from", route_to="route-to")
     @app_commands.describe(
         route_from="Pickup (system:planet:location)",
@@ -212,9 +212,9 @@ class TicketsCog(commands.Cog):
             fields["scu"] = scu
         if notes:
             fields["notes"] = notes
-        await open_ticket(self, interaction, "cargo", fields)
+        await open_beacon(self, interaction, "cargo", fields)
 
-    @ticket.command(name="salvage", description="Request salvage assistance")
+    @beacon.command(name="salvage", description="Request salvage assistance")
     @app_commands.describe(
         system="Star system you are in",
         planet="Planet or moon",
@@ -237,8 +237,8 @@ class TicketsCog(commands.Cog):
             fields["target"] = target
         if notes:
             fields["notes"] = notes
-        await open_ticket(self, interaction, "salvage", fields)
+        await open_beacon(self, interaction, "salvage", fields)
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(TicketsCog(bot))
+    await bot.add_cog(BeaconsCog(bot))

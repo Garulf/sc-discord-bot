@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.commands.tickets.location import (
+from src.commands.beacons.location import (
     FLYABLE_SYSTEMS,
     combine_location,
     format_breadcrumb,
