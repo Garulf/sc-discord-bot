@@ -40,15 +40,19 @@ class _DevPostHTMLParser(HTMLParser):
         self._text_field: str | None = None
         self._field_tag: str | None = None
         self._field_depth: int = 0
+        self._anchor_depth: int = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
         css = (attributes.get("class") or "").split()
         if tag == "a" and "devpost" in css:
             self._current = {"href": attributes.get("href") or ""}
+            self._anchor_depth = 1
             return
         if self._current is None:
             return
+        if tag == "a":
+            self._anchor_depth += 1
         if self._text_field is not None and tag == self._field_tag:
             self._field_depth += 1
             return
@@ -75,8 +79,10 @@ class _DevPostHTMLParser(HTMLParser):
                 self._field_tag = None
             return
         if tag == "a" and self._current is not None:
-            self.blocks.append(self._current)
-            self._current = None
+            self._anchor_depth -= 1
+            if self._anchor_depth == 0:
+                self.blocks.append(self._current)
+                self._current = None
 
 
 def parse_devposts(html: str) -> list[DevPost]:
@@ -153,5 +159,9 @@ class DevTrackerClient:
         if not isinstance(payload, dict) or payload.get("success") != 1:
             logger.warning("Devtracker API returned non-success payload")
             return []
-        html = (payload.get("data") or {}).get("html") or ""
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            logger.warning("Devtracker API returned unexpected data shape")
+            return []
+        html = data.get("html") or ""
         return parse_devposts(html)

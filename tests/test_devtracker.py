@@ -17,7 +17,7 @@ def _post(post_id: int, **overrides) -> DevPost:
     return DevPost(**defaults)
 
 
-def _cog_with(posts, subscriptions, last_post_id):
+def _cog_with(posts, subscriptions, seen_ids):
     from src.commands.devtracker import DevTrackerCog
 
     bot = MagicMock()
@@ -26,7 +26,7 @@ def _cog_with(posts, subscriptions, last_post_id):
     cog.client = MagicMock()
     cog.client.fetch_posts = AsyncMock(return_value=posts)
     cog.subscriptions = subscriptions
-    cog.last_post_id = last_post_id
+    cog.seen_ids = seen_ids
     return cog
 
 
@@ -44,6 +44,14 @@ def test_build_devpost_embed_full_fields():
     assert embed.timestamp is not None
 
 
+def test_build_devpost_embed_truncates_long_fields():
+    from src.commands.devtracker import build_devpost_embed
+
+    embed = build_devpost_embed(_post(1, thread="T" * 300, details="D" * 5000))
+    assert len(embed.title) == 256
+    assert len(embed.description) == 4096
+
+
 def test_build_devpost_embed_missing_optionals():
     from src.commands.devtracker import build_devpost_embed
 
@@ -54,27 +62,27 @@ def test_build_devpost_embed_missing_optionals():
 
 
 async def test_first_poll_records_id_without_posting():
-    cog = _cog_with([_post(100), _post(99)], [{"discord_channel_id": 1, "guild_id": 2}], None)
+    cog = _cog_with([_post(100), _post(99)], [{"discord_channel_id": 1, "guild_id": 2}], [])
     await cog._check_latest()
-    assert cog.last_post_id == 100
+    assert sorted(cog.seen_ids) == [99, 100]
     cog.bot.get_channel.assert_not_called()
     cog.bot.state.set.assert_awaited_once()
 
 
 async def test_poll_posts_new_posts_oldest_first():
-    cog = _cog_with([_post(102), _post(101), _post(99)], [{"discord_channel_id": 1, "guild_id": 2}], 100)
+    cog = _cog_with([_post(102), _post(101), _post(99)], [{"discord_channel_id": 1, "guild_id": 2}], [99, 100])
     channel = MagicMock()
     channel.send = AsyncMock()
     cog.bot.get_channel.return_value = channel
     await cog._check_latest()
     sent_ids = [call.kwargs["embed"].url.rsplit("/", 1)[-1] for call in channel.send.await_args_list]
     assert sent_ids == ["101", "102"]
-    assert cog.last_post_id == 102
+    assert set(cog.seen_ids) == {99, 100, 101, 102}
 
 
 async def test_poll_caps_backlog_at_ten_newest():
     posts = [_post(pid) for pid in range(120, 100, -1)]  # 20 new posts, newest first
-    cog = _cog_with(posts, [{"discord_channel_id": 1, "guild_id": 2}], 100)
+    cog = _cog_with(posts, [{"discord_channel_id": 1, "guild_id": 2}], [100])
     channel = MagicMock()
     channel.send = AsyncMock()
     cog.bot.get_channel.return_value = channel
@@ -82,14 +90,14 @@ async def test_poll_caps_backlog_at_ten_newest():
     assert channel.send.await_count == 10
     first_sent = channel.send.await_args_list[0].kwargs["embed"].url.rsplit("/", 1)[-1]
     assert first_sent == "111"
-    assert cog.last_post_id == 120
+    assert 120 in cog.seen_ids
 
 
 async def test_poll_per_channel_failure_does_not_block_others():
     cog = _cog_with(
         [_post(101)],
         [{"discord_channel_id": 1, "guild_id": 2}, {"discord_channel_id": 3, "guild_id": 2}],
-        100,
+        [100],
     )
     bad = MagicMock()
     bad.send = AsyncMock(side_effect=RuntimeError("boom"))
@@ -98,18 +106,35 @@ async def test_poll_per_channel_failure_does_not_block_others():
     cog.bot.get_channel.side_effect = lambda cid: {1: bad, 3: good}[cid]
     await cog._check_latest()
     good.send.assert_awaited_once()
-    assert cog.last_post_id == 101
+    assert 101 in cog.seen_ids
     cog.bot.state.set.assert_awaited_once()
 
 
 async def test_poll_without_subscriptions_does_not_fetch():
-    cog = _cog_with([_post(101)], [], 100)
+    cog = _cog_with([_post(101)], [], [100])
     await cog._check_latest()
     cog.client.fetch_posts.assert_not_awaited()
 
 
 async def test_poll_with_no_parseable_posts_keeps_state():
-    cog = _cog_with([], [{"discord_channel_id": 1, "guild_id": 2}], 100)
+    cog = _cog_with([], [{"discord_channel_id": 1, "guild_id": 2}], [100])
     await cog._check_latest()
-    assert cog.last_post_id == 100
+    assert cog.seen_ids == [100]
     cog.bot.state.set.assert_not_awaited()
+
+
+async def test_poll_dedupes_by_id_not_watermark_inversion():
+    # Regression: the feed is ordered by tracker date, not post id, so an id-lower
+    # post can appear above id-higher posts that were already seen.
+    cog = _cog_with(
+        [_post(200), _post(150), _post(199)],
+        [{"discord_channel_id": 1, "guild_id": 2}],
+        [199, 200],
+    )
+    channel = MagicMock()
+    channel.send = AsyncMock()
+    cog.bot.get_channel.return_value = channel
+    await cog._check_latest()
+    sent_ids = [call.kwargs["embed"].url.rsplit("/", 1)[-1] for call in channel.send.await_args_list]
+    assert sent_ids == ["150"]
+    assert set(cog.seen_ids) == {150, 199, 200}

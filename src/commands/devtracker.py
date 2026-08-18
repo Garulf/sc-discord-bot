@@ -17,14 +17,19 @@ logger = logging.getLogger(__name__)
 _STATE_KEY = "devtracker"
 POLL_INTERVAL = 1800  # seconds
 MAX_POSTS_PER_CYCLE = 10
+MAX_SEEN_IDS = 100
 _EMBED_COLOR = 0x0099D6
+_TITLE_LIMIT = 256
+_DESCRIPTION_LIMIT = 4096
 
 
 def build_devpost_embed(post: DevPost) -> discord.Embed:
+    title = (post.thread or "Dev Tracker Post")[:_TITLE_LIMIT]
+    description = post.details[:_DESCRIPTION_LIMIT] if post.details else post.details
     embed = discord.Embed(
-        title=post.thread or "Dev Tracker Post",
+        title=title,
         url=post.url,
-        description=post.details,
+        description=description,
         color=_EMBED_COLOR,
         timestamp=discord.utils.utcnow(),
     )
@@ -43,12 +48,12 @@ class DevTrackerCog(commands.Cog):
         self.bot = bot
         self.client = DevTrackerClient()
         self.subscriptions: list[dict] = []
-        self.last_post_id: int | None = None
+        self.seen_ids: list[int] = []
 
     async def cog_load(self) -> None:
         data = await self.bot.state.get(_STATE_KEY) or {}
         self.subscriptions = data.get("subscriptions", [])
-        self.last_post_id = data.get("last_post_id")
+        self.seen_ids = data.get("seen_ids", [])
         self.poll_loop.start()
 
     async def cog_unload(self) -> None:
@@ -58,7 +63,7 @@ class DevTrackerCog(commands.Cog):
     async def _save(self) -> None:
         await self.bot.state.set(
             _STATE_KEY,
-            {"subscriptions": self.subscriptions, "last_post_id": self.last_post_id},
+            {"subscriptions": self.subscriptions, "seen_ids": self.seen_ids},
         )
 
     @tasks.loop(seconds=POLL_INTERVAL)
@@ -83,33 +88,43 @@ class DevTrackerCog(commands.Cog):
         if not posts:
             logger.warning("Devtracker returned no parseable posts; skipping cycle")
             return
-        newest_id = max(post.post_id for post in posts)
-        if self.last_post_id is None:
-            # First run: record the current newest post so history is not replayed.
-            self.last_post_id = newest_id
+
+        if not self.seen_ids:
+            # First run: record every fetched id so history is not replayed. The live
+            # feed is ordered by tracker date, not post id, so an id watermark cannot
+            # be used to tell fresh posts from already-seen ones.
+            self._record_seen_ids(posts)
             await self._save()
             return
 
-        fresh = sorted((p for p in posts if p.post_id > self.last_post_id), key=lambda p: p.post_id)
-        if not fresh:
-            return
-        if len(fresh) > MAX_POSTS_PER_CYCLE:
-            logger.warning(
-                "Devtracker backlog: dropping %d oldest of %d new posts",
-                len(fresh) - MAX_POSTS_PER_CYCLE,
-                len(fresh),
-            )
-            fresh = fresh[-MAX_POSTS_PER_CYCLE:]
+        seen = set(self.seen_ids)
+        fresh = sorted((p for p in posts if p.post_id not in seen), key=lambda p: p.post_id)
+        if fresh:
+            if len(fresh) > MAX_POSTS_PER_CYCLE:
+                logger.warning(
+                    "Devtracker backlog: dropping %d oldest of %d new posts",
+                    len(fresh) - MAX_POSTS_PER_CYCLE,
+                    len(fresh),
+                )
+                fresh = fresh[-MAX_POSTS_PER_CYCLE:]
 
-        for post in fresh:
-            embed = build_devpost_embed(post)
-            for sub in self.subscriptions:
-                try:
-                    await self._post_to_channel(sub["discord_channel_id"], embed)
-                except Exception:  # noqa: BLE001 - one bad channel must not block the rest
-                    logger.exception("Failed posting devtracker entry to channel %s", sub["discord_channel_id"])
-        self.last_post_id = newest_id
+            for post in fresh:
+                embed = build_devpost_embed(post)
+                for sub in self.subscriptions:
+                    try:
+                        await self._post_to_channel(sub["discord_channel_id"], embed)
+                    except Exception:  # noqa: BLE001 - one bad channel must not block the rest
+                        logger.exception("Failed posting devtracker entry to channel %s", sub["discord_channel_id"])
+
+        self._record_seen_ids(posts)
         await self._save()
+
+    def _record_seen_ids(self, posts: list[DevPost]) -> None:
+        for post_id in sorted(post.post_id for post in posts):
+            if post_id not in self.seen_ids:
+                self.seen_ids.append(post_id)
+        if len(self.seen_ids) > MAX_SEEN_IDS:
+            self.seen_ids = self.seen_ids[-MAX_SEEN_IDS:]
 
     async def _post_to_channel(self, channel_id: int, embed: discord.Embed) -> None:
         channel = self.bot.get_channel(channel_id)

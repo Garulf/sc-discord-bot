@@ -1,3 +1,7 @@
+import dataclasses
+
+import pytest
+
 from src.rsi_devtracker import DevPost, parse_devposts
 
 SAMPLE_HTML = """
@@ -79,6 +83,8 @@ def test_devpost_is_frozen():
         post_id=1, url="u", author="a", avatar_url=None, category=None, thread=None, details=None
     )
     assert post.post_id == 1
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        post.post_id = 2
 
 
 def test_parse_devposts_details_captures_text_around_nested_inline_element():
@@ -102,6 +108,19 @@ def test_parse_devposts_nickname_captures_text_around_nested_inline_element():
     posts = parse_devposts(html)
     assert len(posts) == 1
     assert posts[0].author == "Wakapedia-CIG"
+
+
+def test_parse_devposts_details_keeps_text_around_nested_anchor():
+    html = (
+        '<a href="/spectrum/community/SC/forum/1/thread/x/12345" class="devpost">'
+        '<div class="nickname">Wakapedia-CIG</div>'
+        '<p class="details">See <a href="/other">link</a> for more info.</p>'
+        "</a>"
+    )
+    posts = parse_devposts(html)
+    assert len(posts) == 1
+    assert posts[0].post_id == 12345
+    assert posts[0].details == "See link for more info."
 
 
 class _StubResponse:
@@ -150,4 +169,9 @@ async def test_fetch_posts_non_success_payload_returns_empty():
 
 async def test_fetch_posts_http_error_returns_empty():
     client = _client_with(_StubResponse(503, {}))
+    assert await client.fetch_posts() == []
+
+
+async def test_fetch_posts_non_dict_data_returns_empty():
+    client = _client_with(_StubResponse(200, {"success": 1, "data": []}))
     assert await client.fetch_posts() == []
