@@ -92,3 +92,12 @@ def test_every_category_has_a_description():
     for cat in CATEGORIES.values():
         assert cat.description
         assert len(cat.description) <= 100
+
+
+def test_contested_stations_cover_named_zones_and_pyam():
+    from src.commands.beacons.categories import CONTESTED_STATIONS
+
+    assert {"Orbituary", "Ruin Station", "Checkmate"} <= set(CONTESTED_STATIONS)
+    assert all(s.startswith("PYAM-") for s in CONTESTED_STATIONS if s not in ("Orbituary", "Ruin Station", "Checkmate"))
+    assert len(CONTESTED_STATIONS) == len(set(CONTESTED_STATIONS))
+    assert len(CONTESTED_STATIONS) <= 25

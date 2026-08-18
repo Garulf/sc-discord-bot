@@ -3,7 +3,7 @@ from discord import AppCommandOptionType
 from src.commands.beacons import BeaconsCog
 from src.commands.beacons.categories import CATEGORIES
 
-_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport", "contested")
+_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport")
 
 
 def _params(name):
@@ -52,6 +52,15 @@ def test_escort_and_transport_take_optional_destination():
 def test_role_category_choices_track_categories():
     params = _params("role")
     assert [(c.name, c.value) for c in params["category"].choices] == [(c.label, c.key) for c in CATEGORIES.values()]
+
+
+def test_contested_location_is_limited_to_contested_stations():
+    from src.commands.beacons.categories import CONTESTED_STATIONS
+
+    params = _params("contested")
+    assert "system" not in params
+    assert params["location"].required is True
+    assert [c.value for c in params["location"].choices] == list(CONTESTED_STATIONS)
 
 
 def test_cargo_keeps_single_route_fields():

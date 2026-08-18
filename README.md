@@ -58,7 +58,7 @@ Service beacons: a panel of category buttons plus slash commands that open a pub
 | `/beacon salvage system:<system> [planet] [location] [target] [notes]` | Request salvage assistance (target: Ship wreck / Panels / Structure / Unknown) |
 | `/beacon escort system:<system> [planet] [location] [destination] [notes]` | Request a ship escort |
 | `/beacon transport system:<system> [planet] [location] [destination] [notes]` | Request personal transport |
-| `/beacon contested system:<system> [planet] [location] [objective] [size] [notes]` | Group up for a contested zone (objective: Vault run / Full clear / Keycard run / Extraction help; size: 1-50) |
+| `/beacon contested location:<station> [objective] [size] [notes]` | Group up for a contested zone. Location is a fixed list: Orbituary, Ruin Station, Checkmate, the PYAM exec hangar, and the two PYAM-SUPVISR red keycard stations (objective: Vault run / Full clear / Keycard run / Extraction help; size: 1-50) |
 
 Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. The `system` option suggests the flyable systems (Stanton, Pyro, Nyx), `planet` suggests planets and moons in the chosen system, and `location` suggests landing zones, stations, and outposts there, each list narrowing to what you picked before it. Route-style options (`route-from`, `route-to`, `destination`) take a full `system:planet:location` value (e.g. `Stanton:Hurston:Lorville`) with breadcrumb suggestions from live point-of-interest data.
 

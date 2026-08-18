@@ -37,6 +37,15 @@ def _notes() -> FieldSpec:
     return FieldSpec("notes", "Notes")
 
 
+CONTESTED_STATIONS: tuple[str, ...] = (
+    "Orbituary",
+    "Ruin Station",
+    "Checkmate",
+    "PYAM-EXHANG-0-1",
+    "PYAM-SUPVISR-3-4",
+    "PYAM-SUPVISR-3-5",
+)
+
 CATEGORIES: dict[str, Category] = {
     "mining": Category(
         key="mining",

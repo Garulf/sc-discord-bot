@@ -16,7 +16,7 @@ from discord.ext import commands
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from . import store
-from .categories import CATEGORIES
+from .categories import CATEGORIES, CONTESTED_STATIONS
 from .lifecycle import open_beacon
 from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
@@ -319,25 +319,21 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="contested", description="Group up to run a contested zone")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Contested zone station",
         objective="What you want to do there",
         size="Group size needed",
         notes="Extra details",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.choices(location=[app_commands.Choice(name=s, value=s) for s in CONTESTED_STATIONS])
     async def contested(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         objective: Literal["Vault run", "Full clear", "Keycard run", "Extraction help"] | None = None,
         size: app_commands.Range[int, 1, 50] | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": f"Pyro:{location}"}
         if objective:
             fields["objective"] = objective
         if size:
