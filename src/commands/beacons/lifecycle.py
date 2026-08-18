@@ -8,7 +8,7 @@ import time
 
 import discord
 
-from . import store
+from . import board, store
 from .categories import CATEGORIES
 from .embeds import beacon_title, build_beacon_embed
 from .location import parse_location
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 _LOCATION_KINDS = {"location", "route"}
 _SC_BOT_ROLE = "sc-bot"
+_ACTIVITY_WRITE_THROUGH_SECONDS = 60
 
 _locks: dict[str, asyncio.Lock] = {}
 
@@ -45,6 +46,13 @@ def is_beacon_admin(interaction: discord.Interaction) -> bool:
 
 async def _reply(interaction: discord.Interaction, message: str) -> None:
     await interaction.followup.send(message, ephemeral=True)
+
+
+async def _refresh_board(cog, guild) -> None:
+    try:
+        await board.refresh_board(cog, guild)
+    except Exception:
+        logger.warning("Failed to refresh beacon board for guild %s", getattr(guild, "id", "?"))
 
 
 async def open_beacon(cog, interaction: discord.Interaction, category_key: str, field_values: dict[str, str]) -> None:
@@ -82,16 +90,18 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
             await _reply(interaction, "The beacon channel is missing. Ask an admin to re-run `/beacon setup`.")
             return
 
+        opened_at = time.time()
         beacon = {
             "guild_id": guild.id,
             "category": category_key,
             "requester_id": interaction.user.id,
             "members": [],
             "status": STATUS_OPEN,
-            "opened_at": time.time(),
+            "opened_at": opened_at,
             "closed_at": None,
             "closed_by_id": None,
             "fields": field_values,
+            "last_activity_at": opened_at,
         }
         name = beacon_title(category_key, interaction.user.display_name, field_values)
         content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
@@ -128,7 +138,9 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
             await store.set_config(cog.bot.state, guild.id, config)
         await store.save_beacon(cog.bot.state, thread.id, beacon)
         await store.set_open_beacon(cog.bot.state, guild.id, interaction.user.id, category_key, thread.id)
+        await store.set_last_open(cog.bot.state, guild.id, interaction.user.id, category_key, field_values)
         await _reply(interaction, f"Beacon opened: {thread.mention}")
+        await _refresh_board(cog, guild)
 
 
 def _resolve_ping_content(guild, config: dict, category_key: str, category) -> tuple[str, str | None, bool]:
@@ -171,6 +183,7 @@ async def _disable_buttons(interaction: discord.Interaction) -> None:
 async def _leave_beacon(cog, interaction: discord.Interaction, beacon: dict) -> None:
     beacon["members"].remove(interaction.user.id)
     beacon["status"] = STATUS_ACTIVE if beacon["members"] else STATUS_OPEN
+    beacon["last_activity_at"] = time.time()
     await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
     try:
         await interaction.channel.remove_user(interaction.user)
@@ -179,6 +192,30 @@ async def _leave_beacon(cog, interaction: discord.Interaction, beacon: dict) -> 
     await interaction.message.edit(embed=build_beacon_embed(beacon))
     await interaction.channel.send(f"{interaction.user.mention} left this beacon.")
     await _reply(interaction, "You left the beacon.")
+    await _refresh_board(cog, interaction.guild)
+
+
+async def _create_voice_channel(cog, interaction: discord.Interaction, beacon: dict, config: dict) -> None:
+    try:
+        beacon_channel = interaction.guild.get_channel(config["channel_id"])
+        category = beacon_channel.category if beacon_channel is not None else None
+        voice = await interaction.guild.create_voice_channel(name=interaction.channel.name[:100], category=category)
+        beacon["voice_channel_id"] = voice.id
+        await interaction.channel.send(f"Voice channel ready: {voice.mention}")
+    except discord.HTTPException:
+        logger.warning("Could not create a voice channel for beacon thread %s", interaction.channel.id)
+
+
+async def _announce_if_full(interaction: discord.Interaction, beacon: dict) -> None:
+    size = beacon["fields"].get("size")
+    if not size:
+        return
+    try:
+        needed = int(size)
+    except (TypeError, ValueError):
+        return
+    if len(beacon["members"]) >= needed:
+        await interaction.channel.send(f"Party full! {len(beacon['members'])}/{needed} responders have joined.")
 
 
 async def handle_join(cog, interaction: discord.Interaction) -> None:
@@ -193,8 +230,16 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
         if not can_join(beacon, interaction.user.id):
             await _reply(interaction, "You cannot join this beacon.")
             return
+        now = time.time()
         beacon["members"].append(interaction.user.id)
         beacon["status"] = STATUS_ACTIVE
+        beacon["last_activity_at"] = now
+        if beacon["first_joined_at"] is None:
+            beacon["first_joined_at"] = now
+        config = await store.get_config(cog.bot.state, interaction.guild.id)
+        settings = store.get_settings(config)
+        if settings["voice"] and beacon["voice_channel_id"] is None:
+            await _create_voice_channel(cog, interaction, beacon, config)
         await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
         try:
             await interaction.channel.add_user(interaction.user)
@@ -202,7 +247,9 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
             logger.warning("Could not add %s to beacon thread %s", interaction.user.id, interaction.channel.id)
         await interaction.message.edit(embed=build_beacon_embed(beacon))
         await interaction.channel.send(f"{interaction.user.mention} joined this beacon.")
+        await _announce_if_full(interaction, beacon)
         await _reply(interaction, "You joined the beacon.")
+        await _refresh_board(cog, interaction.guild)
 
 
 def _is_thread_admin(member) -> bool:
@@ -219,6 +266,10 @@ async def handle_thread_message(cog, message: discord.Message) -> None:
     beacon = await store.get_beacon(cog.bot.state, message.channel.id)
     if beacon is None or beacon["status"] == STATUS_CLOSED:
         return
+    now = time.time()
+    if now - beacon["last_activity_at"] >= _ACTIVITY_WRITE_THROUGH_SECONDS:
+        beacon["last_activity_at"] = now
+        await store.save_beacon(cog.bot.state, message.channel.id, beacon)
     author_id = message.author.id
     if author_id == beacon["requester_id"] or author_id in beacon["members"]:
         return
@@ -242,30 +293,76 @@ async def handle_close(cog, interaction: discord.Interaction) -> None:
         if not can_close(beacon, interaction.user.id, is_beacon_admin(interaction)):
             await _reply(interaction, "Only the requester, the claimer, or an admin can close this beacon.")
             return
-        beacon["status"] = STATUS_CLOSED
-        beacon["closed_at"] = time.time()
-        beacon["closed_by_id"] = interaction.user.id
-        await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
-        await store.clear_open_beacon(cog.bot.state, beacon["guild_id"], beacon["requester_id"], beacon["category"])
+        await close_beacon(cog, interaction.channel, beacon, interaction.user.id)
         await interaction.message.edit(embed=build_beacon_embed(beacon))
-        await interaction.channel.send(f"Beacon closed by {interaction.user.mention}.")
         await _disable_buttons(interaction)
         await _reply(interaction, "Beacon closed.")
-        await _archive_channel(cog, interaction)
 
 
-async def _archive_channel(cog, interaction: discord.Interaction) -> None:
-    config = await store.get_config(cog.bot.state, interaction.guild.id)
+async def close_beacon(cog, channel, beacon: dict, closed_by_id: int | None) -> None:
+    from .views import CommendView
+
+    beacon["status"] = STATUS_CLOSED
+    beacon["closed_at"] = time.time()
+    beacon["closed_by_id"] = closed_by_id
+    await store.save_beacon(cog.bot.state, channel.id, beacon)
+    await store.clear_open_beacon(cog.bot.state, beacon["guild_id"], beacon["requester_id"], beacon["category"])
+    if closed_by_id is not None:
+        await channel.send(f"Beacon closed by <@{closed_by_id}>.")
+    else:
+        await channel.send("Beacon automatically closed for inactivity.")
+    if beacon["members"]:
+        await channel.send("Time to commend the responders who helped!", view=CommendView(cog))
+    if beacon["voice_channel_id"]:
+        await _delete_voice_channel(channel, beacon)
+    await _archive_channel(cog, channel, beacon["guild_id"])
+    await _refresh_board(cog, channel.guild)
+
+
+async def _delete_voice_channel(channel, beacon: dict) -> None:
+    try:
+        voice = channel.guild.get_channel(beacon["voice_channel_id"])
+        if voice is not None:
+            await voice.delete()
+    except discord.HTTPException:
+        logger.warning("Could not delete voice channel %s", beacon["voice_channel_id"])
+
+
+async def _archive_channel(cog, channel, guild_id: int) -> None:
+    config = await store.get_config(cog.bot.state, guild_id)
     try:
         if config and config["mode"] == "forum":
-            parent = interaction.channel.parent
+            parent = channel.parent
             open_tag = _resolve_tag(parent, config, "open")
             closed_tag = _resolve_tag(parent, config, "closed")
-            tags = [tag for tag in interaction.channel.applied_tags if tag != open_tag]
+            tags = [tag for tag in channel.applied_tags if tag != open_tag]
             if closed_tag is not None:
                 tags.append(closed_tag)
-            await interaction.channel.edit(applied_tags=tags, archived=True, locked=True)
+            await channel.edit(applied_tags=tags, archived=True, locked=True)
         else:
-            await interaction.channel.edit(archived=True)
+            await channel.edit(archived=True)
     except discord.HTTPException:
-        logger.exception("Failed to archive beacon thread %s", interaction.channel.id)
+        logger.exception("Failed to archive beacon thread %s", channel.id)
+
+
+async def handle_commend(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"beacon:{interaction.channel.id}"):
+        beacon = await _load_beacon(cog, interaction)
+        if beacon is None:
+            return
+        if interaction.user.id != beacon["requester_id"] and not is_beacon_admin(interaction):
+            await _reply(interaction, "Only the requester or an admin can commend responders.")
+            return
+        if beacon["commended"]:
+            await _reply(interaction, "This beacon has already been commended.")
+            return
+        if not beacon["members"]:
+            await _reply(interaction, "There are no responders to commend.")
+            return
+        for member_id in beacon["members"]:
+            await store.add_rep(cog.bot.state, beacon["guild_id"], member_id)
+        beacon["commended"] = True
+        await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
+        await interaction.channel.send("Responders commended! Thanks for helping out.")
+        await _reply(interaction, "Commended the responders.")

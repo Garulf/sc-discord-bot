@@ -38,3 +38,18 @@ class BeaconView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(_JoinButton(cog, legacy))
         self.add_item(_CloseButton(cog, legacy))
+
+
+class _CommendButton(discord.ui.Button):
+    def __init__(self, cog) -> None:
+        super().__init__(label="Commend responders", style=discord.ButtonStyle.success, custom_id="beacons:commend")
+        self._cog = cog
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await lifecycle.handle_commend(self._cog, interaction)
+
+
+class CommendView(discord.ui.View):
+    def __init__(self, cog) -> None:
+        super().__init__(timeout=None)
+        self.add_item(_CommendButton(cog))

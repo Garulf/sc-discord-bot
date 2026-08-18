@@ -20,7 +20,7 @@ from .categories import CATEGORIES, CONTESTED_STATIONS
 from .lifecycle import handle_thread_message, open_beacon
 from .location import location_autocomplete
 from .setup_cmd import handle_role, handle_setup
-from .views import BeaconView
+from .views import BeaconView, CommendView
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ class BeaconsCog(commands.Cog):
         self.beacon_view = BeaconView(self)
         self.bot.add_view(self.beacon_view)
         self.bot.add_view(BeaconView(self, legacy=True))
+        self.bot.add_view(CommendView(self))
         await self.refresh_command_mentions()
 
     async def refresh_command_mentions(self) -> None:

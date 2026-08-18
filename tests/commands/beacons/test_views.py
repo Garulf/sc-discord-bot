@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.commands.beacons.views import BeaconView
+from src.commands.beacons.views import BeaconView, CommendView
 
 
 def test_beacon_view_has_claim_and_close_buttons():
@@ -37,3 +37,27 @@ def test_join_button_label():
     view = BeaconView(MagicMock())
     button = next(b for b in view.children if b.custom_id == "beacons:claim")
     assert button.label == "Join"
+
+
+def test_commend_view_has_single_commend_button():
+    view = CommendView(MagicMock())
+    assert view.timeout is None
+    assert {item.custom_id for item in view.children} == {"beacons:commend"}
+    button = view.children[0]
+    assert button.label == "Commend responders"
+    from discord import ButtonStyle
+
+    assert button.style == ButtonStyle.success
+
+
+@pytest.mark.asyncio
+async def test_commend_button_delegates_to_lifecycle(monkeypatch):
+    from src.commands.beacons import views as views_module
+
+    commend = AsyncMock()
+    monkeypatch.setattr(views_module.lifecycle, "handle_commend", commend)
+    cog = MagicMock()
+    view = CommendView(cog)
+    interaction = MagicMock()
+    await view.children[0].callback(interaction)
+    commend.assert_awaited_once_with(cog, interaction)

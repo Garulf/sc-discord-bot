@@ -97,6 +97,21 @@ def test_panel_content_links_and_describes_each_category():
         assert cat.description in content
 
 
+def test_responders_field_shows_fill_count_when_size_present():
+    beacon = _beacon(
+        status=STATUS_ACTIVE, members=[7, 8], category="squad", fields={"location": "Stanton", "size": "4"}
+    )
+    embed = build_beacon_embed(beacon)
+    field_names = [f.name for f in embed.fields]
+    assert "Responders (2/4)" in field_names
+
+
+def test_responders_field_plain_without_size():
+    embed = build_beacon_embed(_beacon(status=STATUS_ACTIVE, members=[7]))
+    field_names = [f.name for f in embed.fields]
+    assert "Responders" in field_names
+
+
 def test_destination_renders_as_breadcrumb():
     beacon = _beacon(
         category="escort",

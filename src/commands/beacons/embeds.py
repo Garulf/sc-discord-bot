@@ -75,7 +75,9 @@ def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
     embed.add_field(name="Status", value=_status_text(beacon), inline=True)
     if beacon["members"]:
         responders = ", ".join(f"<@{member}>" for member in beacon["members"])
-        embed.add_field(name="Responders", value=responders, inline=False)
+        size = beacon["fields"].get("size")
+        name = f"Responders ({len(beacon['members'])}/{size})" if size else "Responders"
+        embed.add_field(name=name, value=responders, inline=False)
     for spec in category.fields:
         value = beacon["fields"].get(spec.key)
         if not value:
