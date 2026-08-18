@@ -1,4 +1,4 @@
-"""RSI devtracker notifications: /devtracker subscribe/unsubscribe/list."""
+"""RSI devtracker notifications: /devtracker subscribe/unsubscribe/list/post."""
 
 from __future__ import annotations
 
@@ -173,6 +173,16 @@ class DevTrackerCog(commands.Cog):
         self.subscriptions.remove(match)
         await self._save()
         await interaction.response.send_message("Unsubscribed from the RSI dev tracker.", ephemeral=True)
+
+    @devtracker.command(name="post", description="Post the latest dev tracker entry in this channel")
+    @app_commands.check(admin_or_sc_bot)
+    async def post(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        posts = await self.client.fetch_posts()
+        if not posts:
+            await interaction.followup.send("The dev tracker could not be fetched. Try again later.", ephemeral=True)
+            return
+        await interaction.followup.send(embed=build_devpost_embed(posts[0]))
 
     @devtracker.command(name="list", description="List channels subscribed to the dev tracker")
     async def list_subs(self, interaction: discord.Interaction) -> None:

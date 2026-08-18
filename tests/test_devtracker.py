@@ -138,3 +138,26 @@ async def test_poll_dedupes_by_id_not_watermark_inversion():
     sent_ids = [call.kwargs["embed"].url.rsplit("/", 1)[-1] for call in channel.send.await_args_list]
     assert sent_ids == ["150"]
     assert set(cog.seen_ids) == {150, 199, 200}
+
+
+async def test_post_command_sends_latest_and_leaves_seen_ids_unchanged():
+    cog = _cog_with([_post(300), _post(299)], [], [299])
+    interaction = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.followup.send = AsyncMock()
+    await cog.post.callback(cog, interaction)
+    interaction.response.defer.assert_awaited_once()
+    embed = interaction.followup.send.await_args.kwargs["embed"]
+    assert embed.url.endswith("/300")
+    assert cog.seen_ids == [299]
+    cog.bot.state.set.assert_not_awaited()
+
+
+async def test_post_command_reports_fetch_failure():
+    cog = _cog_with([], [], [299])
+    interaction = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.followup.send = AsyncMock()
+    await cog.post.callback(cog, interaction)
+    msg = interaction.followup.send.await_args.args[0]
+    assert "could not" in msg.lower()
