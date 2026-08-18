@@ -68,7 +68,7 @@ The `system` option suggests the flyable systems (Stanton, Pyro, Nyx), `planet` 
 
 #### Panel and Ticket Lifecycle
 
-The panel's category buttons reply with the exact command to run to open that kind of ticket. Each ticket thread has **Claim** and **Close** buttons:
+The panel's category buttons open a short form (location plus the category's details) that creates the ticket on submit; the `/ticket` slash commands do the same with autocomplete on every location field. Each ticket thread has **Claim** and **Close** buttons:
 
 - **Claim** assigns the ticket to the responder who clicked it; the button then toggles to unclaim for that same responder.
 - **Close** is allowed for the requester, the current claimer, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
