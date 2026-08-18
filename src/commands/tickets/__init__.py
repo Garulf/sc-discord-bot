@@ -16,7 +16,7 @@ from discord.ext import commands
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from .lifecycle import open_ticket
-from .location import location_autocomplete
+from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
 from .views import PanelView, TicketView
 
@@ -92,19 +92,23 @@ class TicketsCog(commands.Cog):
 
     @ticket.command(name="mining", description="Request mining assistance")
     @app_commands.describe(
-        location="Where you are (system:planet:location)",
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
         need="What you need",
         notes="Extra details",
     )
-    @app_commands.autocomplete(location=location_autocomplete)
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
     async def mining(
         self,
         interaction: discord.Interaction,
-        location: str,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
         need: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": location}
+        fields = {"location": combine_location(system, planet, location)}
         if need:
             fields["need"] = need
         if notes:
@@ -113,19 +117,23 @@ class TicketsCog(commands.Cog):
 
     @ticket.command(name="medic", description="Request a medic")
     @app_commands.describe(
-        location="Where you are (system:planet:location)",
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
         tier="Injury tier (T1 to T3)",
         notes="Extra details",
     )
-    @app_commands.autocomplete(location=location_autocomplete)
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
     async def medic(
         self,
         interaction: discord.Interaction,
-        location: str,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
         tier: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": location}
+        fields = {"location": combine_location(system, planet, location)}
         if tier:
             fields["tier"] = tier
         if notes:
@@ -134,19 +142,23 @@ class TicketsCog(commands.Cog):
 
     @ticket.command(name="squad", description="Request squad/FPS backup")
     @app_commands.describe(
-        location="Where you are (system:planet:location)",
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
         size="Squad size needed",
         notes="Extra details",
     )
-    @app_commands.autocomplete(location=location_autocomplete)
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
     async def squad(
         self,
         interaction: discord.Interaction,
-        location: str,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
         size: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": location}
+        fields = {"location": combine_location(system, planet, location)}
         if size:
             fields["size"] = size
         if notes:
@@ -155,19 +167,23 @@ class TicketsCog(commands.Cog):
 
     @ticket.command(name="backup", description="Request backup, you are under attack")
     @app_commands.describe(
-        location="Where you are (system:planet:location)",
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
         threat="What is attacking you",
         urgency="How urgent this is",
     )
-    @app_commands.autocomplete(location=location_autocomplete)
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
     async def backup(
         self,
         interaction: discord.Interaction,
-        location: str,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
         threat: str | None = None,
         urgency: str | None = None,
     ) -> None:
-        fields = {"location": location}
+        fields = {"location": combine_location(system, planet, location)}
         if threat:
             fields["threat"] = threat
         if urgency:
@@ -182,7 +198,7 @@ class TicketsCog(commands.Cog):
         scu="Cargo size in SCU",
         notes="Extra details",
     )
-    @app_commands.autocomplete(route_from=location_autocomplete, route_to=location_autocomplete)
+    @app_commands.autocomplete(route_from=route_autocomplete, route_to=route_autocomplete)
     async def cargo(
         self,
         interaction: discord.Interaction,
@@ -200,19 +216,23 @@ class TicketsCog(commands.Cog):
 
     @ticket.command(name="salvage", description="Request salvage assistance")
     @app_commands.describe(
-        location="Where you are (system:planet:location)",
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
         target="Salvage target",
         notes="Extra details",
     )
-    @app_commands.autocomplete(location=location_autocomplete)
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
     async def salvage(
         self,
         interaction: discord.Interaction,
-        location: str,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
         target: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": location}
+        fields = {"location": combine_location(system, planet, location)}
         if target:
             fields["target"] = target
         if notes:

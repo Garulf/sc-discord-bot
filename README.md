@@ -50,14 +50,14 @@ Post a panel of category buttons that opens a public thread (or forum post) per 
 
 | Command | Description |
 |---|---|
-| `/ticket mining location:<system:planet:location> [need] [notes]` | Request mining assistance |
-| `/ticket medic location:<system:planet:location> [tier] [notes]` | Request a medic (injury tier T1-T3) |
-| `/ticket squad location:<system:planet:location> [size] [notes]` | Request squad/FPS backup |
-| `/ticket backup location:<system:planet:location> [threat] [urgency]` | Request backup, you are under attack |
+| `/ticket mining system:<system> [planet] [location] [need] [notes]` | Request mining assistance |
+| `/ticket medic system:<system> [planet] [location] [tier] [notes]` | Request a medic (injury tier T1-T3) |
+| `/ticket squad system:<system> [planet] [location] [size] [notes]` | Request squad/FPS backup |
+| `/ticket backup system:<system> [planet] [location] [threat] [urgency]` | Request backup, you are under attack |
 | `/ticket cargo route-from:<system:planet:location> route-to:<system:planet:location> [scu] [notes]` | Request cargo hauling help |
-| `/ticket salvage location:<system:planet:location> [target] [notes]` | Request salvage assistance |
+| `/ticket salvage system:<system> [planet] [location] [target] [notes]` | Request salvage assistance |
 
-Location fields use the form `system:planet:location`, e.g. `Stanton:Hurston:Lorville` (planet and location are optional). Each segment autocompletes against live star system, celestial object, and point-of-interest data as you type it.
+The `system` option suggests the flyable systems (Stanton, Pyro, Nyx), `planet` suggests planets and moons in the chosen system, and `location` suggests landing zones, stations, and outposts there, each list narrowing to what you picked before it. Cargo's `route-from`/`route-to` take a full `system:planet:location` route point (e.g. `Stanton:Hurston:Lorville`) with breadcrumb suggestions from live point-of-interest data.
 
 **Admin commands** (requires Administrator permission or the `sc-bot` role):
 
