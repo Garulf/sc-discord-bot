@@ -50,7 +50,7 @@ def _status_text(beacon: dict[str, Any]) -> str:
 
 
 def build_panel_embed() -> discord.Embed:
-    lines = [f"{c.emoji} **{c.label}**" for c in CATEGORIES.values()]
+    lines = [f"{c.emoji} **{c.label}**: {c.description}" for c in CATEGORIES.values()]
     return discord.Embed(
         title="Open a beacon",
         description=(

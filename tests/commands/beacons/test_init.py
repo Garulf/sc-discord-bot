@@ -3,7 +3,7 @@ from discord import AppCommandOptionType
 from src.commands.beacons import BeaconsCog
 from src.commands.beacons.categories import CATEGORIES
 
-_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport")
+_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport", "contested")
 
 
 def _params(name):

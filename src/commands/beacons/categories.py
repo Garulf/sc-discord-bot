@@ -19,6 +19,7 @@ class Category:
     key: str
     label: str
     emoji: str
+    description: str
     fields: tuple[FieldSpec, ...]
 
 
@@ -39,6 +40,7 @@ def _notes() -> FieldSpec:
 CATEGORIES: dict[str, Category] = {
     "mining": Category(
         key="mining",
+        description="Mining ops support: extra ships, refining, or an escort",
         label="Mining",
         emoji="\N{PICK}",
         fields=(
@@ -54,6 +56,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "medic": Category(
         key="medic",
+        description="Rescue and revival for injured players",
         label="Medical",
         emoji="\N{ADHESIVE BANDAGE}",
         fields=(
@@ -64,6 +67,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "squad": Category(
         key="squad",
+        description="Fill out a squad for FPS missions",
         label="Squad/FPS",
         emoji="\N{CROSSED SWORDS}",
         fields=(
@@ -74,6 +78,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "backup": Category(
         key="backup",
+        description="Emergency combat assistance when you are under attack",
         label="Combat Backup",
         emoji="\N{POLICE CARS REVOLVING LIGHT}",
         fields=(
@@ -84,6 +89,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "cargo": Category(
         key="cargo",
+        description="Hauling help for cargo routes",
         label="Cargo",
         emoji="\N{PACKAGE}",
         fields=(
@@ -95,6 +101,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "salvage": Category(
         key="salvage",
+        description="Crew or protection for salvage operations",
         label="Salvage",
         emoji="\N{WRENCH}",
         fields=(
@@ -105,6 +112,7 @@ CATEGORIES: dict[str, Category] = {
     ),
     "escort": Category(
         key="escort",
+        description="Fighter cover for your ship or convoy",
         label="Escort",
         emoji="\N{SHIELD}",
         fields=(
@@ -115,11 +123,29 @@ CATEGORIES: dict[str, Category] = {
     ),
     "transport": Category(
         key="transport",
+        description="A lift from where you are to where you need to be",
         label="Personal Transport",
         emoji="\N{SEAT}",
         fields=(
             _location(),
             FieldSpec("destination", "Destination", kind="route"),
+            _notes(),
+        ),
+    ),
+    "contested": Category(
+        key="contested",
+        description="Group up to run a contested zone",
+        label="Contested Zone",
+        emoji="\N{HIGH VOLTAGE SIGN}",
+        fields=(
+            _location(),
+            FieldSpec(
+                "objective",
+                "Objective",
+                kind="choice",
+                choices=("Vault run", "Full clear", "Keycard run", "Extraction help"),
+            ),
+            FieldSpec("size", "Group size needed", kind="int"),
             _notes(),
         ),
     ),

@@ -74,3 +74,12 @@ def test_destination_renders_as_breadcrumb():
     embed = build_beacon_embed(beacon)
     values = [f.value for f in embed.fields]
     assert "Stanton › Crusader › Orison" in values
+
+
+def test_panel_embed_describes_each_category():
+    from src.commands.beacons.categories import CATEGORIES
+
+    embed = build_panel_embed()
+    description = embed.description or ""
+    for cat in CATEGORIES.values():
+        assert cat.description in description

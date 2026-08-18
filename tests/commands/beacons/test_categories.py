@@ -1,6 +1,6 @@
 from src.commands.beacons.categories import CATEGORIES, short_label
 
-_EXPECTED_KEYS = {"mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport"}
+_EXPECTED_KEYS = {"mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport", "contested"}
 _EXPECTED_LABELS = {
     "mining": "Mining",
     "medic": "Medical",
@@ -10,10 +10,11 @@ _EXPECTED_LABELS = {
     "salvage": "Salvage",
     "escort": "Escort",
     "transport": "Personal Transport",
+    "contested": "Contested Zone",
 }
 
 
-def test_all_eight_categories_present():
+def test_all_nine_categories_present():
     assert set(CATEGORIES) == _EXPECTED_KEYS
 
 
@@ -57,6 +58,7 @@ def test_choice_fields_declare_their_choices():
         ("backup", "threat"),
         ("backup", "urgency"),
         ("salvage", "target"),
+        ("contested", "objective"),
     }
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "choice"}
     assert found == expected
@@ -71,7 +73,7 @@ def test_choice_fields_declare_their_choices():
 
 def test_int_fields():
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "int"}
-    assert found == {("squad", "size"), ("cargo", "scu")}
+    assert found == {("squad", "size"), ("cargo", "scu"), ("contested", "size")}
 
 
 def test_notes_fields_stay_free_text():
@@ -84,3 +86,9 @@ def test_notes_fields_stay_free_text():
 def test_short_labels_fit_forum_tag_limit():
     for cat in CATEGORIES.values():
         assert 0 < len(short_label(cat)) <= 20
+
+
+def test_every_category_has_a_description():
+    for cat in CATEGORIES.values():
+        assert cat.description
+        assert len(cat.description) <= 100

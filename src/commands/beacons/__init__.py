@@ -317,6 +317,35 @@ class BeaconsCog(commands.Cog):
             fields["notes"] = notes
         await open_beacon(self, interaction, "transport", fields)
 
+    @beacon.command(name="contested", description="Group up to run a contested zone")
+    @app_commands.describe(
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
+        objective="What you want to do there",
+        size="Group size needed",
+        notes="Extra details",
+    )
+    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    async def contested(
+        self,
+        interaction: discord.Interaction,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
+        objective: Literal["Vault run", "Full clear", "Keycard run", "Extraction help"] | None = None,
+        size: app_commands.Range[int, 1, 50] | None = None,
+        notes: str | None = None,
+    ) -> None:
+        fields = {"location": combine_location(system, planet, location)}
+        if objective:
+            fields["objective"] = objective
+        if size:
+            fields["size"] = str(size)
+        if notes:
+            fields["notes"] = notes
+        await open_beacon(self, interaction, "contested", fields)
+
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(BeaconsCog(bot))
