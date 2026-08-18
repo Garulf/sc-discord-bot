@@ -32,3 +32,8 @@ def test_requester_claimer_and_admin_can_close():
 
 def test_cannot_close_closed_ticket():
     assert not can_close(_ticket(status=STATUS_CLOSED), user_id=1, is_admin=True)
+
+
+def test_none_user_id_cannot_close_unclaimed_open_ticket():
+    ticket = _ticket(status=STATUS_OPEN, requester=1, claimer=None)
+    assert not can_close(ticket, user_id=None, is_admin=False)

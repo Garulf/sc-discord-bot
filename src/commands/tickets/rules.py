@@ -20,4 +20,8 @@ def can_unclaim(ticket: dict[str, Any], user_id: int) -> bool:
 def can_close(ticket: dict[str, Any], user_id: int, is_admin: bool) -> bool:
     if ticket["status"] == STATUS_CLOSED:
         return False
-    return is_admin or user_id in (ticket["requester_id"], ticket["claimer_id"])
+    return (
+        is_admin
+        or user_id == ticket["requester_id"]
+        or (ticket["claimer_id"] is not None and user_id == ticket["claimer_id"])
+    )
