@@ -304,3 +304,63 @@ async def test_open_rejects_malformed_destination(make_cog):
     msg = interaction.followup.send.await_args.args[0]
     assert "system:planet:location" in msg
     lifecycle.store.save_beacon.assert_not_awaited()
+
+
+def _thread_message(author_id=5, channel_id=99, bot=False, admin=False):
+    message = MagicMock()
+    message.guild = MagicMock()
+    message.author.id = author_id
+    message.author.bot = bot
+    message.author.guild_permissions.administrator = admin
+    message.author.roles = []
+    message.author.mention = f"<@{author_id}>"
+    message.channel = MagicMock(spec=discord.Thread)
+    message.channel.id = channel_id
+    message.channel.send = AsyncMock()
+    return message
+
+
+@pytest.mark.asyncio
+async def test_outsider_message_gets_a_join_nudge_once(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    message = _thread_message(author_id=5)
+    await lifecycle.handle_thread_message(cog, message)
+    message.channel.send.assert_awaited_once()
+    assert "<@5>" in message.channel.send.await_args.args[0]
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["nudged"] == [5]
+
+
+@pytest.mark.asyncio
+async def test_already_nudged_user_is_not_nudged_again(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2], nudged=[5]))
+    message = _thread_message(author_id=5)
+    await lifecycle.handle_thread_message(cog, message)
+    message.channel.send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_members_requester_bots_and_admins_are_not_nudged(make_cog):
+    for kwargs, record in (
+        (dict(author_id=2), dict(status=STATUS_ACTIVE, members=[2])),
+        (dict(author_id=1), dict()),
+        (dict(author_id=5, bot=True), dict()),
+        (dict(author_id=5, admin=True), dict()),
+    ):
+        cog = make_cog(beacon=_open_beacon_record(**record))
+        message = _thread_message(**kwargs)
+        await lifecycle.handle_thread_message(cog, message)
+        message.channel.send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_untracked_or_closed_threads_are_not_nudged(make_cog):
+    cog = make_cog(beacon=None)
+    message = _thread_message()
+    await lifecycle.handle_thread_message(cog, message)
+    message.channel.send.assert_not_awaited()
+
+    cog = make_cog(beacon=_open_beacon_record(status="closed"))
+    message = _thread_message()
+    await lifecycle.handle_thread_message(cog, message)
+    message.channel.send.assert_not_awaited()

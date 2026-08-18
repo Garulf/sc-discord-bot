@@ -17,8 +17,8 @@ from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from . import store
 from .categories import CATEGORIES, CONTESTED_STATIONS
-from .lifecycle import open_beacon
-from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
+from .lifecycle import handle_thread_message, open_beacon
+from .location import location_autocomplete
 from .setup_cmd import handle_role, handle_setup
 from .views import BeaconView
 
@@ -70,6 +70,10 @@ class BeaconsCog(commands.Cog):
             return f"</beacon {category_key}:{self._beacon_command_id}>"
         return f"`/beacon {category_key}`"
 
+    @commands.Cog.listener("on_message")
+    async def on_message(self, message: discord.Message) -> None:
+        await handle_thread_message(self, message)
+
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ) -> None:
@@ -110,23 +114,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="mining", description="Request mining assistance")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         need="What you need",
         notes="Extra details",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.autocomplete(location=location_autocomplete)
     async def mining(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         need: Literal["Extra mining ship", "Refining help", "Escort", "Equipment"] | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if need:
             fields["need"] = need
         if notes:
@@ -135,23 +135,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="medic", description="Request a medic")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         tier="Injury tier (T1 to T3)",
         notes="Extra details",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.autocomplete(location=location_autocomplete)
     async def medic(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         tier: Literal["T1", "T2", "T3"] | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if tier:
             fields["tier"] = tier
         if notes:
@@ -160,23 +156,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="squad", description="Request squad/FPS backup")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         size="Squad size needed",
         notes="Extra details",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.autocomplete(location=location_autocomplete)
     async def squad(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         size: app_commands.Range[int, 1, 50] | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if size:
             fields["size"] = str(size)
         if notes:
@@ -185,23 +177,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="backup", description="Request backup, you are under attack")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         threat="What is attacking you",
         urgency="How urgent this is",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.autocomplete(location=location_autocomplete)
     async def backup(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         threat: Literal["Players", "NPCs", "Mixed", "Unknown"] | None = None,
         urgency: Literal["Low", "Medium", "High", "Critical"] | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if threat:
             fields["threat"] = threat
         if urgency:
@@ -216,7 +204,7 @@ class BeaconsCog(commands.Cog):
         scu="Cargo size in SCU",
         notes="Extra details",
     )
-    @app_commands.autocomplete(route_from=route_autocomplete, route_to=route_autocomplete)
+    @app_commands.autocomplete(route_from=location_autocomplete, route_to=location_autocomplete)
     async def cargo(
         self,
         interaction: discord.Interaction,
@@ -234,23 +222,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="salvage", description="Request salvage assistance")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         target="Salvage target",
         notes="Extra details",
     )
-    @app_commands.autocomplete(system=system_autocomplete, planet=planet_autocomplete, location=poi_autocomplete)
+    @app_commands.autocomplete(location=location_autocomplete)
     async def salvage(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         target: Literal["Ship wreck", "Panels", "Structure", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if target:
             fields["target"] = target
         if notes:
@@ -259,28 +243,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="escort", description="Request a ship escort")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         destination="Where you are headed (system:planet:location)",
         notes="Extra details",
     )
-    @app_commands.autocomplete(
-        system=system_autocomplete,
-        planet=planet_autocomplete,
-        location=poi_autocomplete,
-        destination=route_autocomplete,
-    )
+    @app_commands.autocomplete(location=location_autocomplete, destination=location_autocomplete)
     async def escort(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         destination: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if destination:
             fields["destination"] = destination
         if notes:
@@ -289,28 +264,19 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="transport", description="Request personal transport")
     @app_commands.describe(
-        system="Star system you are in",
-        planet="Planet or moon",
-        location="Landing zone, station, or outpost",
+        location="Where you are (system:planet:location)",
         destination="Where you want to go (system:planet:location)",
         notes="Extra details",
     )
-    @app_commands.autocomplete(
-        system=system_autocomplete,
-        planet=planet_autocomplete,
-        location=poi_autocomplete,
-        destination=route_autocomplete,
-    )
+    @app_commands.autocomplete(location=location_autocomplete, destination=location_autocomplete)
     async def transport(
         self,
         interaction: discord.Interaction,
-        system: str,
-        planet: str | None = None,
-        location: str | None = None,
+        location: str,
         destination: str | None = None,
         notes: str | None = None,
     ) -> None:
-        fields = {"location": combine_location(system, planet, location)}
+        fields = {"location": location}
         if destination:
             fields["destination"] = destination
         if notes:

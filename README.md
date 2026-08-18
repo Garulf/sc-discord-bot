@@ -50,17 +50,17 @@ Service beacons: a panel of category buttons plus slash commands that open a pub
 
 | Command | Description |
 |---|---|
-| `/beacon mining system:<system> [planet] [location] [need] [notes]` | Request mining assistance (need: Extra mining ship / Refining help / Escort / Equipment) |
-| `/beacon medic system:<system> [planet] [location] [tier] [notes]` | Request medical help (tier: T1 / T2 / T3) |
-| `/beacon squad system:<system> [planet] [location] [size] [notes]` | Request squad/FPS backup (size: 1-50) |
-| `/beacon backup system:<system> [planet] [location] [threat] [urgency]` | Request combat backup (threat: Players / NPCs / Mixed / Unknown; urgency: Low / Medium / High / Critical) |
-| `/beacon cargo route-from:<route> route-to:<route> [scu] [notes]` | Request cargo hauling help (scu: 1-100000) |
-| `/beacon salvage system:<system> [planet] [location] [target] [notes]` | Request salvage assistance (target: Ship wreck / Panels / Structure / Unknown) |
-| `/beacon escort system:<system> [planet] [location] [destination] [notes]` | Request a ship escort |
-| `/beacon transport system:<system> [planet] [location] [destination] [notes]` | Request personal transport |
+| `/beacon mining location:<location> [need] [notes]` | Request mining assistance (need: Extra mining ship / Refining help / Escort / Equipment) |
+| `/beacon medic location:<location> [tier] [notes]` | Request medical help (tier: T1 / T2 / T3) |
+| `/beacon squad location:<location> [size] [notes]` | Request squad/FPS backup (size: 1-50) |
+| `/beacon backup location:<location> [threat] [urgency]` | Request combat backup (threat: Players / NPCs / Mixed / Unknown; urgency: Low / Medium / High / Critical) |
+| `/beacon cargo route-from:<location> route-to:<location> [scu] [notes]` | Request cargo hauling help (scu: 1-100000) |
+| `/beacon salvage location:<location> [target] [notes]` | Request salvage assistance (target: Ship wreck / Panels / Structure / Unknown) |
+| `/beacon escort location:<location> [destination] [notes]` | Request a ship escort |
+| `/beacon transport location:<location> [destination] [notes]` | Request personal transport |
 | `/beacon contested location:<station> [objective] [size] [notes]` | Group up for a contested zone. Location is a fixed list: Orbituary, Ruin Station, Checkmate, the PYAM exec hangar, and the two PYAM-SUPVISR red keycard stations (objective: Vault run / Full clear / Keycard run / Extraction help; size: 1-50) |
 
-Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. The `system` option suggests the flyable systems (Stanton, Pyro, Nyx), `planet` suggests planets and moons in the chosen system, and `location` suggests landing zones, stations, and outposts there, each list narrowing to what you picked before it. Route-style options (`route-from`, `route-to`, `destination`) take a full `system:planet:location` value (e.g. `Stanton:Hurston:Lorville`) with breadcrumb suggestions from live point-of-interest data.
+Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. Location-style options (`location`, `route-from`, `route-to`, `destination`) take a single `system:planet:location` value; as you type, autocomplete suggests flyable star systems (Stanton, Pyro, Nyx), planets and moons, and points of interest as full breadcrumbs (e.g. `Stanton:Hurston:Lorville`) from live game data, and the beacon renders it as a breadcrumb.
 
 **Admin commands** (requires Administrator permission or the `sc-bot` role):
 
@@ -74,6 +74,7 @@ Every non-notes option is constrained: category details come from fixed choice l
 The pinned panel lists every category with a short description and a clickable command mention; clicking a mention opens the command form directly. Re-running `/beacon setup` replaces the previous panel. Each beacon thread has **Join** and **Close** buttons:
 
 - **Join** adds you to the beacon's responder list and to the thread itself (so it appears in your active threads); clicking again leaves. The beacon shows as **Active** while anyone has joined and lists its responders.
+- Anyone else posting in a beacon thread gets a single friendly nudge from the bot to hit **Join** (no messages are deleted; requester, responders, and admins are never nudged).
 - **Close** is allowed for the requester, any joined responder, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
 
 Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.

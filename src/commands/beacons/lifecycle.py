@@ -205,6 +205,34 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
         await _reply(interaction, "You joined the beacon.")
 
 
+def _is_thread_admin(member) -> bool:
+    if getattr(member.guild_permissions, "administrator", False):
+        return True
+    return any(role.name.lower() == _SC_BOT_ROLE for role in member.roles)
+
+
+async def handle_thread_message(cog, message: discord.Message) -> None:
+    if message.guild is None or message.author.bot:
+        return
+    if not isinstance(message.channel, discord.Thread):
+        return
+    beacon = await store.get_beacon(cog.bot.state, message.channel.id)
+    if beacon is None or beacon["status"] == STATUS_CLOSED:
+        return
+    author_id = message.author.id
+    if author_id == beacon["requester_id"] or author_id in beacon["members"]:
+        return
+    if _is_thread_admin(message.author):
+        return
+    if author_id in beacon.setdefault("nudged", []):
+        return
+    beacon["nudged"].append(author_id)
+    await store.save_beacon(cog.bot.state, message.channel.id, beacon)
+    await message.channel.send(
+        f"{message.author.mention} want to help out? Hit **Join** on this beacon so responders know you are coming."
+    )
+
+
 async def handle_close(cog, interaction: discord.Interaction) -> None:
     await interaction.response.defer(ephemeral=True)
     async with _lock_for(f"beacon:{interaction.channel.id}"):

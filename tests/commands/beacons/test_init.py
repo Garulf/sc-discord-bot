@@ -19,13 +19,12 @@ def test_every_category_has_a_command():
     assert set(CATEGORIES) <= names
 
 
-def test_cascade_categories_take_system_planet_location():
+def test_location_categories_take_single_required_location():
     for name in _CASCADE_CATEGORIES:
         params = _params(name)
-        assert {"system", "planet", "location"} <= set(params)
-        assert params["system"].required is True
-        assert params["planet"].required is False
-        assert params["location"].required is False
+        assert params["location"].required is True
+        assert "system" not in params
+        assert "planet" not in params
 
 
 def test_choice_fields_expose_their_declared_choices():
