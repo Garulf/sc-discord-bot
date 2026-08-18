@@ -49,13 +49,8 @@ def _status_text(beacon: dict[str, Any]) -> str:
     return "Open"
 
 
-def build_panel_embed() -> discord.Embed:
-    lines = [f"{c.emoji} **{c.label}**: {c.description}" for c in CATEGORIES.values()]
-    return discord.Embed(
-        title="Open a beacon",
-        description=(
-            "Need a hand in the verse? Pick a category below to get the command, "
-            "or run `/beacon <category>` directly.\n\n" + "\n".join(lines)
-        ),
-        color=discord.Color.blurple(),
+def build_panel_content(mention) -> str:
+    lines = [f"{c.emoji} {mention(c.key)}: {c.description}" for c in CATEGORIES.values()]
+    return "**Service Beacons**\nNeed a hand in the verse? Click a command below to open a beacon.\n\n" + "\n".join(
+        lines
     )

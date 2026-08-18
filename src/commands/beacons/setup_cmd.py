@@ -8,7 +8,7 @@ import discord
 
 from . import store
 from .categories import CATEGORIES, short_label
-from .embeds import build_panel_embed
+from .embeds import build_panel_content
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,12 @@ async def handle_setup(
         target = target.parent
     old = await store.get_config(cog.bot.state, interaction.guild.id)
     roles = old["roles"] if old else {}
+    await cog.refresh_command_mentions()
+    content = build_panel_content(cog.command_mention)
     try:
         if isinstance(target, discord.ForumChannel):
             tag_ids = await _ensure_tags(target)
-            created = await target.create_thread(name="Open a beacon", embed=build_panel_embed(), view=cog.panel_view)
+            created = await target.create_thread(name="Open a beacon", content=content)
             await created.thread.edit(pinned=True)
             config = {
                 "channel_id": target.id,
@@ -44,7 +46,7 @@ async def handle_setup(
                 "roles": roles,
             }
         elif isinstance(target, discord.TextChannel):
-            message = await target.send(embed=build_panel_embed(), view=cog.panel_view)
+            message = await target.send(content)
             config = {
                 "channel_id": target.id,
                 "mode": "thread",
@@ -67,8 +69,25 @@ async def handle_setup(
             f"Setup failed: {error}. Check the bot's permissions in this channel.", ephemeral=True
         )
         return
+    if old:
+        await _delete_old_panel(interaction.guild, old)
     await store.set_config(cog.bot.state, interaction.guild.id, config)
     await interaction.followup.send("Beacon system installed.", ephemeral=True)
+
+
+async def _delete_old_panel(guild: discord.Guild, old: dict) -> None:
+    channel = guild.get_channel(old["channel_id"])
+    if channel is None:
+        return
+    try:
+        if old["mode"] == "forum":
+            thread = channel.get_thread(old["panel_message_id"])
+            if thread is not None:
+                await thread.delete()
+        else:
+            await channel.get_partial_message(old["panel_message_id"]).delete()
+    except discord.HTTPException:
+        logger.warning("Could not delete the previous beacon panel %s", old["panel_message_id"])
 
 
 async def _ensure_tags(channel: discord.ForumChannel) -> dict[str, int]:

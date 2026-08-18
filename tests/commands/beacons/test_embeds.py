@@ -1,4 +1,4 @@
-from src.commands.beacons.embeds import beacon_title, build_beacon_embed, build_panel_embed
+from src.commands.beacons.embeds import beacon_title, build_beacon_embed, build_panel_content
 from src.commands.beacons.rules import STATUS_CLAIMED, STATUS_CLOSED, STATUS_OPEN
 
 
@@ -50,20 +50,13 @@ def test_unsubmitted_fields_are_omitted():
     assert "Injury tier" not in [f.name for f in embed.fields]
 
 
-def test_panel_embed_lists_all_categories():
-    embed = build_panel_embed()
-    description = embed.description or ""
-    for label in (
-        "Mining",
-        "Medical",
-        "Squad/FPS",
-        "Combat Backup",
-        "Cargo",
-        "Salvage",
-        "Escort",
-        "Personal Transport",
-    ):
-        assert label in description
+def test_panel_content_links_and_describes_each_category():
+    from src.commands.beacons.categories import CATEGORIES
+
+    content = build_panel_content(lambda key: f"</beacon {key}:1>")
+    for cat in CATEGORIES.values():
+        assert f"</beacon {cat.key}:1>" in content
+        assert cat.description in content
 
 
 def test_destination_renders_as_breadcrumb():
@@ -74,12 +67,3 @@ def test_destination_renders_as_breadcrumb():
     embed = build_beacon_embed(beacon)
     values = [f.value for f in embed.fields]
     assert "Stanton › Crusader › Orison" in values
-
-
-def test_panel_embed_describes_each_category():
-    from src.commands.beacons.categories import CATEGORIES
-
-    embed = build_panel_embed()
-    description = embed.description or ""
-    for cat in CATEGORIES.values():
-        assert cat.description in description

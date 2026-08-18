@@ -71,7 +71,7 @@ Every non-notes option is constrained: category details come from fixed choice l
 
 #### Panel and Beacon Lifecycle
 
-The pinned panel lists every category with a short description, and its buttons reply with the exact command to run to open that kind of beacon. Each beacon thread has **Claim** and **Close** buttons:
+The pinned panel lists every category with a short description and a clickable command mention; clicking a mention opens the command form directly. Re-running `/beacon setup` replaces the previous panel. Each beacon thread has **Claim** and **Close** buttons:
 
 - **Claim** assigns the beacon to the responder who clicked it; the button then toggles to unclaim for that same responder.
 - **Close** is allowed for the requester, the current claimer, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).

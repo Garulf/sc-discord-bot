@@ -20,7 +20,7 @@ from .categories import CATEGORIES, CONTESTED_STATIONS
 from .lifecycle import open_beacon
 from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
-from .views import BeaconView, PanelView
+from .views import BeaconView
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +39,12 @@ class BeaconsCog(commands.Cog):
     async def cog_load(self) -> None:
         await store.migrate_legacy_keys(self.bot.state)
         await self._warn_stale_configs()
-        self.panel_view = PanelView(self)
         self.beacon_view = BeaconView(self)
-        self.bot.add_view(self.panel_view)
         self.bot.add_view(self.beacon_view)
-        self.bot.add_view(PanelView(self, legacy=True))
         self.bot.add_view(BeaconView(self, legacy=True))
+        await self.refresh_command_mentions()
+
+    async def refresh_command_mentions(self) -> None:
         try:
             commands_ = await self.bot.tree.fetch_commands()
             for command in commands_:

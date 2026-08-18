@@ -89,7 +89,7 @@ def test_cog_load_registers_current_and_legacy_views_and_migrates():
     finally:
         pkg.store.migrate_legacy_keys = original
     custom_ids = {item.custom_id for call in bot.add_view.call_args_list for item in call.args[0].children}
-    assert bot.add_view.call_count == 4
+    assert bot.add_view.call_count == 2
     assert "beacons:claim" in custom_ids
     assert "tickets:claim" in custom_ids
     migrate.assert_awaited_once_with(bot.state)
