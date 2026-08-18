@@ -105,7 +105,7 @@ async def run_maintenance(cog, guild, now: float) -> None:
         except Exception:
             logger.exception("Beacon maintenance failed for thread %s", thread_id)
     try:
-        await board.refresh_board(cog, guild)
+        await board.refresh_board(cog, guild, entries=beacons)
     except Exception:
         logger.exception("Beacon board refresh failed for guild %s", guild.id)
     try:

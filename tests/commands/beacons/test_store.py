@@ -107,6 +107,14 @@ async def test_rep_roundtrip(state):
 
 
 @pytest.mark.asyncio
+async def test_get_reps_treats_key_deleted_after_listing_as_zero(state):
+    await store.add_rep(state, 10, 42)
+    await state.set("beacons:rep:10:7", None)
+    reps = await store.get_reps(state, 10)
+    assert reps == {42: 1, 7: 0}
+
+
+@pytest.mark.asyncio
 async def test_last_open_roundtrip(state):
     assert await store.get_last_open(state, 10, 42) is None
     await store.set_last_open(state, 10, 42, "medic", {"location": "Stanton"})

@@ -100,7 +100,7 @@ async def add_rep(state: StateStore, guild_id: int, user_id: int, amount: int = 
 async def get_reps(state: StateStore, guild_id: int) -> dict[int, int]:
     reps = {}
     for key in await state.keys(f"beacons:rep:{guild_id}:"):
-        reps[int(key.rsplit(":", 1)[-1])] = await state.get(key)
+        reps[int(key.rsplit(":", 1)[-1])] = await state.get(key) or 0
     return reps
 
 

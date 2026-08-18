@@ -57,6 +57,12 @@ def test_build_board_embed_groups_active_before_open_sorted_by_opened_at():
     ]
 
 
+def test_build_board_embed_falls_back_to_default_emoji_for_unknown_category():
+    unknown = _beacon(category="ticket-legacy", status=STATUS_OPEN, opened_at=1.0)
+    embed = board.build_board_embed([(100, unknown)])
+    assert embed.description == "\N{ROUND PUSHPIN} <#100> - Open"
+
+
 @pytest.fixture
 def make_cog(monkeypatch):
     def _make(config=None, entries=None):
@@ -118,6 +124,20 @@ async def test_refresh_board_edits_message(make_cog):
     embed = partial.edit.await_args.kwargs["embed"]
     assert isinstance(embed, discord.Embed)
     board.store.set_config.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_refresh_board_uses_prefetched_entries_without_scanning(make_cog):
+    config = {"board": {"channel_id": 5, "message_id": 6}}
+    cog = make_cog(config=config)
+    partial = MagicMock()
+    partial.edit = AsyncMock()
+    channel = MagicMock()
+    channel.get_partial_message = MagicMock(return_value=partial)
+    guild = _guild(channel=channel)
+    await board.refresh_board(cog, guild, entries=[(99, _beacon())])
+    board.store.open_beacons.assert_not_awaited()
+    partial.edit.assert_awaited_once()
 
 
 @pytest.mark.asyncio

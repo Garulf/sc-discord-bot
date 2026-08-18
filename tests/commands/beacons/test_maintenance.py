@@ -233,6 +233,18 @@ async def test_record_closed_and_index_cleared_when_fetch_raises_not_found(make_
 
 
 @pytest.mark.asyncio
+async def test_run_maintenance_reuses_sweep_entries_for_board_refresh(make_cog, monkeypatch):
+    beacon = _beacon(opened_at=1000.0, last_activity_at=1000.0)
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[(99, beacon)])
+    thread = _thread()
+    guild = _guild(thread)
+    refresh = AsyncMock()
+    monkeypatch.setattr(maintenance.board, "refresh_board", refresh)
+    await maintenance.run_maintenance(cog, guild, now=1000.0)
+    refresh.assert_awaited_once_with(cog, guild, entries=[(99, beacon)])
+
+
+@pytest.mark.asyncio
 async def test_beacon_failure_does_not_stop_sweep(make_cog, monkeypatch):
     beacon_ok = _beacon(opened_at=0.0, last_activity_at=0.0)
     beacon_bad = _beacon(opened_at=0.0, last_activity_at=0.0)

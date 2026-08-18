@@ -196,6 +196,7 @@ def _open_beacon_record(**overrides):
         "voice_channel_id": None,
         "commended": False,
         "nudged": [],
+        "full_announced": False,
     }
     beacon.update(overrides)
     return beacon
@@ -271,6 +272,35 @@ async def test_join_announces_party_full(make_cog):
 
 
 @pytest.mark.asyncio
+async def test_join_full_announcement_survives_http_exception(make_cog):
+    record = _open_beacon_record(category="squad", members=[2], status="active")
+    record["fields"] = {"location": "Stanton", "size": "2"}
+    cog = make_cog(beacon=record)
+    interaction = _interaction(user_id=3)
+    interaction.channel.add_user = AsyncMock()
+    interaction.channel.send = AsyncMock(side_effect=[None, discord.HTTPException(MagicMock(status=500), "boom")])
+    await lifecycle.handle_join(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["full_announced"] is True
+    interaction.followup.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_join_does_not_reannounce_full_after_leave_and_rejoin(make_cog):
+    record = _open_beacon_record(category="squad", members=[2], status="active")
+    record["fields"] = {"location": "Stanton", "size": "2"}
+    record["full_announced"] = True
+    cog = make_cog(beacon=record)
+    interaction = _interaction(user_id=3)
+    interaction.channel.add_user = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
+    sends = [c.args[0] for c in interaction.channel.send.await_args_list]
+    assert not any("full" in s.lower() for s in sends)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["full_announced"] is True
+
+
+@pytest.mark.asyncio
 async def test_join_creates_voice_channel_when_enabled(make_cog):
     config = dict(THREAD_CONFIG, settings={"voice": True})
     cog = make_cog(config=config, beacon=_open_beacon_record())
@@ -338,6 +368,36 @@ async def test_close_posts_commend_prompt_and_deletes_voice(make_cog):
     assert any(v is not None for v in kw_views)
     voice.delete.assert_awaited_once()
     assert "closed" in sends.lower()
+
+
+def _forum_channel():
+    parent = MagicMock()
+    parent.get_tag = MagicMock(return_value=None)
+    channel = MagicMock()
+    channel.id = 99
+    channel.parent = parent
+    channel.applied_tags = []
+    channel.send = AsyncMock()
+    channel.edit = AsyncMock()
+    return channel
+
+
+@pytest.mark.asyncio
+async def test_forum_close_with_members_unlocks_for_commend(make_cog):
+    record = _open_beacon_record(status=STATUS_ACTIVE, members=[2])
+    cog = make_cog(config=FORUM_CONFIG, beacon=record)
+    channel = _forum_channel()
+    await lifecycle.close_beacon(cog, channel, record, 1)
+    assert channel.edit.await_args.kwargs["locked"] is False
+
+
+@pytest.mark.asyncio
+async def test_forum_close_with_no_members_stays_locked(make_cog):
+    record = _open_beacon_record(status=STATUS_OPEN, members=[])
+    cog = make_cog(config=FORUM_CONFIG, beacon=record)
+    channel = _forum_channel()
+    await lifecycle.close_beacon(cog, channel, record, 1)
+    assert channel.edit.await_args.kwargs["locked"] is True
 
 
 @pytest.mark.asyncio

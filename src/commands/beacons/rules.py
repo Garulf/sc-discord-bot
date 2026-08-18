@@ -24,6 +24,7 @@ def normalize_beacon(beacon: dict[str, Any]) -> dict[str, Any]:
     beacon.setdefault("voice_channel_id", None)
     beacon.setdefault("commended", False)
     beacon.setdefault("nudged", [])
+    beacon.setdefault("full_announced", False)
     return beacon
 
 

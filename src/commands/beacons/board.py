@@ -12,6 +12,8 @@ from .rules import STATUS_ACTIVE
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_EMOJI = "\N{ROUND PUSHPIN}"
+
 
 def _status_label(status: str) -> str:
     return "Active" if status == STATUS_ACTIVE else "Open"
@@ -19,6 +21,11 @@ def _status_label(status: str) -> str:
 
 def _opened_at(entry: tuple[int, dict]) -> float:
     return entry[1]["opened_at"]
+
+
+def _emoji_for(category_key: str) -> str:
+    category = CATEGORIES.get(category_key)
+    return category.emoji if category is not None else _DEFAULT_EMOJI
 
 
 def build_board_embed(entries: list[tuple[int, dict]]) -> discord.Embed:
@@ -29,14 +36,14 @@ def build_board_embed(entries: list[tuple[int, dict]]) -> discord.Embed:
     active = sorted((e for e in entries if e[1]["status"] == STATUS_ACTIVE), key=_opened_at)
     open_ = sorted((e for e in entries if e[1]["status"] != STATUS_ACTIVE), key=_opened_at)
     lines = [
-        f"{CATEGORIES[beacon['category']].emoji} <#{thread_id}> - {_status_label(beacon['status'])}"
+        f"{_emoji_for(beacon['category'])} <#{thread_id}> - {_status_label(beacon['status'])}"
         for thread_id, beacon in active + open_
     ]
     embed.description = "\n".join(lines)
     return embed
 
 
-async def refresh_board(cog, guild) -> None:
+async def refresh_board(cog, guild, entries: list[tuple[int, dict]] | None = None) -> None:
     config = await store.get_config(cog.bot.state, guild.id)
     if not config or "board" not in config:
         return
@@ -44,7 +51,8 @@ async def refresh_board(cog, guild) -> None:
     channel = guild.get_channel(board_info["channel_id"])
     if channel is None:
         return
-    entries = await store.open_beacons(cog.bot.state, guild.id)
+    if entries is None:
+        entries = await store.open_beacons(cog.bot.state, guild.id)
     embed = build_board_embed(entries)
     try:
         await channel.get_partial_message(board_info["message_id"]).edit(embed=embed)

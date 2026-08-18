@@ -224,7 +224,7 @@ async def _create_voice_channel(cog, interaction: discord.Interaction, beacon: d
         logger.warning("Could not create a voice channel for beacon thread %s", interaction.channel.id)
 
 
-async def _announce_if_full(interaction: discord.Interaction, beacon: dict) -> None:
+async def _announce_if_full(cog, interaction: discord.Interaction, beacon: dict) -> None:
     size = beacon["fields"].get("size")
     if not size:
         return
@@ -232,8 +232,12 @@ async def _announce_if_full(interaction: discord.Interaction, beacon: dict) -> N
         needed = int(size)
     except (TypeError, ValueError):
         return
-    if len(beacon["members"]) == needed:
-        await interaction.channel.send(f"Party full! {len(beacon['members'])}/{needed} responders have joined.")
+    if len(beacon["members"]) >= needed and not beacon["full_announced"]:
+        beacon["full_announced"] = True
+        await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
+        await _send_best_effort(
+            interaction.channel, f"Party full! {len(beacon['members'])}/{needed} responders have joined."
+        )
 
 
 async def handle_join(cog, interaction: discord.Interaction) -> None:
@@ -265,7 +269,7 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
             logger.warning("Could not add %s to beacon thread %s", interaction.user.id, interaction.channel.id)
         await interaction.message.edit(embed=build_beacon_embed(beacon))
         await interaction.channel.send(f"{interaction.user.mention} joined this beacon.")
-        await _announce_if_full(interaction, beacon)
+        await _announce_if_full(cog, interaction, beacon)
         await _reply(interaction, "You joined the beacon.")
         await _refresh_board(cog, interaction.guild)
 
@@ -338,7 +342,7 @@ async def close_beacon(cog, channel, beacon: dict, closed_by_id: int | None, mes
         await _send_best_effort(channel, "Time to commend the responders who helped!", view=CommendView(cog))
     if beacon["voice_channel_id"]:
         await _delete_voice_channel(channel, beacon)
-    await _archive_channel(cog, channel, beacon["guild_id"])
+    await _archive_channel(cog, channel, beacon)
     await _refresh_board(cog, channel.guild)
 
 
@@ -351,8 +355,8 @@ async def _delete_voice_channel(channel, beacon: dict) -> None:
         logger.warning("Could not delete voice channel %s", beacon["voice_channel_id"])
 
 
-async def _archive_channel(cog, channel, guild_id: int) -> None:
-    config = await store.get_config(cog.bot.state, guild_id)
+async def _archive_channel(cog, channel, beacon: dict) -> None:
+    config = await store.get_config(cog.bot.state, beacon["guild_id"])
     try:
         if config and config["mode"] == "forum":
             parent = channel.parent
@@ -361,7 +365,8 @@ async def _archive_channel(cog, channel, guild_id: int) -> None:
             tags = [tag for tag in channel.applied_tags if tag != open_tag]
             if closed_tag is not None:
                 tags.append(closed_tag)
-            await channel.edit(applied_tags=tags, archived=True, locked=True)
+            needs_commend = bool(beacon["members"]) and not beacon["commended"]
+            await channel.edit(applied_tags=tags, archived=True, locked=not needs_commend)
         else:
             await channel.edit(archived=True)
     except discord.HTTPException:

@@ -359,7 +359,7 @@ class BeaconsCog(commands.Cog):
     @app_commands.describe(
         idle_warn="Minutes idle before a warning (5-1440)",
         idle_close="Minutes idle before auto-closing (5-1440)",
-        escalate="Minutes after the warning before escalating (1-1440)",
+        escalate="Minutes with no responders before pinging the category role (1-1440)",
         voice="Auto-create a voice channel when a beacon fills",
         digest_channel="Channel to post the weekly digest in",
         clear_digest="Unset the digest channel",
