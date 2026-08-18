@@ -23,12 +23,15 @@ _ACTIVITY_WRITE_THROUGH_SECONDS = 60
 _locks: dict[str, asyncio.Lock] = {}
 
 
-def _lock_for(key: str) -> asyncio.Lock:
+def lock_for(key: str) -> asyncio.Lock:
     lock = _locks.get(key)
     if lock is None:
         lock = asyncio.Lock()
         _locks[key] = lock
     return lock
+
+
+_lock_for = lock_for
 
 
 def _field_kinds(category) -> dict[str, str]:

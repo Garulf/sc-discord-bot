@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock
 
+import discord
 import pytest
 
 from src.commands.beacons import maintenance
-from src.commands.beacons.rules import STATUS_ACTIVE, STATUS_OPEN
+from src.commands.beacons.rules import STATUS_ACTIVE, STATUS_CLOSED, STATUS_OPEN
 
 SETTINGS_CONFIG = {
     "roles": {},
@@ -41,11 +42,17 @@ def _beacon(**overrides):
 @pytest.fixture
 def make_cog(monkeypatch):
     def _make(config=None, beacons=None):
+        beacons = beacons or []
+        by_id = dict(beacons)
         cog = MagicMock()
         cog.bot.state = MagicMock()
         monkeypatch.setattr(maintenance.store, "get_config", AsyncMock(return_value=config))
-        monkeypatch.setattr(maintenance.store, "open_beacons", AsyncMock(return_value=beacons or []))
+        monkeypatch.setattr(maintenance.store, "open_beacons", AsyncMock(return_value=beacons))
+        monkeypatch.setattr(
+            maintenance.store, "get_beacon", AsyncMock(side_effect=lambda state, tid: by_id.get(tid))
+        )
         monkeypatch.setattr(maintenance.store, "save_beacon", AsyncMock())
+        monkeypatch.setattr(maintenance.store, "clear_open_beacon", AsyncMock())
         return cog
 
     return _make
@@ -172,15 +179,59 @@ async def test_auto_close_invoked_after_warn_and_timeout(make_cog, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_missing_thread_is_skipped(make_cog):
+async def test_closed_beacon_from_re_read_is_skipped(make_cog):
+    beacon = _beacon(opened_at=0.0, last_activity_at=0.0, status=STATUS_CLOSED)
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[(99, beacon)])
+    thread = _thread()
+    guild = _guild(thread)
+    await maintenance.run_maintenance(cog, guild, now=15 * 60)
+    thread.send.assert_not_called()
+    maintenance.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_beacon_removed_before_lock_is_skipped(make_cog, monkeypatch):
     beacon = _beacon(opened_at=0.0, last_activity_at=0.0)
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[(99, beacon)])
+    monkeypatch.setattr(maintenance.store, "get_beacon", AsyncMock(return_value=None))
+    thread = _thread()
+    guild = _guild(thread)
+    await maintenance.run_maintenance(cog, guild, now=15 * 60)
+    thread.send.assert_not_called()
+    maintenance.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_thread_resolution_falls_back_to_fetch_channel(make_cog):
+    beacon = _beacon(opened_at=0.0, last_activity_at=0.0)
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[(99, beacon)])
+    thread = _thread()
+    guild = MagicMock()
+    guild.id = 1
+    guild.get_thread = MagicMock(return_value=None)
+    guild.get_channel = MagicMock(return_value=None)
+    guild.fetch_channel = AsyncMock(return_value=thread)
+    await maintenance.run_maintenance(cog, guild, now=15 * 60)
+    guild.fetch_channel.assert_awaited_once_with(99)
+    thread.send.assert_awaited_once()
+    maintenance.store.save_beacon.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_record_closed_and_index_cleared_when_fetch_raises_not_found(make_cog):
+    beacon = _beacon(opened_at=0.0, last_activity_at=0.0, guild_id=7, requester_id=3, category="medic")
     cog = make_cog(config=SETTINGS_CONFIG, beacons=[(99, beacon)])
     guild = MagicMock()
     guild.id = 1
     guild.get_thread = MagicMock(return_value=None)
     guild.get_channel = MagicMock(return_value=None)
-    await maintenance.run_maintenance(cog, guild, now=15 * 60)
-    maintenance.store.save_beacon.assert_not_awaited()
+    guild.fetch_channel = AsyncMock(side_effect=discord.NotFound(MagicMock(status=404), "Unknown Channel"))
+    await maintenance.run_maintenance(cog, guild, now=999.0)
+    saved = maintenance.store.save_beacon.await_args.args[2]
+    assert saved["status"] == STATUS_CLOSED
+    assert saved["closed_at"] == 999.0
+    assert saved["closed_by_id"] is None
+    maintenance.store.clear_open_beacon.assert_awaited_once_with(cog.bot.state, 7, 3, "medic")
 
 
 @pytest.mark.asyncio
