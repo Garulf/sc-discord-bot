@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.commands.tickets.location import format_breadcrumb, location_autocomplete, parse_location
 

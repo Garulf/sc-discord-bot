@@ -28,9 +28,7 @@ def format_breadcrumb(raw: str) -> str:
     return _SEPARATOR.join(parts) if parts else raw
 
 
-async def location_autocomplete(
-    interaction: discord.Interaction, current: str
-) -> list[app_commands.Choice[str]]:
+async def location_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     query = current.rsplit(":", 1)[-1].strip()
     client = interaction.client
     results = await asyncio.gather(

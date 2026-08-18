@@ -1,7 +1,7 @@
 import pytest
 
-from src.storage import Database, StateStore
 from src.commands.tickets import store
+from src.storage import Database, StateStore
 
 
 @pytest.fixture
