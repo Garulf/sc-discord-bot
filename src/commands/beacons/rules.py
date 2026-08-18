@@ -28,10 +28,12 @@ def normalize_beacon(beacon: dict[str, Any]) -> dict[str, Any]:
     return beacon
 
 
-def can_join(beacon: dict[str, Any], user_id: int) -> bool:
+def can_join(beacon: dict[str, Any], user_id: int, *, allow_requester: bool = False) -> bool:
     if beacon["status"] == STATUS_CLOSED:
         return False
-    return user_id != beacon["requester_id"] and user_id not in beacon["members"]
+    if user_id == beacon["requester_id"] and not allow_requester:
+        return False
+    return user_id not in beacon["members"]
 
 
 def can_leave(beacon: dict[str, Any], user_id: int) -> bool:

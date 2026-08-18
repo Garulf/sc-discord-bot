@@ -249,7 +249,8 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
         if can_leave(beacon, interaction.user.id):
             await _leave_beacon(cog, interaction, beacon)
             return
-        if not can_join(beacon, interaction.user.id):
+        allow_requester = await cog.bot.is_owner(interaction.user)
+        if not can_join(beacon, interaction.user.id, allow_requester=allow_requester):
             await _reply(interaction, "You cannot join this beacon.")
             return
         now = time.time()

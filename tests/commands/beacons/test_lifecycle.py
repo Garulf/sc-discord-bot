@@ -42,6 +42,7 @@ def make_cog(monkeypatch):
     def _make(config=None, beacon=None, open_beacon=None):
         cog = MagicMock()
         cog.bot.state = MagicMock()
+        cog.bot.is_owner = AsyncMock(return_value=False)
         monkeypatch.setattr(lifecycle.store, "get_config", AsyncMock(return_value=config))
         monkeypatch.setattr(lifecycle.store, "set_config", AsyncMock())
         monkeypatch.setattr(lifecycle.store, "get_beacon", AsyncMock(return_value=beacon))
@@ -246,6 +247,18 @@ async def test_requester_cannot_join_own_beacon(make_cog):
     await lifecycle.handle_join(cog, interaction)
     lifecycle.store.save_beacon.assert_not_awaited()
     assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+
+
+@pytest.mark.asyncio
+async def test_bot_owner_can_join_own_beacon(make_cog):
+    cog = make_cog(beacon=_open_beacon_record())
+    cog.bot.is_owner = AsyncMock(return_value=True)
+    interaction = _interaction(user_id=1)
+    interaction.channel.add_user = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["members"] == [1]
+    assert saved["status"] == STATUS_ACTIVE
 
 
 @pytest.mark.asyncio
@@ -565,6 +578,7 @@ async def test_concurrent_joins_keep_both_members(monkeypatch):
 
     cog = MagicMock()
     cog.bot.state = MagicMock()
+    cog.bot.is_owner = AsyncMock(return_value=False)
     interaction_a = _interaction(user_id=2, channel_id=99)
     interaction_a.channel.add_user = AsyncMock()
     interaction_b = _interaction(user_id=3, channel_id=99)

@@ -18,6 +18,15 @@ def test_anyone_but_requester_can_join_open_beacon():
     assert not can_join(_beacon(), user_id=1)
 
 
+def test_requester_can_join_own_beacon_when_allowed():
+    assert can_join(_beacon(), user_id=1, allow_requester=True)
+
+
+def test_allow_requester_does_not_bypass_other_rules():
+    assert not can_join(_beacon(status=STATUS_CLOSED), user_id=1, allow_requester=True)
+    assert not can_join(_beacon(status=STATUS_ACTIVE, members=[1]), user_id=1, allow_requester=True)
+
+
 def test_more_responders_can_join_an_active_beacon():
     assert can_join(_beacon(status=STATUS_ACTIVE, members=[2]), user_id=3)
 
