@@ -6,12 +6,13 @@ pings.
 from __future__ import annotations
 
 import logging
+import time
 import traceback
 from typing import Literal
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
@@ -19,6 +20,7 @@ from . import store
 from .categories import CATEGORIES, CONTESTED_STATIONS
 from .lifecycle import handle_again, handle_close_command, handle_thread_message, open_beacon
 from .location import location_autocomplete
+from .maintenance import run_maintenance
 from .setup_cmd import handle_config, handle_role, handle_setup
 from .views import BeaconView, CommendView
 
@@ -44,6 +46,26 @@ class BeaconsCog(commands.Cog):
         self.bot.add_view(BeaconView(self, legacy=True))
         self.bot.add_view(CommendView(self))
         await self.refresh_command_mentions()
+        self.maintenance_loop.start()
+
+    async def cog_unload(self) -> None:
+        self.maintenance_loop.cancel()
+
+    @tasks.loop(minutes=5)
+    async def maintenance_loop(self) -> None:
+        for guild in self.bot.guilds:
+            try:
+                await run_maintenance(self, guild, time.time())
+            except Exception:
+                logger.exception("Beacon maintenance loop failed for guild %s", guild.id)
+
+    @maintenance_loop.before_loop
+    async def before_maintenance_loop(self) -> None:
+        await self.bot.wait_until_ready()
+
+    @maintenance_loop.error
+    async def maintenance_loop_error(self, error: Exception) -> None:
+        logger.exception("Beacon maintenance loop error: %s", error)
 
     async def refresh_command_mentions(self) -> None:
         try:
