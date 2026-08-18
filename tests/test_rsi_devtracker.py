@@ -79,3 +79,26 @@ def test_devpost_is_frozen():
         post_id=1, url="u", author="a", avatar_url=None, category=None, thread=None, details=None
     )
     assert post.post_id == 1
+
+
+def test_parse_devposts_details_captures_text_around_nested_inline_element():
+    html = (
+        '<a href="/spectrum/community/SC/forum/1/thread/x/12345" class="devpost">'
+        '<div class="nickname">Wakapedia-CIG</div>'
+        '<p class="details">Before <span>middle</span> after text.</p>'
+        "</a>"
+    )
+    posts = parse_devposts(html)
+    assert len(posts) == 1
+    assert posts[0].details == "Before middle after text."
+
+
+def test_parse_devposts_nickname_captures_text_around_nested_inline_element():
+    html = (
+        '<a href="/spectrum/community/SC/forum/1/thread/x/12345" class="devpost">'
+        '<div class="nickname">Wak<span>a</span>pedia-CIG</div>'
+        "</a>"
+    )
+    posts = parse_devposts(html)
+    assert len(posts) == 1
+    assert posts[0].author == "Wakapedia-CIG"

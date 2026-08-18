@@ -36,6 +36,8 @@ class _DevPostHTMLParser(HTMLParser):
         self.blocks: list[dict] = []
         self._current: dict | None = None
         self._text_field: str | None = None
+        self._field_tag: str | None = None
+        self._field_depth: int = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -45,12 +47,17 @@ class _DevPostHTMLParser(HTMLParser):
             return
         if self._current is None:
             return
+        if self._text_field is not None and tag == self._field_tag:
+            self._field_depth += 1
+            return
         if tag == "img" and "avatar_url" not in self._current:
             self._current["avatar_url"] = attributes.get("src")
             return
         for css_class, field in self._TEXT_CLASSES.items():
             if css_class in css:
                 self._text_field = field
+                self._field_tag = tag
+                self._field_depth = 1
                 self._current.setdefault(field, "")
                 return
 
@@ -59,9 +66,13 @@ class _DevPostHTMLParser(HTMLParser):
             self._current[self._text_field] += data
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in ("div", "span", "p"):
-            self._text_field = None
-        elif tag == "a" and self._current is not None:
+        if self._text_field is not None and tag == self._field_tag:
+            self._field_depth -= 1
+            if self._field_depth == 0:
+                self._text_field = None
+                self._field_tag = None
+            return
+        if tag == "a" and self._current is not None:
             self.blocks.append(self._current)
             self._current = None
 
