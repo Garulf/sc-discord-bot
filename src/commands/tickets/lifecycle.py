@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -18,6 +19,16 @@ logger = logging.getLogger(__name__)
 _LOCATION_KEYS = {"location", "route_from", "route_to"}
 _SC_BOT_ROLE = "sc-bot"
 
+_locks: dict[str, asyncio.Lock] = {}
+
+
+def _lock_for(key: str) -> asyncio.Lock:
+    lock = _locks.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _locks[key] = lock
+    return lock
+
 
 def is_ticket_admin(interaction: discord.Interaction) -> bool:
     member = interaction.user
@@ -29,10 +40,11 @@ def is_ticket_admin(interaction: discord.Interaction) -> bool:
 
 
 async def _reply(interaction: discord.Interaction, message: str) -> None:
-    await interaction.response.send_message(message, ephemeral=True)
+    await interaction.followup.send(message, ephemeral=True)
 
 
 async def open_ticket(cog, interaction: discord.Interaction, category_key: str, field_values: dict[str, str]) -> None:
+    await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
     category = CATEGORIES[category_key]
 
@@ -50,64 +62,68 @@ async def open_ticket(cog, interaction: discord.Interaction, category_key: str, 
         await _reply(interaction, "Tickets are not set up yet. Ask an admin to run `/ticket setup`.")
         return
 
-    existing = await store.get_open_ticket(cog.bot.state, guild.id, interaction.user.id, category_key)
-    if existing is not None:
-        await _reply(
-            interaction,
-            f"You already have an open {category.label} ticket: https://discord.com/channels/{guild.id}/{existing}",
-        )
-        return
-
-    channel = guild.get_channel(config["channel_id"])
-    if channel is None:
-        await _reply(interaction, "The ticket channel is missing. Ask an admin to re-run `/ticket setup`.")
-        return
-
-    ticket = {
-        "guild_id": guild.id,
-        "category": category_key,
-        "requester_id": interaction.user.id,
-        "claimer_id": None,
-        "status": STATUS_OPEN,
-        "opened_at": time.time(),
-        "closed_at": None,
-        "closed_by_id": None,
-        "fields": field_values,
-    }
-    name = ticket_title(category_key, interaction.user.display_name)
-    content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
-    embed = build_ticket_embed(ticket)
-
-    try:
-        if config["mode"] == "forum":
-            tags = [
-                tag for tag_key in (category_key, "open") if (tag := _resolve_tag(channel, config, tag_key)) is not None
-            ]
-            created = await channel.create_thread(
-                name=name,
-                content=content or None,
-                embed=embed,
-                applied_tags=tags,
-                view=cog.ticket_view,
+    lock = _lock_for(f"open:{guild.id}:{interaction.user.id}:{category_key}")
+    async with lock:
+        existing = await store.get_open_ticket(cog.bot.state, guild.id, interaction.user.id, category_key)
+        if existing is not None:
+            await _reply(
+                interaction,
+                f"You already have an open {category.label} ticket: https://discord.com/channels/{guild.id}/{existing}",
             )
-            thread = created.thread
-        else:
-            thread = await channel.create_thread(name=name, type=discord.ChannelType.public_thread)
-            await thread.send(content=content, embed=embed, view=cog.ticket_view)
-        if dropped_role_note:
-            await thread.send(dropped_role_note)
-        await thread.add_user(interaction.user)
-    except discord.HTTPException as error:
-        logger.exception("Failed to create ticket thread")
-        await _reply(interaction, f"Could not create the ticket: {error}. Check the bot's channel permissions.")
-        return
+            return
 
-    if role_dropped:
-        config["roles"].pop(category_key, None)
-        await store.set_config(cog.bot.state, guild.id, config)
-    await store.save_ticket(cog.bot.state, thread.id, ticket)
-    await store.set_open_ticket(cog.bot.state, guild.id, interaction.user.id, category_key, thread.id)
-    await _reply(interaction, f"Ticket opened: {thread.mention}")
+        channel = guild.get_channel(config["channel_id"])
+        if channel is None:
+            await _reply(interaction, "The ticket channel is missing. Ask an admin to re-run `/ticket setup`.")
+            return
+
+        ticket = {
+            "guild_id": guild.id,
+            "category": category_key,
+            "requester_id": interaction.user.id,
+            "claimer_id": None,
+            "status": STATUS_OPEN,
+            "opened_at": time.time(),
+            "closed_at": None,
+            "closed_by_id": None,
+            "fields": field_values,
+        }
+        name = ticket_title(category_key, interaction.user.display_name)
+        content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
+        embed = build_ticket_embed(ticket)
+
+        try:
+            if config["mode"] == "forum":
+                tags = [
+                    tag
+                    for tag_key in (category_key, "open")
+                    if (tag := _resolve_tag(channel, config, tag_key)) is not None
+                ]
+                created = await channel.create_thread(
+                    name=name,
+                    content=content or None,
+                    embed=embed,
+                    applied_tags=tags,
+                    view=cog.ticket_view,
+                )
+                thread = created.thread
+            else:
+                thread = await channel.create_thread(name=name, type=discord.ChannelType.public_thread)
+                await thread.send(content=content, embed=embed, view=cog.ticket_view)
+            if dropped_role_note:
+                await thread.send(dropped_role_note)
+            await thread.add_user(interaction.user)
+        except discord.HTTPException as error:
+            logger.exception("Failed to create ticket thread")
+            await _reply(interaction, f"Could not create the ticket: {error}. Check the bot's channel permissions.")
+            return
+
+        if role_dropped:
+            config["roles"].pop(category_key, None)
+            await store.set_config(cog.bot.state, guild.id, config)
+        await store.save_ticket(cog.bot.state, thread.id, ticket)
+        await store.set_open_ticket(cog.bot.state, guild.id, interaction.user.id, category_key, thread.id)
+        await _reply(interaction, f"Ticket opened: {thread.mention}")
 
 
 def _resolve_ping_content(guild, config: dict, category_key: str, category) -> tuple[str, str | None, bool]:
@@ -147,29 +163,7 @@ async def _disable_buttons(interaction: discord.Interaction) -> None:
         logger.warning("Could not disable buttons on ticket message %s", interaction.channel.id)
 
 
-async def handle_claim(cog, interaction: discord.Interaction) -> None:
-    ticket = await _load_ticket(cog, interaction)
-    if ticket is None:
-        return
-    if can_unclaim(ticket, interaction.user.id):
-        await handle_unclaim(cog, interaction, ticket)
-        return
-    if not can_claim(ticket, interaction.user.id):
-        await _reply(interaction, "You cannot claim this ticket.")
-        return
-    ticket["status"] = STATUS_CLAIMED
-    ticket["claimer_id"] = interaction.user.id
-    await store.save_ticket(cog.bot.state, interaction.channel.id, ticket)
-    await interaction.message.edit(embed=build_ticket_embed(ticket))
-    await interaction.channel.send(f"{interaction.user.mention} claimed this ticket.")
-    await _reply(interaction, "Ticket claimed.")
-
-
-async def handle_unclaim(cog, interaction: discord.Interaction, ticket: dict | None = None) -> None:
-    if ticket is None:
-        ticket = await _load_ticket(cog, interaction)
-        if ticket is None:
-            return
+async def _unclaim_ticket(cog, interaction: discord.Interaction, ticket: dict) -> None:
     if not can_unclaim(ticket, interaction.user.id):
         await _reply(interaction, "Only the current claimer can unclaim.")
         return
@@ -181,23 +175,57 @@ async def handle_unclaim(cog, interaction: discord.Interaction, ticket: dict | N
     await _reply(interaction, "Ticket unclaimed.")
 
 
+async def handle_claim(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"ticket:{interaction.channel.id}"):
+        ticket = await _load_ticket(cog, interaction)
+        if ticket is None:
+            return
+        if can_unclaim(ticket, interaction.user.id):
+            await _unclaim_ticket(cog, interaction, ticket)
+            return
+        if not can_claim(ticket, interaction.user.id):
+            await _reply(interaction, "You cannot claim this ticket.")
+            return
+        ticket["status"] = STATUS_CLAIMED
+        ticket["claimer_id"] = interaction.user.id
+        await store.save_ticket(cog.bot.state, interaction.channel.id, ticket)
+        await interaction.message.edit(embed=build_ticket_embed(ticket))
+        await interaction.channel.send(f"{interaction.user.mention} claimed this ticket.")
+        await _reply(interaction, "Ticket claimed.")
+
+
+async def handle_unclaim(cog, interaction: discord.Interaction, ticket: dict | None = None) -> None:
+    if ticket is not None:
+        await _unclaim_ticket(cog, interaction, ticket)
+        return
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"ticket:{interaction.channel.id}"):
+        ticket = await _load_ticket(cog, interaction)
+        if ticket is None:
+            return
+        await _unclaim_ticket(cog, interaction, ticket)
+
+
 async def handle_close(cog, interaction: discord.Interaction) -> None:
-    ticket = await _load_ticket(cog, interaction)
-    if ticket is None:
-        return
-    if not can_close(ticket, interaction.user.id, is_ticket_admin(interaction)):
-        await _reply(interaction, "Only the requester, the claimer, or an admin can close this ticket.")
-        return
-    ticket["status"] = STATUS_CLOSED
-    ticket["closed_at"] = time.time()
-    ticket["closed_by_id"] = interaction.user.id
-    await store.save_ticket(cog.bot.state, interaction.channel.id, ticket)
-    await store.clear_open_ticket(cog.bot.state, ticket["guild_id"], ticket["requester_id"], ticket["category"])
-    await interaction.message.edit(embed=build_ticket_embed(ticket))
-    await interaction.channel.send(f"Ticket closed by {interaction.user.mention}.")
-    await _disable_buttons(interaction)
-    await _reply(interaction, "Ticket closed.")
-    await _archive_channel(cog, interaction)
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"ticket:{interaction.channel.id}"):
+        ticket = await _load_ticket(cog, interaction)
+        if ticket is None:
+            return
+        if not can_close(ticket, interaction.user.id, is_ticket_admin(interaction)):
+            await _reply(interaction, "Only the requester, the claimer, or an admin can close this ticket.")
+            return
+        ticket["status"] = STATUS_CLOSED
+        ticket["closed_at"] = time.time()
+        ticket["closed_by_id"] = interaction.user.id
+        await store.save_ticket(cog.bot.state, interaction.channel.id, ticket)
+        await store.clear_open_ticket(cog.bot.state, ticket["guild_id"], ticket["requester_id"], ticket["category"])
+        await interaction.message.edit(embed=build_ticket_embed(ticket))
+        await interaction.channel.send(f"Ticket closed by {interaction.user.mention}.")
+        await _disable_buttons(interaction)
+        await _reply(interaction, "Ticket closed.")
+        await _archive_channel(cog, interaction)
 
 
 async def _archive_channel(cog, interaction: discord.Interaction) -> None:

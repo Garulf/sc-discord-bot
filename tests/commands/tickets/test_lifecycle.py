@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
@@ -7,6 +8,13 @@ from src.commands.tickets import lifecycle
 from src.commands.tickets.rules import STATUS_CLAIMED, STATUS_OPEN
 
 THREAD_CONFIG = {"channel_id": 10, "mode": "thread", "panel_message_id": 11, "tag_ids": {}, "roles": {"medic": 5}}
+FORUM_CONFIG = {
+    "channel_id": 10,
+    "mode": "forum",
+    "panel_message_id": 11,
+    "tag_ids": {"medic": 200, "open": 201, "closed": 202},
+    "roles": {},
+}
 
 
 def _interaction(guild_id=1, user_id=42, channel_id=99, admin=False):
@@ -20,7 +28,9 @@ def _interaction(guild_id=1, user_id=42, channel_id=99, admin=False):
     interaction.channel.id = channel_id
     interaction.channel.send = AsyncMock()
     interaction.channel.edit = AsyncMock()
+    interaction.response.defer = AsyncMock()
     interaction.response.send_message = AsyncMock()
+    interaction.followup.send = AsyncMock()
     interaction.message.edit = AsyncMock()
     return interaction
 
@@ -47,8 +57,8 @@ async def test_open_rejects_malformed_location(make_cog):
     cog = make_cog(config=THREAD_CONFIG)
     interaction = _interaction()
     await lifecycle.open_ticket(cog, interaction, "medic", {"location": "a:b:c:d"})
-    interaction.response.send_message.assert_awaited_once()
-    assert "system:planet:location" in interaction.response.send_message.await_args.args[0]
+    interaction.followup.send.assert_awaited_once()
+    assert "system:planet:location" in interaction.followup.send.await_args.args[0]
     lifecycle.store.save_ticket.assert_not_awaited()
 
 
@@ -57,7 +67,7 @@ async def test_open_rejects_duplicate(make_cog):
     cog = make_cog(config=THREAD_CONFIG, open_ticket=555)
     interaction = _interaction()
     await lifecycle.open_ticket(cog, interaction, "medic", {"location": "Stanton"})
-    msg = interaction.response.send_message.await_args.args[0]
+    msg = interaction.followup.send.await_args.args[0]
     assert "555" in msg
     lifecycle.store.save_ticket.assert_not_awaited()
 
@@ -67,7 +77,7 @@ async def test_open_requires_setup(make_cog):
     cog = make_cog(config=None)
     interaction = _interaction()
     await lifecycle.open_ticket(cog, interaction, "medic", {"location": "Stanton"})
-    assert "setup" in interaction.response.send_message.await_args.args[0]
+    assert "setup" in interaction.followup.send.await_args.args[0]
 
 
 @pytest.mark.asyncio
@@ -162,7 +172,7 @@ async def test_requester_cannot_claim_own_ticket(make_cog):
     interaction = _interaction(user_id=1)
     await lifecycle.handle_claim(cog, interaction)
     lifecycle.store.save_ticket.assert_not_awaited()
-    assert interaction.response.send_message.await_args.kwargs.get("ephemeral") is True
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
 
 
 @pytest.mark.asyncio
@@ -187,7 +197,70 @@ async def test_untracked_ticket_button_replies_ephemerally(make_cog, monkeypatch
     fake_view.add_item(discord.ui.Button(label="Claim"))
     monkeypatch.setattr(discord.ui.View, "from_message", lambda message, **kwargs: fake_view)
     await lifecycle.handle_claim(cog, interaction)
-    assert "no longer tracked" in interaction.response.send_message.await_args.args[0]
+    assert "no longer tracked" in interaction.followup.send.await_args.args[0]
     assert fake_view.children[0].disabled is True
     interaction.message.edit.assert_awaited_once_with(view=fake_view)
     assert interaction.message.edit.await_args.kwargs["view"] is not cog.ticket_view
+
+
+@pytest.mark.asyncio
+async def test_open_forum_mode_applies_tags_and_saves_thread(make_cog):
+    cog = make_cog(config=FORUM_CONFIG)
+    interaction = _interaction()
+    thread = MagicMock()
+    thread.id = 900
+    thread.send = AsyncMock()
+    thread.add_user = AsyncMock()
+    created = MagicMock()
+    created.thread = thread
+    channel = MagicMock(spec=discord.ForumChannel)
+    channel.create_thread = AsyncMock(return_value=created)
+    medic_tag = MagicMock()
+    open_tag = MagicMock()
+    tags_by_id = {200: medic_tag, 201: open_tag}
+    channel.get_tag = MagicMock(side_effect=lambda tag_id: tags_by_id.get(tag_id))
+    interaction.guild.get_channel = MagicMock(return_value=channel)
+    await lifecycle.open_ticket(cog, interaction, "medic", {"location": "Stanton"})
+    channel.create_thread.assert_awaited_once()
+    applied_tags = channel.create_thread.await_args.kwargs["applied_tags"]
+    assert medic_tag in applied_tags
+    assert open_tag in applied_tags
+    lifecycle.store.save_ticket.assert_awaited_once()
+    assert lifecycle.store.save_ticket.await_args.args[1] == 900
+
+
+@pytest.mark.asyncio
+async def test_concurrent_claims_only_one_succeeds(monkeypatch):
+    ticket_state = {99: _open_ticket_record(requester_id=1)}
+
+    async def fake_get_ticket(state, channel_id):
+        await asyncio.sleep(0)
+        return dict(ticket_state[channel_id])
+
+    async def fake_save_ticket(state, channel_id, ticket):
+        await asyncio.sleep(0)
+        ticket_state[channel_id] = ticket
+
+    monkeypatch.setattr(lifecycle.store, "get_ticket", fake_get_ticket)
+    monkeypatch.setattr(lifecycle.store, "save_ticket", fake_save_ticket)
+
+    cog = MagicMock()
+    cog.bot.state = MagicMock()
+    interaction_a = _interaction(user_id=2, channel_id=99)
+    interaction_b = _interaction(user_id=3, channel_id=99)
+
+    await asyncio.gather(
+        lifecycle.handle_claim(cog, interaction_a),
+        lifecycle.handle_claim(cog, interaction_b),
+    )
+
+    claimed = ticket_state[99]
+    assert claimed["status"] == STATUS_CLAIMED
+    assert claimed["claimer_id"] in (2, 3)
+
+    replies = [
+        interaction_a.followup.send.await_args.args[0],
+        interaction_b.followup.send.await_args.args[0],
+    ]
+    assert replies.count("Ticket claimed.") == 1
+    assert any("cannot claim" in reply for reply in replies)
