@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.commands.beacons.categories import CATEGORIES
-from src.commands.beacons.views import PanelView, BeaconView
+from src.commands.beacons.views import BeaconView, PanelView
 
 
 def test_panel_view_has_one_persistent_button_per_category():
@@ -48,3 +48,10 @@ async def test_beacon_buttons_delegate_to_lifecycle(monkeypatch):
     claim.assert_awaited_once_with(cog, interaction)
     await next(b for b in view.children if b.custom_id == "beacons:close").callback(interaction)
     close.assert_awaited_once_with(cog, interaction)
+
+
+def test_legacy_views_reuse_ticket_custom_ids():
+    panel = PanelView(MagicMock(), legacy=True)
+    assert {item.custom_id for item in panel.children} == {f"tickets:panel:{key}" for key in CATEGORIES}
+    beacon = BeaconView(MagicMock(), legacy=True)
+    assert {item.custom_id for item in beacon.children} == {"tickets:claim", "tickets:close"}

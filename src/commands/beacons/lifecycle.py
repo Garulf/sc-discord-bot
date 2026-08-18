@@ -10,13 +10,13 @@ import discord
 
 from . import store
 from .categories import CATEGORIES
-from .embeds import build_beacon_embed, beacon_title
+from .embeds import beacon_title, build_beacon_embed
 from .location import parse_location
 from .rules import STATUS_CLAIMED, STATUS_CLOSED, STATUS_OPEN, can_claim, can_close, can_unclaim
 
 logger = logging.getLogger(__name__)
 
-_LOCATION_KEYS = {"location", "route_from", "route_to"}
+_LOCATION_KINDS = {"location", "route"}
 _SC_BOT_ROLE = "sc-bot"
 
 _locks: dict[str, asyncio.Lock] = {}
@@ -28,6 +28,10 @@ def _lock_for(key: str) -> asyncio.Lock:
         lock = asyncio.Lock()
         _locks[key] = lock
     return lock
+
+
+def _field_kinds(category) -> dict[str, str]:
+    return {spec.key: spec.kind for spec in category.fields}
 
 
 def is_beacon_admin(interaction: discord.Interaction) -> bool:
@@ -49,7 +53,7 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
     category = CATEGORIES[category_key]
 
     for key, value in field_values.items():
-        if key in _LOCATION_KEYS and parse_location(value) is None:
+        if _field_kinds(category).get(key) in _LOCATION_KINDS and parse_location(value) is None:
             await _reply(
                 interaction,
                 f"`{value}` is not a valid location. Use the form `system:planet:location`, "

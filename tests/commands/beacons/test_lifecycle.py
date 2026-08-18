@@ -117,7 +117,7 @@ async def test_open_defers_dropped_role_config_write_until_after_creation(make_c
     lifecycle.store.set_config.assert_awaited_once()
     lifecycle.store.save_beacon.assert_awaited_once()
     thread.send.assert_any_await(
-        "The responder role mapped to Medic no longer exists and was unmapped. "
+        "The responder role mapped to Medical no longer exists and was unmapped. "
         "An admin can re-map it with `/beacon role`."
     )
 
@@ -264,3 +264,13 @@ async def test_concurrent_claims_only_one_succeeds(monkeypatch):
     ]
     assert replies.count("Beacon claimed.") == 1
     assert any("cannot claim" in reply for reply in replies)
+
+
+@pytest.mark.asyncio
+async def test_open_rejects_malformed_destination(make_cog):
+    cog = make_cog(config=THREAD_CONFIG)
+    interaction = _interaction()
+    await lifecycle.open_beacon(cog, interaction, "escort", {"location": "Stanton", "destination": "a:b:c:d"})
+    msg = interaction.followup.send.await_args.args[0]
+    assert "system:planet:location" in msg
+    lifecycle.store.save_beacon.assert_not_awaited()

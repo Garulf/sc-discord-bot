@@ -45,3 +45,18 @@ async def set_open_beacon(state: StateStore, guild_id: int, user_id: int, catego
 
 async def clear_open_beacon(state: StateStore, guild_id: int, user_id: int, category: str) -> None:
     await state.delete(_open_key(guild_id, user_id, category))
+
+
+_LEGACY_PREFIXES = {
+    "tickets:config:": "beacons:config:",
+    "tickets:ticket:": "beacons:beacon:",
+    "tickets:open:": "beacons:open:",
+}
+
+
+async def migrate_legacy_keys(state: StateStore) -> None:
+    for old_prefix, new_prefix in _LEGACY_PREFIXES.items():
+        for key in await state.keys(old_prefix):
+            value = await state.get(key)
+            await state.set(new_prefix + key.removeprefix(old_prefix), value)
+            await state.delete(key)

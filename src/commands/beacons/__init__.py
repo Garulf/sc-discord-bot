@@ -15,14 +15,15 @@ from discord.ext import commands
 
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
+from . import store
 from .lifecycle import open_beacon
 from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
-from .views import PanelView, BeaconView
+from .views import BeaconView, PanelView
 
 logger = logging.getLogger(__name__)
 
-_CategoryKey = Literal["mining", "medic", "squad", "backup", "cargo", "salvage"]
+_CategoryKey = Literal["mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport"]
 
 
 class BeaconsCog(commands.Cog):
@@ -35,10 +36,13 @@ class BeaconsCog(commands.Cog):
         self._beacon_command_id: int | None = None
 
     async def cog_load(self) -> None:
+        await store.migrate_legacy_keys(self.bot.state)
         self.panel_view = PanelView(self)
         self.beacon_view = BeaconView(self)
         self.bot.add_view(self.panel_view)
         self.bot.add_view(self.beacon_view)
+        self.bot.add_view(PanelView(self, legacy=True))
+        self.bot.add_view(BeaconView(self, legacy=True))
         try:
             commands_ = await self.bot.tree.fetch_commands()
             for command in commands_:
@@ -105,7 +109,7 @@ class BeaconsCog(commands.Cog):
         system: str,
         planet: str | None = None,
         location: str | None = None,
-        need: str | None = None,
+        need: Literal["Extra mining ship", "Refining help", "Escort", "Equipment"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": combine_location(system, planet, location)}
@@ -130,7 +134,7 @@ class BeaconsCog(commands.Cog):
         system: str,
         planet: str | None = None,
         location: str | None = None,
-        tier: str | None = None,
+        tier: Literal["T1", "T2", "T3"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": combine_location(system, planet, location)}
@@ -155,12 +159,12 @@ class BeaconsCog(commands.Cog):
         system: str,
         planet: str | None = None,
         location: str | None = None,
-        size: str | None = None,
+        size: app_commands.Range[int, 1, 50] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": combine_location(system, planet, location)}
         if size:
-            fields["size"] = size
+            fields["size"] = str(size)
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "squad", fields)
@@ -180,8 +184,8 @@ class BeaconsCog(commands.Cog):
         system: str,
         planet: str | None = None,
         location: str | None = None,
-        threat: str | None = None,
-        urgency: str | None = None,
+        threat: Literal["Players", "NPCs", "Mixed", "Unknown"] | None = None,
+        urgency: Literal["Low", "Medium", "High", "Critical"] | None = None,
     ) -> None:
         fields = {"location": combine_location(system, planet, location)}
         if threat:
@@ -204,12 +208,12 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         route_from: str,
         route_to: str,
-        scu: str | None = None,
+        scu: app_commands.Range[int, 1, 100000] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"route_from": route_from, "route_to": route_to}
         if scu:
-            fields["scu"] = scu
+            fields["scu"] = str(scu)
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "cargo", fields)
@@ -229,7 +233,7 @@ class BeaconsCog(commands.Cog):
         system: str,
         planet: str | None = None,
         location: str | None = None,
-        target: str | None = None,
+        target: Literal["Ship wreck", "Panels", "Structure", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": combine_location(system, planet, location)}
@@ -238,6 +242,66 @@ class BeaconsCog(commands.Cog):
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "salvage", fields)
+
+    @beacon.command(name="escort", description="Request a ship escort")
+    @app_commands.describe(
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
+        destination="Where you are headed (system:planet:location)",
+        notes="Extra details",
+    )
+    @app_commands.autocomplete(
+        system=system_autocomplete,
+        planet=planet_autocomplete,
+        location=poi_autocomplete,
+        destination=route_autocomplete,
+    )
+    async def escort(
+        self,
+        interaction: discord.Interaction,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
+        destination: str | None = None,
+        notes: str | None = None,
+    ) -> None:
+        fields = {"location": combine_location(system, planet, location)}
+        if destination:
+            fields["destination"] = destination
+        if notes:
+            fields["notes"] = notes
+        await open_beacon(self, interaction, "escort", fields)
+
+    @beacon.command(name="transport", description="Request personal transport")
+    @app_commands.describe(
+        system="Star system you are in",
+        planet="Planet or moon",
+        location="Landing zone, station, or outpost",
+        destination="Where you want to go (system:planet:location)",
+        notes="Extra details",
+    )
+    @app_commands.autocomplete(
+        system=system_autocomplete,
+        planet=planet_autocomplete,
+        location=poi_autocomplete,
+        destination=route_autocomplete,
+    )
+    async def transport(
+        self,
+        interaction: discord.Interaction,
+        system: str,
+        planet: str | None = None,
+        location: str | None = None,
+        destination: str | None = None,
+        notes: str | None = None,
+    ) -> None:
+        fields = {"location": combine_location(system, planet, location)}
+        if destination:
+            fields["destination"] = destination
+        if notes:
+            fields["notes"] = notes
+        await open_beacon(self, interaction, "transport", fields)
 
 
 async def setup(bot: commands.Bot) -> None:

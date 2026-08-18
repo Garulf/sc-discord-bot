@@ -131,6 +131,11 @@ class StateStore:
         )
         await self._db.conn.commit()
 
+    async def keys(self, prefix: str) -> list[str]:
+        async with self._db.conn.execute("SELECT key FROM state WHERE key LIKE ?", (f"{prefix}%",)) as cursor:
+            rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
     async def delete(self, key: str) -> None:
         await self._db.conn.execute("DELETE FROM state WHERE key = ?", (key,))
         await self._db.conn.commit()

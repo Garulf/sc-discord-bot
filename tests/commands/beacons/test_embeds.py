@@ -1,4 +1,4 @@
-from src.commands.beacons.embeds import build_panel_embed, build_beacon_embed, beacon_title
+from src.commands.beacons.embeds import beacon_title, build_beacon_embed, build_panel_embed
 from src.commands.beacons.rules import STATUS_CLAIMED, STATUS_CLOSED, STATUS_OPEN
 
 
@@ -19,12 +19,12 @@ def _beacon(**overrides):
 
 
 def test_beacon_title():
-    assert beacon_title("medic", "Garulf") == "[Medic] Garulf"
+    assert beacon_title("medic", "Garulf") == "[Medical] Garulf"
 
 
 def test_open_embed_shows_category_requester_and_fields():
     embed = build_beacon_embed(_beacon())
-    assert "Medic" in embed.title
+    assert "Medical" in embed.title
     field_names = [f.name for f in embed.fields]
     field_values = [f.value for f in embed.fields]
     assert "Location" in field_names
@@ -53,5 +53,24 @@ def test_unsubmitted_fields_are_omitted():
 def test_panel_embed_lists_all_categories():
     embed = build_panel_embed()
     description = embed.description or ""
-    for label in ("Mining", "Medic", "Squad/FPS", "Backup", "Cargo", "Salvage"):
+    for label in (
+        "Mining",
+        "Medical",
+        "Squad/FPS",
+        "Combat Backup",
+        "Cargo",
+        "Salvage",
+        "Escort",
+        "Personal Transport",
+    ):
         assert label in description
+
+
+def test_destination_renders_as_breadcrumb():
+    beacon = _beacon(
+        category="escort",
+        fields={"location": "Stanton:Hurston", "destination": "Stanton:Crusader:Orison"},
+    )
+    embed = build_beacon_embed(beacon)
+    values = [f.value for f in embed.fields]
+    assert "Stanton › Crusader › Orison" in values

@@ -1,4 +1,8 @@
-"""Persistent button views for the beacon panel and beacon messages."""
+"""Persistent button views for the beacon panel and beacon messages.
+
+Legacy variants keep the pre-rename ``tickets:`` custom ids alive so buttons
+on messages posted before the beacon rename still respond.
+"""
 
 from __future__ import annotations
 
@@ -8,14 +12,18 @@ from . import lifecycle
 from .categories import CATEGORIES
 
 
+def _prefix(legacy: bool) -> str:
+    return "tickets" if legacy else "beacons"
+
+
 class _PanelButton(discord.ui.Button):
-    def __init__(self, cog, category_key: str) -> None:
+    def __init__(self, cog, category_key: str, legacy: bool) -> None:
         category = CATEGORIES[category_key]
         super().__init__(
             label=category.label,
             emoji=category.emoji,
             style=discord.ButtonStyle.secondary,
-            custom_id=f"beacons:panel:{category_key}",
+            custom_id=f"{_prefix(legacy)}:panel:{category_key}",
         )
         self._cog = cog
         self._category_key = category_key
@@ -27,15 +35,15 @@ class _PanelButton(discord.ui.Button):
 
 
 class PanelView(discord.ui.View):
-    def __init__(self, cog) -> None:
+    def __init__(self, cog, legacy: bool = False) -> None:
         super().__init__(timeout=None)
         for key in CATEGORIES:
-            self.add_item(_PanelButton(cog, key))
+            self.add_item(_PanelButton(cog, key, legacy))
 
 
 class _ClaimButton(discord.ui.Button):
-    def __init__(self, cog) -> None:
-        super().__init__(label="Claim", style=discord.ButtonStyle.primary, custom_id="beacons:claim")
+    def __init__(self, cog, legacy: bool) -> None:
+        super().__init__(label="Claim", style=discord.ButtonStyle.primary, custom_id=f"{_prefix(legacy)}:claim")
         self._cog = cog
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -43,8 +51,8 @@ class _ClaimButton(discord.ui.Button):
 
 
 class _CloseButton(discord.ui.Button):
-    def __init__(self, cog) -> None:
-        super().__init__(label="Close", style=discord.ButtonStyle.danger, custom_id="beacons:close")
+    def __init__(self, cog, legacy: bool) -> None:
+        super().__init__(label="Close", style=discord.ButtonStyle.danger, custom_id=f"{_prefix(legacy)}:close")
         self._cog = cog
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -52,7 +60,7 @@ class _CloseButton(discord.ui.Button):
 
 
 class BeaconView(discord.ui.View):
-    def __init__(self, cog) -> None:
+    def __init__(self, cog, legacy: bool = False) -> None:
         super().__init__(timeout=None)
-        self.add_item(_ClaimButton(cog))
-        self.add_item(_CloseButton(cog))
+        self.add_item(_ClaimButton(cog, legacy))
+        self.add_item(_CloseButton(cog, legacy))

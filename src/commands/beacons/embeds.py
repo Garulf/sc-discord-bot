@@ -10,8 +10,6 @@ from .categories import CATEGORIES, short_label
 from .location import format_breadcrumb
 from .rules import STATUS_CLAIMED, STATUS_CLOSED
 
-_LOCATION_KEYS = {"location", "route_from", "route_to"}
-
 _STATUS_COLORS = {
     "open": discord.Color.green(),
     "claimed": discord.Color.gold(),
@@ -35,7 +33,7 @@ def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
         value = beacon["fields"].get(spec.key)
         if not value:
             continue
-        shown = format_breadcrumb(value) if spec.key in _LOCATION_KEYS else value
+        shown = format_breadcrumb(value) if spec.kind in ("location", "route") else value
         embed.add_field(name=spec.label, value=shown, inline=False)
     embed.add_field(name="Opened", value=f"<t:{int(beacon['opened_at'])}:R>", inline=True)
     return embed

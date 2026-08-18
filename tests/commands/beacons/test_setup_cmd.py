@@ -92,7 +92,7 @@ async def test_setup_in_forum_channel_creates_tags_and_pinned_post(monkeypatch):
     assert saved["mode"] == "forum"
     assert saved["channel_id"] == 20
     assert saved["panel_message_id"] == 55
-    expected_keys = {"mining", "medic", "squad", "backup", "cargo", "salvage", "open", "closed"}
+    expected_keys = {"mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport", "open", "closed"}
     assert set(saved["tag_ids"]) == expected_keys
     assert all(isinstance(v, int) for v in saved["tag_ids"].values())
     tag_names = [tag.name for tag in channel.available_tags]

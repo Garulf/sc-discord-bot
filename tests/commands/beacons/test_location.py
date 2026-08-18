@@ -109,9 +109,7 @@ async def test_planet_autocomplete_swallows_api_errors():
 
 @pytest.mark.asyncio
 async def test_poi_autocomplete_filters_by_system_and_planet():
-    interaction = _interaction(
-        pois=[_HURSTON, _DAYMAR, _LORVILLE, _EVERUS, _BLOOM], system="Stanton", planet="Hurston"
-    )
+    interaction = _interaction(pois=[_HURSTON, _DAYMAR, _LORVILLE, _EVERUS, _BLOOM], system="Stanton", planet="Hurston")
     choices = await poi_autocomplete(interaction, "e")
     assert [c.value for c in choices] == ["Lorville", "Everus Harbor"]
 
