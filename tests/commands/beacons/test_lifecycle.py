@@ -613,6 +613,72 @@ async def test_member_message_updates_activity_but_no_nudge(make_cog):
 
 
 @pytest.mark.asyncio
+async def test_close_command_rejects_untracked_channel(make_cog):
+    cog = make_cog(config=THREAD_CONFIG, beacon=None)
+    interaction = _interaction()
+    await lifecycle.handle_close_command(cog, interaction)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    assert interaction.followup.send.await_args.args[0] == "This channel is not a tracked beacon."
+    lifecycle.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_close_command_rejects_without_permission(make_cog):
+    cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=99)
+    await lifecycle.handle_close_command(cog, interaction)
+    assert "close this beacon" in interaction.followup.send.await_args.args[0]
+    lifecycle.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_close_command_closes_and_confirms(make_cog):
+    cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=2)
+    await lifecycle.handle_close_command(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["status"] == "closed"
+    assert saved["closed_by_id"] == 2
+    interaction.followup.send.assert_awaited_with("Beacon closed.", ephemeral=True)
+    interaction.message.edit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_again_replies_when_no_previous_beacon(monkeypatch):
+    monkeypatch.setattr(lifecycle.store, "get_last_open", AsyncMock(return_value=None))
+    cog = MagicMock()
+    cog.bot.state = MagicMock()
+    interaction = _interaction()
+    await lifecycle.handle_again(cog, interaction)
+    interaction.response.send_message.assert_awaited_once_with("No previous beacon to repeat.", ephemeral=True)
+    interaction.response.defer.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_again_reopens_last_beacon(monkeypatch, make_cog):
+    monkeypatch.setattr(
+        lifecycle.store,
+        "get_last_open",
+        AsyncMock(return_value={"category": "medic", "fields": {"location": "Stanton"}}),
+    )
+    cog = make_cog(config=THREAD_CONFIG)
+    interaction = _interaction()
+    thread = MagicMock()
+    thread.id = 900
+    thread.send = AsyncMock()
+    thread.add_user = AsyncMock()
+    channel = MagicMock()
+    channel.create_thread = AsyncMock(return_value=thread)
+    interaction.guild.get_channel = MagicMock(return_value=channel)
+    await lifecycle.handle_again(cog, interaction)
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+    lifecycle.store.save_beacon.assert_awaited_once()
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["category"] == "medic"
+    assert saved["fields"] == {"location": "Stanton"}
+
+
+@pytest.mark.asyncio
 async def test_activity_update_is_throttled_within_60_seconds(make_cog):
     now = time.time()
     cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2], last_activity_at=now))

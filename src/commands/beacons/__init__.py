@@ -17,9 +17,9 @@ from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from . import store
 from .categories import CATEGORIES, CONTESTED_STATIONS
-from .lifecycle import handle_thread_message, open_beacon
+from .lifecycle import handle_again, handle_close_command, handle_thread_message, open_beacon
 from .location import location_autocomplete
-from .setup_cmd import handle_role, handle_setup
+from .setup_cmd import handle_config, handle_role, handle_setup
 from .views import BeaconView, CommendView
 
 logger = logging.getLogger(__name__)
@@ -308,6 +308,45 @@ class BeaconsCog(commands.Cog):
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "contested", fields)
+
+    @beacon.command(name="close", description="Close this beacon")
+    async def close(self, interaction: discord.Interaction) -> None:
+        await handle_close_command(self, interaction)
+
+    @beacon.command(name="again", description="Repeat your last beacon")
+    async def again(self, interaction: discord.Interaction) -> None:
+        await handle_again(self, interaction)
+
+    @beacon.command(name="config", description="View or change beacon settings")
+    @app_commands.describe(
+        idle_warn="Minutes idle before a warning (5-1440)",
+        idle_close="Minutes idle before auto-closing (5-1440)",
+        escalate="Minutes after the warning before escalating (1-1440)",
+        voice="Auto-create a voice channel when a beacon fills",
+        digest_channel="Channel to post the weekly digest in",
+        clear_digest="Unset the digest channel",
+    )
+    @app_commands.check(admin_or_sc_bot)
+    async def config(
+        self,
+        interaction: discord.Interaction,
+        idle_warn: app_commands.Range[int, 5, 1440] | None = None,
+        idle_close: app_commands.Range[int, 5, 1440] | None = None,
+        escalate: app_commands.Range[int, 1, 1440] | None = None,
+        voice: bool | None = None,
+        digest_channel: discord.TextChannel | None = None,
+        clear_digest: bool | None = None,
+    ) -> None:
+        await handle_config(
+            self,
+            interaction,
+            idle_warn=idle_warn,
+            idle_close=idle_close,
+            escalate=escalate,
+            voice=voice,
+            digest_channel=digest_channel,
+            clear_digest=clear_digest,
+        )
 
 
 async def setup(bot: commands.Bot) -> None:

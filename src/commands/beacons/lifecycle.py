@@ -365,6 +365,28 @@ async def _archive_channel(cog, channel, guild_id: int) -> None:
         logger.exception("Failed to archive beacon thread %s", channel.id)
 
 
+async def handle_close_command(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"beacon:{interaction.channel.id}"):
+        beacon = await store.get_beacon(cog.bot.state, interaction.channel.id)
+        if beacon is None:
+            await _reply(interaction, "This channel is not a tracked beacon.")
+            return
+        if not can_close(beacon, interaction.user.id, is_beacon_admin(interaction)):
+            await _reply(interaction, "Only the requester, the claimer, or an admin can close this beacon.")
+            return
+        await close_beacon(cog, interaction.channel, beacon, interaction.user.id)
+        await _reply(interaction, "Beacon closed.")
+
+
+async def handle_again(cog, interaction: discord.Interaction) -> None:
+    last = await store.get_last_open(cog.bot.state, interaction.guild.id, interaction.user.id)
+    if last is None:
+        await interaction.response.send_message("No previous beacon to repeat.", ephemeral=True)
+        return
+    await open_beacon(cog, interaction, last["category"], last["fields"])
+
+
 async def handle_commend(cog, interaction: discord.Interaction) -> None:
     await interaction.response.defer(ephemeral=True)
     async with _lock_for(f"beacon:{interaction.channel.id}"):

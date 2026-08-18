@@ -118,3 +118,46 @@ async def handle_role(cog, interaction: discord.Interaction, category_key: str, 
     await store.set_config(cog.bot.state, interaction.guild.id, config)
     label = CATEGORIES[category_key].label
     await interaction.response.send_message(f"{label} beacons will now ping {role.mention}.", ephemeral=True)
+
+
+async def handle_config(
+    cog,
+    interaction: discord.Interaction,
+    *,
+    idle_warn: int | None,
+    idle_close: int | None,
+    escalate: int | None,
+    voice: bool | None,
+    digest_channel: discord.TextChannel | None,
+    clear_digest: bool | None,
+) -> None:
+    config = await store.get_config(cog.bot.state, interaction.guild.id)
+    if config is None:
+        await interaction.response.send_message("Run `/beacon setup` first.", ephemeral=True)
+        return
+    settings = dict(config.get("settings") or {})
+    if idle_warn is not None:
+        settings["idle_warn_minutes"] = idle_warn
+    if idle_close is not None:
+        settings["idle_close_minutes"] = idle_close
+    if escalate is not None:
+        settings["escalate_minutes"] = escalate
+    if voice is not None:
+        settings["voice"] = voice
+    if clear_digest:
+        settings["digest_channel_id"] = None
+    elif digest_channel is not None:
+        settings["digest_channel_id"] = digest_channel.id
+    config["settings"] = settings
+    await store.set_config(cog.bot.state, interaction.guild.id, config)
+    effective = store.get_settings(config)
+    digest_value = effective["digest_channel_id"]
+    digest_line = f"<#{digest_value}>" if digest_value else "not set"
+    lines = [
+        f"Idle warn: {effective['idle_warn_minutes']} minutes",
+        f"Idle close: {effective['idle_close_minutes']} minutes",
+        f"Escalate: {effective['escalate_minutes']} minutes",
+        f"Voice channels: {'on' if effective['voice'] else 'off'}",
+        f"Digest channel: {digest_line}",
+    ]
+    await interaction.response.send_message("\n".join(lines), ephemeral=True)

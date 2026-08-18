@@ -201,6 +201,127 @@ def test_cog_defines_all_beacon_commands():
 
 
 @pytest.mark.asyncio
+async def test_config_requires_setup(monkeypatch):
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=None))
+    interaction = _admin_interaction(MagicMock())
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=None,
+        clear_digest=None,
+    )
+    assert "setup" in interaction.response.send_message.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_config_with_no_options_reports_effective_settings(monkeypatch):
+    config = {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}}
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    set_config = AsyncMock()
+    monkeypatch.setattr(setup_cmd.store, "set_config", set_config)
+    interaction = _admin_interaction(MagicMock())
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=None,
+        clear_digest=None,
+    )
+    set_config.assert_awaited_once()
+    message = interaction.response.send_message.await_args.args[0]
+    assert "120" in message
+    assert "60" in message
+    assert "15" in message
+
+
+@pytest.mark.asyncio
+async def test_config_merges_provided_values(monkeypatch):
+    config = {
+        "channel_id": 1,
+        "mode": "thread",
+        "panel_message_id": 2,
+        "tag_ids": {},
+        "roles": {},
+        "settings": {"idle_warn_minutes": 200},
+    }
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = _admin_interaction(MagicMock())
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=30,
+        escalate=None,
+        voice=True,
+        digest_channel=None,
+        clear_digest=None,
+    )
+    assert saved["settings"]["idle_warn_minutes"] == 200
+    assert saved["settings"]["idle_close_minutes"] == 30
+    assert saved["settings"]["voice"] is True
+
+
+@pytest.mark.asyncio
+async def test_config_sets_digest_channel(monkeypatch):
+    config = {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}}
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = _admin_interaction(MagicMock())
+    digest_channel = MagicMock()
+    digest_channel.id = 555
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=digest_channel,
+        clear_digest=None,
+    )
+    assert saved["settings"]["digest_channel_id"] == 555
+
+
+@pytest.mark.asyncio
+async def test_config_clear_digest_wins_over_digest_channel(monkeypatch):
+    config = {
+        "channel_id": 1,
+        "mode": "thread",
+        "panel_message_id": 2,
+        "tag_ids": {},
+        "roles": {},
+        "settings": {"digest_channel_id": 111},
+    }
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = _admin_interaction(MagicMock())
+    digest_channel = MagicMock()
+    digest_channel.id = 555
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=digest_channel,
+        clear_digest=True,
+    )
+    assert saved["settings"]["digest_channel_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_resetup_deletes_previous_panel_message(monkeypatch):
     saved = {}
     old = {"channel_id": 9, "mode": "thread", "panel_message_id": 33, "tag_ids": {}, "roles": {}}

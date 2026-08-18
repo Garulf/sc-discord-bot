@@ -2,6 +2,7 @@ from discord import AppCommandOptionType
 
 from src.commands.beacons import BeaconsCog
 from src.commands.beacons.categories import CATEGORIES
+from src.commands.checks import admin_or_sc_bot
 
 _CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport")
 
@@ -93,3 +94,26 @@ def test_cog_load_registers_current_and_legacy_views_and_migrates():
     assert "tickets:claim" in custom_ids
     assert "beacons:commend" in custom_ids
     migrate.assert_awaited_once_with(bot.state)
+
+
+def test_close_and_again_take_no_options():
+    assert _params("close") == {}
+    assert _params("again") == {}
+
+
+def test_close_and_again_are_open_to_everyone():
+    close_command = BeaconsCog.beacon.get_command("close")
+    again_command = BeaconsCog.beacon.get_command("again")
+    assert admin_or_sc_bot not in close_command.checks
+    assert admin_or_sc_bot not in again_command.checks
+
+
+def test_config_is_admin_gated():
+    command = BeaconsCog.beacon.get_command("config")
+    assert admin_or_sc_bot in command.checks
+
+
+def test_config_options_are_all_optional():
+    params = _params("config")
+    for name in ("idle_warn", "idle_close", "escalate", "voice", "digest_channel", "clear_digest"):
+        assert params[name].required is False
