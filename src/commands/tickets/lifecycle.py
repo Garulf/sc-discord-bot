@@ -75,7 +75,7 @@ async def open_ticket(cog, interaction: discord.Interaction, category_key: str, 
         "fields": field_values,
     }
     name = ticket_title(category_key, interaction.user.display_name)
-    content, dropped_role_note = await _resolve_ping_content(cog, guild, config, category_key, category)
+    content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
     embed = build_ticket_embed(ticket)
 
     try:
@@ -90,7 +90,7 @@ async def open_ticket(cog, interaction: discord.Interaction, category_key: str, 
                 applied_tags=tags,
                 view=cog.ticket_view,
             )
-            thread = created.thread if hasattr(created, "thread") else created
+            thread = created.thread
         else:
             thread = await channel.create_thread(name=name, type=discord.ChannelType.public_thread)
             await thread.send(content=content, embed=embed, view=cog.ticket_view)
@@ -102,25 +102,26 @@ async def open_ticket(cog, interaction: discord.Interaction, category_key: str, 
         await _reply(interaction, f"Could not create the ticket: {error}. Check the bot's channel permissions.")
         return
 
+    if role_dropped:
+        config["roles"].pop(category_key, None)
+        await store.set_config(cog.bot.state, guild.id, config)
     await store.save_ticket(cog.bot.state, thread.id, ticket)
     await store.set_open_ticket(cog.bot.state, guild.id, interaction.user.id, category_key, thread.id)
     await _reply(interaction, f"Ticket opened: {thread.mention}")
 
 
-async def _resolve_ping_content(cog, guild, config: dict, category_key: str, category) -> tuple[str, str | None]:
+def _resolve_ping_content(guild, config: dict, category_key: str, category) -> tuple[str, str | None, bool]:
     role_id = config["roles"].get(category_key)
     if not role_id:
-        return "", None
+        return "", None, False
     role = guild.get_role(role_id)
     if role is not None:
-        return f"<@&{role_id}>", None
-    config["roles"].pop(category_key, None)
-    await store.set_config(cog.bot.state, guild.id, config)
+        return f"<@&{role_id}>", None, False
     note = (
         f"The responder role mapped to {category.label} no longer exists and was unmapped. "
         "An admin can re-map it with `/ticket role`."
     )
-    return "", note
+    return "", note, True
 
 
 def _resolve_tag(channel: discord.ForumChannel, config: dict, tag_key: str):
@@ -132,17 +133,17 @@ async def _load_ticket(cog, interaction: discord.Interaction):
     ticket = await store.get_ticket(cog.bot.state, interaction.channel.id)
     if ticket is None:
         await _reply(interaction, "This ticket is no longer tracked (its record was removed).")
-        await _disable_buttons(cog, interaction)
+        await _disable_buttons(interaction)
     return ticket
 
 
-async def _disable_buttons(cog, interaction: discord.Interaction) -> None:
-    view = cog.ticket_view
+async def _disable_buttons(interaction: discord.Interaction) -> None:
+    view = discord.ui.View.from_message(interaction.message)
+    for item in view.children:
+        item.disabled = True
     try:
-        for item in view.children:
-            item.disabled = True
         await interaction.message.edit(view=view)
-    except Exception:
+    except discord.HTTPException:
         logger.warning("Could not disable buttons on ticket message %s", interaction.channel.id)
 
 
@@ -193,7 +194,8 @@ async def handle_close(cog, interaction: discord.Interaction) -> None:
     await store.save_ticket(cog.bot.state, interaction.channel.id, ticket)
     await store.clear_open_ticket(cog.bot.state, ticket["guild_id"], ticket["requester_id"], ticket["category"])
     await interaction.message.edit(embed=build_ticket_embed(ticket))
-    await _disable_buttons(cog, interaction)
+    await interaction.channel.send(f"Ticket closed by {interaction.user.mention}.")
+    await _disable_buttons(interaction)
     await _reply(interaction, "Ticket closed.")
     await _archive_channel(cog, interaction)
 
