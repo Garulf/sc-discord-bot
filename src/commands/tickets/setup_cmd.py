@@ -7,59 +7,85 @@ import logging
 import discord
 
 from . import store
-from .categories import CATEGORIES
+from .categories import CATEGORIES, short_label
 from .embeds import build_panel_embed
 
 logger = logging.getLogger(__name__)
 
 _STATUS_TAGS = ("open", "closed")
+_MAX_FORUM_TAGS = 20
 
 
-async def handle_setup(cog, interaction: discord.Interaction) -> None:
-    channel = interaction.channel
+class _TagLimitExceeded(Exception):
+    """Raised when a forum channel does not have room for the ticket tags."""
+
+
+async def handle_setup(
+    cog,
+    interaction: discord.Interaction,
+    channel: discord.TextChannel | discord.ForumChannel | None = None,
+) -> None:
+    await interaction.response.defer(ephemeral=True)
+    target = channel or interaction.channel
+    if isinstance(target, discord.Thread) and isinstance(target.parent, discord.ForumChannel):
+        target = target.parent
     old = await store.get_config(cog.bot.state, interaction.guild.id)
     roles = old["roles"] if old else {}
     try:
-        if isinstance(channel, discord.ForumChannel):
-            tag_ids = await _ensure_tags(channel)
-            created = await channel.create_thread(name="Open a ticket", embed=build_panel_embed(), view=cog.panel_view)
+        if isinstance(target, discord.ForumChannel):
+            tag_ids = await _ensure_tags(target)
+            created = await target.create_thread(name="Open a ticket", embed=build_panel_embed(), view=cog.panel_view)
             await created.thread.edit(pinned=True)
             config = {
-                "channel_id": channel.id,
+                "channel_id": target.id,
                 "mode": "forum",
                 "panel_message_id": created.thread.id,
                 "tag_ids": tag_ids,
                 "roles": roles,
             }
-        elif isinstance(channel, discord.TextChannel):
-            message = await channel.send(embed=build_panel_embed(), view=cog.panel_view)
+        elif isinstance(target, discord.TextChannel):
+            message = await target.send(embed=build_panel_embed(), view=cog.panel_view)
             config = {
-                "channel_id": channel.id,
+                "channel_id": target.id,
                 "mode": "thread",
                 "panel_message_id": message.id,
                 "tag_ids": {},
                 "roles": roles,
             }
         else:
-            await interaction.response.send_message("Run this in a text channel or a forum channel.", ephemeral=True)
+            await interaction.followup.send(
+                "Run this in a text channel or a forum channel, or pass one with the `channel` option.",
+                ephemeral=True,
+            )
             return
+    except _TagLimitExceeded as error:
+        await interaction.followup.send(str(error), ephemeral=True)
+        return
     except discord.HTTPException as error:
         logger.exception("Ticket setup failed")
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"Setup failed: {error}. Check the bot's permissions in this channel.", ephemeral=True
         )
         return
     await store.set_config(cog.bot.state, interaction.guild.id, config)
-    await interaction.response.send_message("Ticket system installed in this channel.", ephemeral=True)
+    await interaction.followup.send("Ticket system installed.", ephemeral=True)
 
 
 async def _ensure_tags(channel: discord.ForumChannel) -> dict[str, int]:
-    wanted = {key: CATEGORIES[key].label for key in CATEGORIES}
+    wanted = {key: short_label(CATEGORIES[key]) for key in CATEGORIES}
     wanted.update({key: key.capitalize() for key in _STATUS_TAGS})
     existing = {tag.name: tag for tag in channel.available_tags}
     missing = [discord.ForumTag(name=label) for label in wanted.values() if label not in existing]
     if missing:
-        channel = await channel.edit(available_tags=[*channel.available_tags, *missing])
+        if len(channel.available_tags) + len(missing) > _MAX_FORUM_TAGS:
+            free = _MAX_FORUM_TAGS - len(channel.available_tags)
+            raise _TagLimitExceeded(
+                f"This forum already has {len(channel.available_tags)} tags and only has room for "
+                f"{max(free, 0)} more, but the ticket system needs {len(missing)} tag slots. "
+                "Remove some existing tags and run setup again."
+            )
+        updated = await channel.edit(available_tags=[*channel.available_tags, *missing])
+        channel = updated or channel
         existing = {tag.name: tag for tag in channel.available_tags}
     return {key: existing[label].id for key, label in wanted.items()}
 

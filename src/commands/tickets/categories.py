@@ -20,6 +20,12 @@ class Category:
     fields: tuple[FieldSpec, ...]
 
 
+def short_label(category: Category) -> str:
+    """The category label without a trailing parenthetical, safe for Discord's
+    20-character forum tag name limit."""
+    return category.label.split(" (")[0]
+
+
 CATEGORIES: dict[str, Category] = {
     "mining": Category(
         key="mining",

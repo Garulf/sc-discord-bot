@@ -70,9 +70,14 @@ class TicketsCog(commands.Cog):
             await interaction.response.send_message(msg, ephemeral=True)
 
     @ticket.command(name="setup", description="Install the ticket panel in this channel")
+    @app_commands.describe(channel="Channel to install the panel in (defaults to the current channel)")
     @app_commands.check(admin_or_sc_bot)
-    async def setup(self, interaction: discord.Interaction) -> None:
-        await handle_setup(self, interaction)
+    async def setup(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel | discord.ForumChannel | None = None,
+    ) -> None:
+        await handle_setup(self, interaction, channel)
 
     @ticket.command(name="role", description="Map a category to a responder role")
     @app_commands.describe(category="Ticket category", role="Role to ping for this category")

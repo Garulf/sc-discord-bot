@@ -6,7 +6,7 @@ from typing import Any
 
 import discord
 
-from .categories import CATEGORIES
+from .categories import CATEGORIES, short_label
 from .location import format_breadcrumb
 from .rules import STATUS_CLAIMED, STATUS_CLOSED
 
@@ -20,7 +20,7 @@ _STATUS_COLORS = {
 
 
 def ticket_title(category_key: str, username: str) -> str:
-    return f"[{CATEGORIES[category_key].label.split(' (')[0]}] {username}"
+    return f"[{short_label(CATEGORIES[category_key])}] {username}"
 
 
 def build_ticket_embed(ticket: dict[str, Any]) -> discord.Embed:
