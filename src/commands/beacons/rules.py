@@ -17,6 +17,13 @@ def normalize_beacon(beacon: dict[str, Any]) -> dict[str, Any]:
         claimer = beacon.pop("claimer_id", None)
         beacon["members"] = [claimer] if claimer is not None else []
     beacon["status"] = _LEGACY_STATUS.get(beacon["status"], beacon["status"])
+    beacon.setdefault("last_activity_at", beacon.get("opened_at", 0.0))
+    beacon.setdefault("first_joined_at", None)
+    beacon.setdefault("warned_at", None)
+    beacon.setdefault("escalated_at", None)
+    beacon.setdefault("voice_channel_id", None)
+    beacon.setdefault("commended", False)
+    beacon.setdefault("nudged", [])
     return beacon
 
 

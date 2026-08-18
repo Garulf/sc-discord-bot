@@ -69,4 +69,16 @@ def test_normalize_converts_open_legacy_records():
 
 def test_normalize_passes_through_current_records():
     current = _beacon(status=STATUS_ACTIVE, members=[2, 3])
-    assert normalize_beacon(dict(current)) == current
+    normalized = normalize_beacon(dict(current))
+    assert normalized.items() >= current.items()
+
+
+def test_normalize_defaults_new_lifecycle_fields():
+    beacon = normalize_beacon({"requester_id": 1, "members": [], "status": STATUS_OPEN, "opened_at": 50.0})
+    assert beacon["last_activity_at"] == 50.0
+    assert beacon["first_joined_at"] is None
+    assert beacon["warned_at"] is None
+    assert beacon["escalated_at"] is None
+    assert beacon["voice_channel_id"] is None
+    assert beacon["commended"] is False
+    assert beacon["nudged"] == []

@@ -35,7 +35,8 @@ async def test_beacon_roundtrip(state):
         "fields": {"location": "Stanton:Hurston:Lorville"},
     }
     await store.save_beacon(state, 99, beacon)
-    assert await store.get_beacon(state, 99) == beacon
+    stored = await store.get_beacon(state, 99)
+    assert stored.items() >= beacon.items()
 
 
 @pytest.mark.asyncio
@@ -78,3 +79,44 @@ async def test_get_beacon_normalizes_legacy_claimed_records(state):
     beacon = await store.get_beacon(state, 5)
     assert beacon["status"] == "active"
     assert beacon["members"] == [7]
+
+
+@pytest.mark.asyncio
+async def test_open_beacons_filters_guild_and_status(state):
+    await store.save_beacon(
+        state, 1, {"guild_id": 10, "status": "open", "requester_id": 1, "members": [], "opened_at": 1.0}
+    )
+    await store.save_beacon(
+        state, 2, {"guild_id": 10, "status": "closed", "requester_id": 1, "members": [], "opened_at": 1.0}
+    )
+    await store.save_beacon(
+        state, 3, {"guild_id": 99, "status": "open", "requester_id": 1, "members": [], "opened_at": 1.0}
+    )
+    result = await store.open_beacons(state, 10)
+    assert [tid for tid, _ in result] == [1]
+    everything = await store.all_beacons(state, 10)
+    assert sorted(tid for tid, _ in everything) == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_rep_roundtrip(state):
+    assert await store.add_rep(state, 10, 42) == 1
+    assert await store.add_rep(state, 10, 42) == 2
+    await store.add_rep(state, 10, 7)
+    assert await store.get_reps(state, 10) == {42: 2, 7: 1}
+
+
+@pytest.mark.asyncio
+async def test_last_open_roundtrip(state):
+    assert await store.get_last_open(state, 10, 42) is None
+    await store.set_last_open(state, 10, 42, "medic", {"location": "Stanton"})
+    assert await store.get_last_open(state, 10, 42) == {"category": "medic", "fields": {"location": "Stanton"}}
+
+
+def test_get_settings_defaults_and_overlay():
+    assert store.get_settings(None) == store.DEFAULT_SETTINGS
+    config = {"settings": {"voice": True}}
+    merged = store.get_settings(config)
+    assert merged["voice"] is True
+    assert merged["idle_warn_minutes"] == 120
+    assert config["settings"] == {"voice": True}
