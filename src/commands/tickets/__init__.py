@@ -28,7 +28,7 @@ _CategoryKey = Literal["mining", "medic", "squad", "backup", "cargo", "salvage"]
 class TicketsCog(commands.Cog):
     """Panel-driven support ticket system."""
 
-    ticket = app_commands.Group(name="ticket", description="Open and manage support tickets")
+    ticket = app_commands.Group(name="ticket", description="Open and manage support tickets", guild_only=True)
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
