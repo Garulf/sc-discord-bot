@@ -67,6 +67,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.lookup",
     "src.commands.stream",
     "src.commands.twisc",
+    "src.commands.devtracker",
 ]
 
 
