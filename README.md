@@ -62,12 +62,20 @@ Service beacons: a panel of category buttons plus slash commands that open a pub
 
 Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. Location-style options (`location`, `route-from`, `route-to`, `destination`) take a single `system:planet:location` value; as you type, autocomplete suggests flyable star systems (Stanton, Pyro, Nyx), planets and moons, and points of interest as full breadcrumbs (e.g. `Stanton:Hurston:Lorville`) from live game data, and the beacon renders it as a breadcrumb.
 
+| Command | Description |
+|---|---|
+| `/beacon close` | Close the beacon in the current thread. Allowed for the requester, any joined responder, or an admin. |
+| `/beacon again` | Repeat your last beacon request with the same category and fields |
+| `/beacon stats` | Show server-wide beacon statistics: totals, breakdown by category, top responders, top commended, and average time to first response |
+
 **Admin commands** (requires Administrator permission or the `sc-bot` role):
 
 | Command | Description |
 |---|---|
 | `/beacon setup [channel]` | Install the beacon panel. A text channel opens beacons as threads; a forum channel opens them as tagged forum posts. Defaults to the current channel, and running it inside a forum post resolves to the parent forum. |
 | `/beacon role <category> <role>` | Map a beacon category to the role that gets pinged when a beacon in that category opens |
+| `/beacon board [action]` | Install (default) or remove a live-updating embed listing all open beacons in the current channel |
+| `/beacon config [idle_warn] [idle_close] [escalate] [voice] [digest_channel] [clear_digest]` | View or change beacon settings for this server. Defaults: idle warn 120 minutes, idle close 60 minutes, escalate 15 minutes, voice off, digest channel unset |
 
 #### Panel and Beacon Lifecycle
 
@@ -75,7 +83,17 @@ The pinned panel lists every category with a short description and a clickable c
 
 - **Join** adds you to the beacon's responder list and to the thread itself (so it appears in your active threads); clicking again leaves. The beacon shows as **Active** while anyone has joined and lists its responders.
 - Anyone else posting in a beacon thread gets a single friendly nudge from the bot to hit **Join** (no messages are deleted; requester, responders, and admins are never nudged).
-- **Close** is allowed for the requester, any joined responder, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
+- **Close** is allowed for the requester, any joined responder, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post). If anyone joined, the bot posts a prompt to commend the responders, which awards them reputation shown in `/beacon stats`.
+
+#### Lifecycle Automation
+
+A background sweep keeps beacons moving without manual attention:
+
+- Beacons that request a fixed number of responders (squad, contested) get a fill counter, and the bot announces when the party is full.
+- Setting `voice:true` in `/beacon config` auto-creates a voice channel the first time a beacon fills, and deletes it when the beacon closes.
+- If a beacon has had no responders after the configured escalate window (15 minutes by default), the bot pings the mapped role, or a generic reminder if no role is mapped.
+- If a beacon goes idle for the configured warn window (120 minutes by default), the bot warns the requester that it will auto-close, then closes it automatically after the configured close window (60 minutes by default) unless activity resumes.
+- Setting a digest channel in `/beacon config` posts a weekly summary embed there covering beacons opened, closed, top categories, and top responders over the past 7 days.
 
 Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
 

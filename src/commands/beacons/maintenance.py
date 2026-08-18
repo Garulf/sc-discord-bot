@@ -6,7 +6,7 @@ import logging
 
 import discord
 
-from . import board, store
+from . import board, digest, store
 from .lifecycle import close_beacon, lock_for
 from .rules import STATUS_CLOSED, STATUS_OPEN
 
@@ -108,3 +108,7 @@ async def run_maintenance(cog, guild, now: float) -> None:
         await board.refresh_board(cog, guild)
     except Exception:
         logger.exception("Beacon board refresh failed for guild %s", guild.id)
+    try:
+        await digest.maybe_post_digest(cog, guild, now)
+    except Exception:
+        logger.exception("Beacon digest failed for guild %s", guild.id)

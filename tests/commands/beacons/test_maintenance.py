@@ -48,9 +48,7 @@ def make_cog(monkeypatch):
         cog.bot.state = MagicMock()
         monkeypatch.setattr(maintenance.store, "get_config", AsyncMock(return_value=config))
         monkeypatch.setattr(maintenance.store, "open_beacons", AsyncMock(return_value=beacons))
-        monkeypatch.setattr(
-            maintenance.store, "get_beacon", AsyncMock(side_effect=lambda state, tid: by_id.get(tid))
-        )
+        monkeypatch.setattr(maintenance.store, "get_beacon", AsyncMock(side_effect=lambda state, tid: by_id.get(tid)))
         monkeypatch.setattr(maintenance.store, "save_beacon", AsyncMock())
         monkeypatch.setattr(maintenance.store, "clear_open_beacon", AsyncMock())
         return cog
