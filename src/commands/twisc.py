@@ -22,7 +22,7 @@ POLL_INTERVAL = 1800  # seconds
 
 SCHEDULE_TITLE = "The Weekly Community Content Schedule"
 
-_DAY_HEADING = re.compile(r"^(?:MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY, [A-Z]+ \d{1,2}, \d{4}$")
+_DAY_HEADING = re.compile(r"^(?:MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY, [A-Z]+ \d{1,2}(?:, \d{4})?$")
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,10 @@ class TwiscCog(commands.Cog):
 
     @tasks.loop(seconds=POLL_INTERVAL)
     async def poll_loop(self) -> None:
-        await self._check_latest()
+        try:
+            await self._check_latest()
+        except Exception:
+            logger.exception("TWISC poll loop failed to check for a new comm-link")
 
     @poll_loop.before_loop
     async def before_poll_loop(self) -> None:
@@ -145,7 +148,10 @@ class TwiscCog(commands.Cog):
 
         embed = build_schedule_embed(latest, days)
         for sub in self.subscriptions:
-            await self._post_to_channel(sub["discord_channel_id"], embed)
+            try:
+                await self._post_to_channel(sub["discord_channel_id"], embed)
+            except Exception:
+                logger.exception("Failed to post schedule to channel %s", sub["discord_channel_id"])
         self.last_posted_id = latest.id
         await self._save()
 

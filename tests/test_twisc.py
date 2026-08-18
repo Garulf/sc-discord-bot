@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, MagicMock
+
 from src.commands.twisc import ScheduleDay, parse_schedule
 from src.starcitizenwiki_api.comm_links import CommLink
 
@@ -74,6 +76,33 @@ def test_parse_schedule_day_with_three_items_then_another_day():
     assert not any("Freyja" in item or "Source" in item for item in all_items)
 
 
+SAMPLE_CONTENT_NO_YEAR = (
+    "The Weekly Community Content Schedule\n\n\n"
+    "MONDAY, AUGUST 17\nThis Week in Star Citizen\n\n"
+    "TUESDAY, AUGUST 18\nAugust 2026 Monthly Bundle\n\n"
+    "Freyja Vanadis\nSenior Community Manager\n\n"
+    "SourcePilotVision quest truth trailing lore text"
+)
+
+
+def test_parse_schedule_handles_headings_without_year():
+    days = parse_schedule(SAMPLE_CONTENT_NO_YEAR)
+    assert [d.heading for d in days] == [
+        "MONDAY, AUGUST 17",
+        "TUESDAY, AUGUST 18",
+    ]
+    assert days[0].items == ("This Week in Star Citizen",)
+    assert days[1].items == ("August 2026 Monthly Bundle",)
+
+
+def test_build_schedule_embed_field_name_without_year():
+    from src.commands.twisc import build_schedule_embed
+
+    days = parse_schedule(SAMPLE_CONTENT_NO_YEAR)
+    embed = build_schedule_embed(_comm_link(), days)
+    assert embed.fields[0].name == "Monday, August 17"
+
+
 def test_schedule_day_is_frozen():
     day = ScheduleDay(heading="MONDAY, AUGUST 10, 2026", items=("x",))
     assert day.heading == "MONDAY, AUGUST 10, 2026"
@@ -121,9 +150,6 @@ def test_build_schedule_embed_without_url():
     assert embed.footer.text is None
 
 
-from unittest.mock import AsyncMock, MagicMock
-
-
 def _cog_with(latest, subscriptions, last_posted_id):
     from src.commands.twisc import TwiscCog
 
@@ -169,3 +195,27 @@ async def test_poll_without_subscriptions_does_nothing():
     cog = _cog_with(_comm_link(), subscriptions=[], last_posted_id=None)
     await cog._check_latest()
     cog.bot.comm_links_api.search.assert_not_awaited()
+
+
+async def test_poll_continues_past_per_channel_send_failure():
+    link = _comm_link()
+    cog = _cog_with(
+        link,
+        subscriptions=[
+            {"discord_channel_id": 1, "guild_id": 2},
+            {"discord_channel_id": 3, "guild_id": 2},
+        ],
+        last_posted_id=21278,
+    )
+    failing_channel = MagicMock()
+    failing_channel.send = AsyncMock(side_effect=RuntimeError("boom"))
+    ok_channel = MagicMock()
+    ok_channel.send = AsyncMock()
+    cog.bot.get_channel.side_effect = lambda channel_id: {1: failing_channel, 3: ok_channel}[channel_id]
+
+    await cog._check_latest()
+
+    ok_channel.send.assert_awaited_once()
+    assert ok_channel.send.await_args.kwargs["embed"].title == "The Weekly Community Content Schedule"
+    assert cog.last_posted_id == 21287
+    cog.bot.state.set.assert_awaited_once()
