@@ -8,11 +8,11 @@ import discord
 
 from .categories import CATEGORIES, short_label
 from .location import format_breadcrumb
-from .rules import STATUS_CLAIMED, STATUS_CLOSED
+from .rules import STATUS_ACTIVE, STATUS_CLOSED
 
 _STATUS_COLORS = {
     "open": discord.Color.green(),
-    "claimed": discord.Color.gold(),
+    "active": discord.Color.gold(),
     "closed": discord.Color.dark_grey(),
 }
 
@@ -29,6 +29,9 @@ def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
     )
     embed.add_field(name="Requester", value=f"<@{beacon['requester_id']}>", inline=True)
     embed.add_field(name="Status", value=_status_text(beacon), inline=True)
+    if beacon["members"]:
+        responders = ", ".join(f"<@{member}>" for member in beacon["members"])
+        embed.add_field(name="Responders", value=responders, inline=False)
     for spec in category.fields:
         value = beacon["fields"].get(spec.key)
         if not value:
@@ -40,8 +43,8 @@ def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
 
 
 def _status_text(beacon: dict[str, Any]) -> str:
-    if beacon["status"] == STATUS_CLAIMED:
-        return f"Claimed by <@{beacon['claimer_id']}>"
+    if beacon["status"] == STATUS_ACTIVE:
+        return "Active"
     if beacon["status"] == STATUS_CLOSED:
         closed_at = int(beacon["closed_at"]) if beacon["closed_at"] else None
         when = f" <t:{closed_at}:R>" if closed_at else ""

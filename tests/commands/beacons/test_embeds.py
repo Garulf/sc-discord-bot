@@ -1,5 +1,5 @@
 from src.commands.beacons.embeds import beacon_title, build_beacon_embed, build_panel_content
-from src.commands.beacons.rules import STATUS_CLAIMED, STATUS_CLOSED, STATUS_OPEN
+from src.commands.beacons.rules import STATUS_ACTIVE, STATUS_CLOSED, STATUS_OPEN
 
 
 def _beacon(**overrides):
@@ -7,7 +7,7 @@ def _beacon(**overrides):
         "guild_id": 1,
         "category": "medic",
         "requester_id": 42,
-        "claimer_id": None,
+        "members": [],
         "status": STATUS_OPEN,
         "opened_at": 123.0,
         "closed_at": None,
@@ -33,9 +33,12 @@ def test_open_embed_shows_category_requester_and_fields():
     assert any("Open" in v for v in field_values)
 
 
-def test_claimed_embed_mentions_claimer():
-    embed = build_beacon_embed(_beacon(status=STATUS_CLAIMED, claimer_id=7))
-    assert any("<@7>" in f.value for f in embed.fields)
+def test_active_embed_lists_responders():
+    embed = build_beacon_embed(_beacon(status=STATUS_ACTIVE, members=[7, 8]))
+    values = " ".join(f.value for f in embed.fields)
+    assert "Active" in values
+    assert "<@7>" in values
+    assert "<@8>" in values
 
 
 def test_closed_embed_mentions_closer():

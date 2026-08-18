@@ -71,10 +71,10 @@ Every non-notes option is constrained: category details come from fixed choice l
 
 #### Panel and Beacon Lifecycle
 
-The pinned panel lists every category with a short description and a clickable command mention; clicking a mention opens the command form directly. Re-running `/beacon setup` replaces the previous panel. Each beacon thread has **Claim** and **Close** buttons:
+The pinned panel lists every category with a short description and a clickable command mention; clicking a mention opens the command form directly. Re-running `/beacon setup` replaces the previous panel. Each beacon thread has **Join** and **Close** buttons:
 
-- **Claim** assigns the beacon to the responder who clicked it; the button then toggles to unclaim for that same responder.
-- **Close** is allowed for the requester, the current claimer, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
+- **Join** adds you to the beacon's responder list and to the thread itself (so it appears in your active threads); clicking again leaves. The beacon shows as **Active** while anyone has joined and lists its responders.
+- **Close** is allowed for the requester, any joined responder, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
 
 Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
 

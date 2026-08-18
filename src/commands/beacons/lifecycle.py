@@ -12,7 +12,7 @@ from . import store
 from .categories import CATEGORIES
 from .embeds import beacon_title, build_beacon_embed
 from .location import parse_location
-from .rules import STATUS_CLAIMED, STATUS_CLOSED, STATUS_OPEN, can_claim, can_close, can_unclaim
+from .rules import STATUS_ACTIVE, STATUS_CLOSED, STATUS_OPEN, can_close, can_join, can_leave
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
             "guild_id": guild.id,
             "category": category_key,
             "requester_id": interaction.user.id,
-            "claimer_id": None,
+            "members": [],
             "status": STATUS_OPEN,
             "opened_at": time.time(),
             "closed_at": None,
@@ -168,48 +168,41 @@ async def _disable_buttons(interaction: discord.Interaction) -> None:
         logger.warning("Could not disable buttons on beacon message %s", interaction.channel.id)
 
 
-async def _unclaim_beacon(cog, interaction: discord.Interaction, beacon: dict) -> None:
-    if not can_unclaim(beacon, interaction.user.id):
-        await _reply(interaction, "Only the current claimer can unclaim.")
-        return
-    beacon["status"] = STATUS_OPEN
-    beacon["claimer_id"] = None
+async def _leave_beacon(cog, interaction: discord.Interaction, beacon: dict) -> None:
+    beacon["members"].remove(interaction.user.id)
+    beacon["status"] = STATUS_ACTIVE if beacon["members"] else STATUS_OPEN
     await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
+    try:
+        await interaction.channel.remove_user(interaction.user)
+    except discord.HTTPException:
+        logger.warning("Could not remove %s from beacon thread %s", interaction.user.id, interaction.channel.id)
     await interaction.message.edit(embed=build_beacon_embed(beacon))
-    await interaction.channel.send(f"{interaction.user.mention} unclaimed this beacon.")
-    await _reply(interaction, "Beacon unclaimed.")
+    await interaction.channel.send(f"{interaction.user.mention} left this beacon.")
+    await _reply(interaction, "You left the beacon.")
 
 
-async def handle_claim(cog, interaction: discord.Interaction) -> None:
+async def handle_join(cog, interaction: discord.Interaction) -> None:
     await interaction.response.defer(ephemeral=True)
     async with _lock_for(f"beacon:{interaction.channel.id}"):
         beacon = await _load_beacon(cog, interaction)
         if beacon is None:
             return
-        if can_unclaim(beacon, interaction.user.id):
-            await _unclaim_beacon(cog, interaction, beacon)
+        if can_leave(beacon, interaction.user.id):
+            await _leave_beacon(cog, interaction, beacon)
             return
-        if not can_claim(beacon, interaction.user.id):
-            await _reply(interaction, "You cannot claim this beacon.")
+        if not can_join(beacon, interaction.user.id):
+            await _reply(interaction, "You cannot join this beacon.")
             return
-        beacon["status"] = STATUS_CLAIMED
-        beacon["claimer_id"] = interaction.user.id
+        beacon["members"].append(interaction.user.id)
+        beacon["status"] = STATUS_ACTIVE
         await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
+        try:
+            await interaction.channel.add_user(interaction.user)
+        except discord.HTTPException:
+            logger.warning("Could not add %s to beacon thread %s", interaction.user.id, interaction.channel.id)
         await interaction.message.edit(embed=build_beacon_embed(beacon))
-        await interaction.channel.send(f"{interaction.user.mention} claimed this beacon.")
-        await _reply(interaction, "Beacon claimed.")
-
-
-async def handle_unclaim(cog, interaction: discord.Interaction, beacon: dict | None = None) -> None:
-    if beacon is not None:
-        await _unclaim_beacon(cog, interaction, beacon)
-        return
-    await interaction.response.defer(ephemeral=True)
-    async with _lock_for(f"beacon:{interaction.channel.id}"):
-        beacon = await _load_beacon(cog, interaction)
-        if beacon is None:
-            return
-        await _unclaim_beacon(cog, interaction, beacon)
+        await interaction.channel.send(f"{interaction.user.mention} joined this beacon.")
+        await _reply(interaction, "You joined the beacon.")
 
 
 async def handle_close(cog, interaction: discord.Interaction) -> None:

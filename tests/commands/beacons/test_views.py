@@ -22,7 +22,7 @@ async def test_beacon_buttons_delegate_to_lifecycle(monkeypatch):
 
     claim = AsyncMock()
     close = AsyncMock()
-    monkeypatch.setattr(views_module.lifecycle, "handle_claim", claim)
+    monkeypatch.setattr(views_module.lifecycle, "handle_join", claim)
     monkeypatch.setattr(views_module.lifecycle, "handle_close", close)
     cog = MagicMock()
     view = BeaconView(cog)
@@ -31,3 +31,9 @@ async def test_beacon_buttons_delegate_to_lifecycle(monkeypatch):
     claim.assert_awaited_once_with(cog, interaction)
     await next(b for b in view.children if b.custom_id == "beacons:close").callback(interaction)
     close.assert_awaited_once_with(cog, interaction)
+
+
+def test_join_button_label():
+    view = BeaconView(MagicMock())
+    button = next(b for b in view.children if b.custom_id == "beacons:claim")
+    assert button.label == "Join"

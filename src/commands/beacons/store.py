@@ -6,6 +6,8 @@ from typing import Any
 
 from src.storage import StateStore
 
+from .rules import normalize_beacon
+
 
 def _config_key(guild_id: int) -> str:
     return f"beacons:config:{guild_id}"
@@ -28,7 +30,8 @@ async def set_config(state: StateStore, guild_id: int, config: dict[str, Any]) -
 
 
 async def get_beacon(state: StateStore, thread_id: int) -> dict[str, Any] | None:
-    return await state.get(_beacon_key(thread_id))
+    beacon = await state.get(_beacon_key(thread_id))
+    return normalize_beacon(beacon) if beacon is not None else None
 
 
 async def save_beacon(state: StateStore, thread_id: int, beacon: dict[str, Any]) -> None:

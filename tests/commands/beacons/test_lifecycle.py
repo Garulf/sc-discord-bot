@@ -5,7 +5,7 @@ import discord
 import pytest
 
 from src.commands.beacons import lifecycle
-from src.commands.beacons.rules import STATUS_CLAIMED, STATUS_OPEN
+from src.commands.beacons.rules import STATUS_ACTIVE, STATUS_OPEN
 
 THREAD_CONFIG = {"channel_id": 10, "mode": "thread", "panel_message_id": 11, "tag_ids": {}, "roles": {"medic": 5}}
 FORUM_CONFIG = {
@@ -143,7 +143,7 @@ def _open_beacon_record(**overrides):
         "guild_id": 1,
         "category": "medic",
         "requester_id": 1,
-        "claimer_id": None,
+        "members": [],
         "status": STATUS_OPEN,
         "opened_at": 100.0,
         "closed_at": None,
@@ -155,24 +155,59 @@ def _open_beacon_record(**overrides):
 
 
 @pytest.mark.asyncio
-async def test_claim_updates_beacon_and_embed(make_cog):
+async def test_join_adds_member_and_thread_membership(make_cog):
     cog = make_cog(beacon=_open_beacon_record())
     interaction = _interaction(user_id=2)
-    await lifecycle.handle_claim(cog, interaction)
+    interaction.channel.add_user = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
     saved = lifecycle.store.save_beacon.await_args.args[2]
-    assert saved["status"] == STATUS_CLAIMED
-    assert saved["claimer_id"] == 2
+    assert saved["status"] == STATUS_ACTIVE
+    assert saved["members"] == [2]
+    interaction.channel.add_user.assert_awaited_once_with(interaction.user)
     interaction.message.edit.assert_awaited_once()
     interaction.channel.send.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_requester_cannot_claim_own_beacon(make_cog):
+async def test_second_responder_can_join(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=3)
+    interaction.channel.add_user = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["members"] == [2, 3]
+    assert saved["status"] == STATUS_ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_join_again_leaves_and_reopens_when_last_member(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=2)
+    interaction.channel.remove_user = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["members"] == []
+    assert saved["status"] == STATUS_OPEN
+    interaction.channel.remove_user.assert_awaited_once_with(interaction.user)
+
+
+@pytest.mark.asyncio
+async def test_requester_cannot_join_own_beacon(make_cog):
     cog = make_cog(beacon=_open_beacon_record())
     interaction = _interaction(user_id=1)
-    await lifecycle.handle_claim(cog, interaction)
+    await lifecycle.handle_join(cog, interaction)
     lifecycle.store.save_beacon.assert_not_awaited()
     assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+
+
+@pytest.mark.asyncio
+async def test_member_can_close(make_cog):
+    cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=2)
+    await lifecycle.handle_close(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["status"] == "closed"
+    assert saved["closed_by_id"] == 2
 
 
 @pytest.mark.asyncio
@@ -194,9 +229,9 @@ async def test_untracked_beacon_button_replies_ephemerally(make_cog, monkeypatch
     cog = make_cog(beacon=None)
     interaction = _interaction()
     fake_view = discord.ui.View()
-    fake_view.add_item(discord.ui.Button(label="Claim"))
+    fake_view.add_item(discord.ui.Button(label="Join"))
     monkeypatch.setattr(discord.ui.View, "from_message", lambda message, **kwargs: fake_view)
-    await lifecycle.handle_claim(cog, interaction)
+    await lifecycle.handle_join(cog, interaction)
     assert "no longer tracked" in interaction.followup.send.await_args.args[0]
     assert fake_view.children[0].disabled is True
     interaction.message.edit.assert_awaited_once_with(view=fake_view)
@@ -230,7 +265,7 @@ async def test_open_forum_mode_applies_tags_and_saves_thread(make_cog):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_claims_only_one_succeeds(monkeypatch):
+async def test_concurrent_joins_keep_both_members(monkeypatch):
     beacon_state = {99: _open_beacon_record(requester_id=1)}
 
     async def fake_get_beacon(state, channel_id):
@@ -247,23 +282,18 @@ async def test_concurrent_claims_only_one_succeeds(monkeypatch):
     cog = MagicMock()
     cog.bot.state = MagicMock()
     interaction_a = _interaction(user_id=2, channel_id=99)
+    interaction_a.channel.add_user = AsyncMock()
     interaction_b = _interaction(user_id=3, channel_id=99)
+    interaction_b.channel.add_user = AsyncMock()
 
     await asyncio.gather(
-        lifecycle.handle_claim(cog, interaction_a),
-        lifecycle.handle_claim(cog, interaction_b),
+        lifecycle.handle_join(cog, interaction_a),
+        lifecycle.handle_join(cog, interaction_b),
     )
 
-    claimed = beacon_state[99]
-    assert claimed["status"] == STATUS_CLAIMED
-    assert claimed["claimer_id"] in (2, 3)
-
-    replies = [
-        interaction_a.followup.send.await_args.args[0],
-        interaction_b.followup.send.await_args.args[0],
-    ]
-    assert replies.count("Beacon claimed.") == 1
-    assert any("cannot claim" in reply for reply in replies)
+    joined = beacon_state[99]
+    assert joined["status"] == STATUS_ACTIVE
+    assert sorted(joined["members"]) == [2, 3]
 
 
 @pytest.mark.asyncio
