@@ -6,7 +6,7 @@ import logging
 
 import discord
 
-from . import store
+from . import board, store
 from .lifecycle import close_beacon, lock_for
 from .rules import STATUS_CLOSED, STATUS_OPEN
 
@@ -104,3 +104,7 @@ async def run_maintenance(cog, guild, now: float) -> None:
             await _process_beacon(cog, guild, config, settings, thread_id, now)
         except Exception:
             logger.exception("Beacon maintenance failed for thread %s", thread_id)
+    try:
+        await board.refresh_board(cog, guild)
+    except Exception:
+        logger.exception("Beacon board refresh failed for guild %s", guild.id)

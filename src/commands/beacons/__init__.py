@@ -17,6 +17,7 @@ from discord.ext import commands, tasks
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from . import store
+from .board import handle_board
 from .categories import CATEGORIES, CONTESTED_STATIONS
 from .lifecycle import handle_again, handle_close_command, handle_thread_message, open_beacon
 from .location import location_autocomplete
@@ -343,6 +344,16 @@ class BeaconsCog(commands.Cog):
     @beacon.command(name="stats", description="Beacon statistics for this server")
     async def stats(self, interaction: discord.Interaction) -> None:
         await handle_stats(self, interaction)
+
+    @beacon.command(name="board", description="Install or remove the live beacon status board")
+    @app_commands.describe(action="Install or remove the board")
+    @app_commands.check(admin_or_sc_bot)
+    async def board(
+        self,
+        interaction: discord.Interaction,
+        action: Literal["install", "remove"] = "install",
+    ) -> None:
+        await handle_board(self, interaction, action)
 
     @beacon.command(name="config", description="View or change beacon settings")
     @app_commands.describe(
