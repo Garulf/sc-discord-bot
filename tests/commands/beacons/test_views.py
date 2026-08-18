@@ -8,12 +8,34 @@ from src.commands.beacons.views import BeaconView, CommendView
 def test_beacon_view_has_claim_and_close_buttons():
     view = BeaconView(MagicMock())
     assert view.timeout is None
-    assert {item.custom_id for item in view.children} == {"beacons:claim", "beacons:close"}
+    assert {item.custom_id for item in view.children} == {"beacons:claim", "beacons:leave", "beacons:close"}
 
 
 def test_legacy_view_reuses_ticket_custom_ids():
     view = BeaconView(MagicMock(), legacy=True)
-    assert {item.custom_id for item in view.children} == {"tickets:claim", "tickets:close"}
+    assert {item.custom_id for item in view.children} == {"tickets:claim", "tickets:leave", "tickets:close"}
+
+
+def test_leave_button_label_and_style():
+    from discord import ButtonStyle
+
+    view = BeaconView(MagicMock())
+    button = next(b for b in view.children if b.custom_id == "beacons:leave")
+    assert button.label == "Leave"
+    assert button.style == ButtonStyle.secondary
+
+
+@pytest.mark.asyncio
+async def test_leave_button_delegates_to_lifecycle(monkeypatch):
+    from src.commands.beacons import views as views_module
+
+    leave = AsyncMock()
+    monkeypatch.setattr(views_module.lifecycle, "handle_leave", leave)
+    cog = MagicMock()
+    view = BeaconView(cog)
+    interaction = MagicMock()
+    await next(b for b in view.children if b.custom_id == "beacons:leave").callback(interaction)
+    leave.assert_awaited_once_with(cog, interaction)
 
 
 @pytest.mark.asyncio

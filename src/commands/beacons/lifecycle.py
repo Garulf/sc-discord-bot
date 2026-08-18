@@ -247,7 +247,7 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
         if beacon is None:
             return
         if can_leave(beacon, interaction.user.id):
-            await _leave_beacon(cog, interaction, beacon)
+            await _reply(interaction, "You are already in this beacon. Use the Leave button to leave.")
             return
         allow_requester = await cog.bot.is_owner(interaction.user)
         if not can_join(beacon, interaction.user.id, allow_requester=allow_requester):
@@ -273,6 +273,18 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
         await _announce_if_full(cog, interaction, beacon)
         await _reply(interaction, "You joined the beacon.")
         await _refresh_board(cog, interaction.guild)
+
+
+async def handle_leave(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    async with _lock_for(f"beacon:{interaction.channel.id}"):
+        beacon = await _load_beacon(cog, interaction)
+        if beacon is None:
+            return
+        if not can_leave(beacon, interaction.user.id):
+            await _reply(interaction, "You are not in this beacon.")
+            return
+        await _leave_beacon(cog, interaction, beacon)
 
 
 def _is_thread_admin(member) -> bool:

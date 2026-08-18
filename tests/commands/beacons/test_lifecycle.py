@@ -229,15 +229,46 @@ async def test_second_responder_can_join(make_cog):
 
 
 @pytest.mark.asyncio
-async def test_join_again_leaves_and_reopens_when_last_member(make_cog):
+async def test_join_no_longer_toggles_for_members(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=2)
+    await lifecycle.handle_join(cog, interaction)
+    lifecycle.store.save_beacon.assert_not_awaited()
+    msg = interaction.followup.send.await_args.args[0]
+    assert "Leave" in msg
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+
+
+@pytest.mark.asyncio
+async def test_leave_removes_member_and_reopens_when_last(make_cog):
     cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
     interaction = _interaction(user_id=2)
     interaction.channel.remove_user = AsyncMock()
-    await lifecycle.handle_join(cog, interaction)
+    await lifecycle.handle_leave(cog, interaction)
     saved = lifecycle.store.save_beacon.await_args.args[2]
     assert saved["members"] == []
     assert saved["status"] == STATUS_OPEN
     interaction.channel.remove_user.assert_awaited_once_with(interaction.user)
+
+
+@pytest.mark.asyncio
+async def test_leave_keeps_active_when_other_members_remain(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2, 3]))
+    interaction = _interaction(user_id=2)
+    interaction.channel.remove_user = AsyncMock()
+    await lifecycle.handle_leave(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["members"] == [3]
+    assert saved["status"] == STATUS_ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_leave_refuses_non_member(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=3)
+    await lifecycle.handle_leave(cog, interaction)
+    lifecycle.store.save_beacon.assert_not_awaited()
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
 
 
 @pytest.mark.asyncio
@@ -337,7 +368,7 @@ async def test_leave_updates_activity(make_cog):
     cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2], last_activity_at=1.0))
     interaction = _interaction(user_id=2)
     interaction.channel.remove_user = AsyncMock()
-    await lifecycle.handle_join(cog, interaction)
+    await lifecycle.handle_leave(cog, interaction)
     saved = lifecycle.store.save_beacon.await_args.args[2]
     assert saved["last_activity_at"] > 1.0
 
