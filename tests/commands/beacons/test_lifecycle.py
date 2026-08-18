@@ -354,6 +354,40 @@ async def test_close_by_none_announces_automatic_closure(make_cog):
 
 
 @pytest.mark.asyncio
+async def test_close_edits_message_and_disables_buttons_before_archiving(make_cog, monkeypatch):
+    cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=1)
+    calls = []
+
+    async def record_message_edit(**kwargs):
+        calls.append("message_edit")
+
+    async def record_channel_edit(**kwargs):
+        calls.append("channel_edit")
+
+    interaction.message.edit = AsyncMock(side_effect=record_message_edit)
+    interaction.channel.edit = AsyncMock(side_effect=record_channel_edit)
+    fake_view = discord.ui.View()
+    fake_view.add_item(discord.ui.Button(label="Join"))
+    monkeypatch.setattr(discord.ui.View, "from_message", lambda message, **kwargs: fake_view)
+    await lifecycle.handle_close(cog, interaction)
+    assert calls
+    assert calls.index("message_edit") < calls.index("channel_edit")
+    assert interaction.message.edit.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_close_survives_failed_announcement_and_still_archives(make_cog):
+    cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2]))
+    interaction = _interaction(user_id=1)
+    interaction.channel.send = AsyncMock(side_effect=discord.HTTPException(MagicMock(status=500), "boom"))
+    await lifecycle.handle_close(cog, interaction)
+    interaction.channel.edit.assert_awaited_once()
+    lifecycle.store.clear_open_beacon.assert_awaited_once()
+    interaction.followup.send.assert_awaited_with("Beacon closed.", ephemeral=True)
+
+
+@pytest.mark.asyncio
 async def test_close_refreshes_board(make_cog, monkeypatch):
     cog = make_cog(config=THREAD_CONFIG, beacon=_open_beacon_record())
     refresh = AsyncMock()
@@ -380,6 +414,18 @@ async def test_commend_adds_rep_once(make_cog, monkeypatch):
     interaction = _interaction(user_id=1)
     await lifecycle.handle_commend(cog, interaction)
     add_rep.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_commend_survives_failed_announcement(make_cog):
+    record = _open_beacon_record(status="closed", members=[2])
+    cog = make_cog(beacon=record)
+    interaction = _interaction(user_id=1)
+    interaction.channel.send = AsyncMock(side_effect=discord.HTTPException(MagicMock(status=500), "boom"))
+    await lifecycle.handle_commend(cog, interaction)
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["commended"] is True
+    interaction.followup.send.assert_awaited_with("Commended the responders.", ephemeral=True)
 
 
 @pytest.mark.asyncio
@@ -507,6 +553,18 @@ async def test_outsider_message_gets_a_join_nudge_once(make_cog):
     assert "<@5>" in message.channel.send.await_args.args[0]
     saved = lifecycle.store.save_beacon.await_args.args[2]
     assert saved["nudged"] == [5]
+    lifecycle.store.save_beacon.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_thread_message_activity_and_nudge_write_once(make_cog):
+    cog = make_cog(beacon=_open_beacon_record(status=STATUS_ACTIVE, members=[2], last_activity_at=1.0))
+    message = _thread_message(author_id=5)
+    await lifecycle.handle_thread_message(cog, message)
+    lifecycle.store.save_beacon.assert_awaited_once()
+    saved = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved["nudged"] == [5]
+    assert saved["last_activity_at"] > 1.0
 
 
 @pytest.mark.asyncio
