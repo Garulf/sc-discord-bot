@@ -52,8 +52,9 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
     guild = interaction.guild
     category = CATEGORIES[category_key]
 
+    kinds = _field_kinds(category)
     for key, value in field_values.items():
-        if _field_kinds(category).get(key) in _LOCATION_KINDS and parse_location(value) is None:
+        if kinds.get(key) in _LOCATION_KINDS and parse_location(value) is None:
             await _reply(
                 interaction,
                 f"`{value}` is not a valid location. Use the form `system:planet:location`, "

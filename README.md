@@ -75,7 +75,7 @@ The panel's category buttons reply with the exact command to run to open that ki
 - **Claim** assigns the beacon to the responder who clicked it; the button then toggles to unclaim for that same responder.
 - **Close** is allowed for the requester, the current claimer, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
 
-Beacons created before the ticket-to-beacon rename keep working: stored state migrates automatically on startup and the old buttons stay registered.
+Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
 
 ---
 

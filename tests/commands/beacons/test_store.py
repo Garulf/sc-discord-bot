@@ -49,7 +49,7 @@ async def test_open_beacon_index(state):
 
 
 @pytest.mark.asyncio
-async def test_migrate_legacy_keys_moves_ticket_state(state):
+async def test_migrate_legacy_keys_copies_ticket_state(state):
     await state.set("tickets:config:1", {"channel_id": 10})
     await state.set("tickets:ticket:99", {"category": "medic"})
     await state.set("tickets:open:1:42:medic", 99)
@@ -58,15 +58,13 @@ async def test_migrate_legacy_keys_moves_ticket_state(state):
     assert await store.get_config(state, 1) == {"channel_id": 10}
     assert await store.get_beacon(state, 99) == {"category": "medic"}
     assert await store.get_open_beacon(state, 1, 42, "medic") == 99
-    assert await state.get("tickets:config:1") is None
-    assert await state.get("tickets:ticket:99") is None
-    assert await state.get("tickets:open:1:42:medic") is None
+    assert await state.get("tickets:config:1") == {"channel_id": 10}
     assert await state.get("inventory_subscriptions:1") == {"left": "alone"}
 
 
 @pytest.mark.asyncio
-async def test_migrate_legacy_keys_is_idempotent(state):
+async def test_migrate_legacy_keys_never_overwrites_newer_beacon_state(state):
     await state.set("tickets:config:1", {"channel_id": 10})
+    await state.set("beacons:config:1", {"channel_id": 99})
     await store.migrate_legacy_keys(state)
-    await store.migrate_legacy_keys(state)
-    assert await store.get_config(state, 1) == {"channel_id": 10}
+    assert await store.get_config(state, 1) == {"channel_id": 99}

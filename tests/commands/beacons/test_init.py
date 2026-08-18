@@ -49,6 +49,11 @@ def test_escort_and_transport_take_optional_destination():
         assert params["destination"].type is AppCommandOptionType.string
 
 
+def test_role_category_choices_track_categories():
+    params = _params("role")
+    assert [(c.name, c.value) for c in params["category"].choices] == [(c.label, c.key) for c in CATEGORIES.values()]
+
+
 def test_cargo_keeps_single_route_fields():
     command = BeaconsCog.beacon.get_command("cargo")
     display_names = {p.display_name for p in command.parameters}
@@ -60,8 +65,6 @@ def test_cog_load_registers_current_and_legacy_views_and_migrates():
     import asyncio
     from unittest.mock import AsyncMock, MagicMock
 
-    import pytest_asyncio  # noqa: F401
-
     from src.commands import beacons as pkg
 
     migrate = AsyncMock()
@@ -70,6 +73,7 @@ def test_cog_load_registers_current_and_legacy_views_and_migrates():
     try:
         bot = MagicMock()
         bot.add_view = MagicMock()
+        bot.state.keys = AsyncMock(return_value=[])
         bot.tree.fetch_commands = AsyncMock(return_value=[])
         cog = BeaconsCog(bot)
         asyncio.run(cog.cog_load())

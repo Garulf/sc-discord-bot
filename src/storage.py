@@ -132,7 +132,8 @@ class StateStore:
         await self._db.conn.commit()
 
     async def keys(self, prefix: str) -> list[str]:
-        async with self._db.conn.execute("SELECT key FROM state WHERE key LIKE ?", (f"{prefix}%",)) as cursor:
+        upper = prefix[:-1] + chr(ord(prefix[-1]) + 1)
+        async with self._db.conn.execute("SELECT key FROM state WHERE key >= ? AND key < ?", (prefix, upper)) as cursor:
             rows = await cursor.fetchall()
         return [row[0] for row in rows]
 

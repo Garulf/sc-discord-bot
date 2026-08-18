@@ -170,6 +170,7 @@ async def test_role_saves_mapping(monkeypatch):
 
 def test_cog_defines_all_beacon_commands():
     from src.commands.beacons import BeaconsCog
+    from src.commands.beacons.categories import CATEGORIES
 
     names = {cmd.name for cmd in BeaconsCog.beacon.commands}
-    assert {"setup", "role", "mining", "medic", "squad", "backup", "cargo", "salvage"} <= names
+    assert {"setup", "role"} | set(CATEGORIES) <= names

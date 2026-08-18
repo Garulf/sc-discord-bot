@@ -16,6 +16,7 @@ from discord.ext import commands
 from src.commands.checks import admin_or_sc_bot, handle_check_failure
 
 from . import store
+from .categories import CATEGORIES
 from .lifecycle import open_beacon
 from .location import combine_location, planet_autocomplete, poi_autocomplete, route_autocomplete, system_autocomplete
 from .setup_cmd import handle_role, handle_setup
@@ -23,7 +24,7 @@ from .views import BeaconView, PanelView
 
 logger = logging.getLogger(__name__)
 
-_CategoryKey = Literal["mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport"]
+_CATEGORY_CHOICES = [app_commands.Choice(name=category.label, value=category.key) for category in CATEGORIES.values()]
 
 
 class BeaconsCog(commands.Cog):
@@ -37,6 +38,7 @@ class BeaconsCog(commands.Cog):
 
     async def cog_load(self) -> None:
         await store.migrate_legacy_keys(self.bot.state)
+        await self._warn_stale_configs()
         self.panel_view = PanelView(self)
         self.beacon_view = BeaconView(self)
         self.bot.add_view(self.panel_view)
@@ -51,6 +53,17 @@ class BeaconsCog(commands.Cog):
                     break
         except discord.HTTPException:
             logger.warning("Could not fetch app commands to cache the /beacon command id")
+
+    async def _warn_stale_configs(self) -> None:
+        for key in await self.bot.state.keys("beacons:config:"):
+            config = await self.bot.state.get(key)
+            missing = set(CATEGORIES) - set((config or {}).get("tag_ids", {}) or CATEGORIES)
+            if missing:
+                logger.warning(
+                    "Beacon config %s lacks forum tags for %s; re-run /beacon setup to refresh them",
+                    key,
+                    ", ".join(sorted(missing)),
+                )
 
     def command_mention(self, category_key: str) -> str:
         if self._beacon_command_id is not None:
@@ -85,11 +98,12 @@ class BeaconsCog(commands.Cog):
 
     @beacon.command(name="role", description="Map a category to a responder role")
     @app_commands.describe(category="Beacon category", role="Role to ping for this category")
+    @app_commands.choices(category=_CATEGORY_CHOICES)
     @app_commands.check(admin_or_sc_bot)
     async def role(
         self,
         interaction: discord.Interaction,
-        category: _CategoryKey,
+        category: str,
         role: discord.Role,
     ) -> None:
         await handle_role(self, interaction, category, role)

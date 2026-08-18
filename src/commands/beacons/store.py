@@ -55,8 +55,13 @@ _LEGACY_PREFIXES = {
 
 
 async def migrate_legacy_keys(state: StateStore) -> None:
+    """Copy pre-rename ticket state to beacon keys.
+
+    Legacy keys are left in place so a rollback to a pre-rename release
+    still finds its data; existing beacon keys are never overwritten.
+    """
     for old_prefix, new_prefix in _LEGACY_PREFIXES.items():
         for key in await state.keys(old_prefix):
-            value = await state.get(key)
-            await state.set(new_prefix + key.removeprefix(old_prefix), value)
-            await state.delete(key)
+            new_key = new_prefix + key.removeprefix(old_prefix)
+            if await state.get(new_key) is None:
+                await state.set(new_key, await state.get(key))
