@@ -44,6 +44,37 @@ Subscribed channels also receive event notifications (set completions, transfers
 
 ---
 
+### Tickets (`/ticket`)
+
+Post a panel of category buttons that opens a private thread (or forum post) per request, pings the mapped responder role, and tracks claim/close state.
+
+| Command | Description |
+|---|---|
+| `/ticket mining location:<system:planet:location> [need] [notes]` | Request mining assistance |
+| `/ticket medic location:<system:planet:location> [tier] [notes]` | Request a medic (injury tier T1-T3) |
+| `/ticket squad location:<system:planet:location> [size] [notes]` | Request squad/FPS backup |
+| `/ticket backup location:<system:planet:location> [threat] [urgency]` | Request backup, you are under attack |
+| `/ticket cargo route-from:<system:planet:location> route-to:<system:planet:location> [scu] [notes]` | Request cargo hauling help |
+| `/ticket salvage location:<system:planet:location> [target] [notes]` | Request salvage assistance |
+
+Location fields use the form `system:planet:location`, e.g. `Stanton:Hurston:Lorville` (planet and location are optional). All three parts autocomplete against live star system, celestial object, and point-of-interest data.
+
+**Admin commands** (requires Administrator permission or the `sc-bot` role):
+
+| Command | Description |
+|---|---|
+| `/ticket setup [channel]` | Install the ticket panel. A text channel opens tickets as threads; a forum channel opens them as tagged forum posts. Defaults to the current channel, and running it inside a forum post resolves to the parent forum. |
+| `/ticket role <category> <role>` | Map a ticket category to the role that gets pinged when a ticket in that category opens |
+
+#### Panel and Ticket Lifecycle
+
+The panel's category buttons reply with the exact command to run to open that kind of ticket. Each ticket thread has **Claim** and **Close** buttons:
+
+- **Claim** assigns the ticket to the responder who clicked it; the button then toggles to unclaim for that same responder.
+- **Close** is allowed for the requester, the current claimer, or an admin. Closing archives the thread (on forum panels, it also swaps the `open` tag for `closed` and locks the post).
+
+---
+
 ### Items & Equipment (`/find`)
 
 | Command | Description |
