@@ -102,3 +102,52 @@ def test_parse_devposts_nickname_captures_text_around_nested_inline_element():
     posts = parse_devposts(html)
     assert len(posts) == 1
     assert posts[0].author == "Wakapedia-CIG"
+
+
+class _StubResponse:
+    def __init__(self, status: int, payload: dict):
+        self.status = status
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _StubSession:
+    def __init__(self, response):
+        self._response = response
+        self.closed = False
+
+    def post(self, url, json=None):
+        return self._response
+
+
+def _client_with(response):
+    from src.rsi_devtracker import DevTrackerClient
+
+    client = DevTrackerClient()
+    client._session = _StubSession(response)
+    return client
+
+
+async def test_fetch_posts_parses_successful_payload():
+    payload = {"success": 1, "data": {"html": SAMPLE_HTML}}
+    client = _client_with(_StubResponse(200, payload))
+    posts = await client.fetch_posts()
+    assert [p.post_id for p in posts] == [9086979, 9086976]
+
+
+async def test_fetch_posts_non_success_payload_returns_empty():
+    client = _client_with(_StubResponse(200, {"success": 0, "msg": "nope"}))
+    assert await client.fetch_posts() == []
+
+
+async def test_fetch_posts_http_error_returns_empty():
+    client = _client_with(_StubResponse(503, {}))
+    assert await client.fetch_posts() == []

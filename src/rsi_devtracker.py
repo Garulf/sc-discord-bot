@@ -10,6 +10,8 @@ import logging
 from dataclasses import dataclass
 from html.parser import HTMLParser
 
+import aiohttp
+
 logger = logging.getLogger(__name__)
 
 RSI_BASE = "https://robertsspaceindustries.com"
@@ -109,3 +111,47 @@ def parse_devposts(html: str) -> list[DevPost]:
             )
         )
     return posts
+
+
+_API_URL = f"{RSI_BASE}/api/community/getTrackedPosts"
+_TIMEOUT = aiohttp.ClientTimeout(total=15)
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+}
+
+
+class DevTrackerClient:
+    """Fetches the devtracker feed. The session is created lazily so it binds
+    to the running event loop, mirroring the streaming clients."""
+
+    def __init__(self) -> None:
+        self._session: aiohttp.ClientSession | None = None
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(headers=_HEADERS, timeout=_TIMEOUT)
+        return self._session
+
+    async def close(self) -> None:
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+
+    async def fetch_posts(self) -> list[DevPost]:
+        session = await self._get_session()
+        try:
+            async with session.post(_API_URL, json={"page": 1}) as response:
+                if response.status != 200:
+                    logger.warning("Devtracker fetch returned HTTP %s", response.status)
+                    return []
+                payload = await response.json()
+        except (aiohttp.ClientError, ValueError) as exc:
+            logger.warning("Devtracker fetch failed: %s", exc)
+            return []
+
+        if not isinstance(payload, dict) or payload.get("success") != 1:
+            logger.warning("Devtracker API returned non-success payload")
+            return []
+        html = (payload.get("data") or {}).get("html") or ""
+        return parse_devposts(html)
