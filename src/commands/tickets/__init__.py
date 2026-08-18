@@ -32,12 +32,26 @@ class TicketsCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        self._ticket_command_id: int | None = None
 
     async def cog_load(self) -> None:
         self.panel_view = PanelView(self)
         self.ticket_view = TicketView(self)
         self.bot.add_view(self.panel_view)
         self.bot.add_view(self.ticket_view)
+        try:
+            commands_ = await self.bot.tree.fetch_commands()
+            for command in commands_:
+                if command.name == "ticket":
+                    self._ticket_command_id = command.id
+                    break
+        except discord.HTTPException:
+            logger.warning("Could not fetch app commands to cache the /ticket command id")
+
+    def command_mention(self, category_key: str) -> str:
+        if self._ticket_command_id is not None:
+            return f"</ticket {category_key}:{self._ticket_command_id}>"
+        return f"`/ticket {category_key}`"
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError

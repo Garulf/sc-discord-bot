@@ -20,18 +20,17 @@ def test_ticket_view_has_claim_and_close_buttons():
 
 
 @pytest.mark.asyncio
-async def test_panel_button_opens_category_modal():
-    from src.commands.tickets.modals import TicketModal
-
+async def test_panel_button_replies_with_command_mention():
     cog = MagicMock()
+    cog.command_mention = MagicMock(return_value="/ticket medic")
     view = PanelView(cog)
     button = next(b for b in view.children if b.custom_id == "tickets:panel:medic")
     interaction = MagicMock()
-    interaction.response.send_modal = AsyncMock()
+    interaction.response.send_message = AsyncMock()
     await button.callback(interaction)
-    modal = interaction.response.send_modal.await_args.args[0]
-    assert isinstance(modal, TicketModal)
-    assert modal.category_key == "medic"
+    msg = interaction.response.send_message.await_args.args[0]
+    assert "/ticket medic" in msg
+    assert interaction.response.send_message.await_args.kwargs.get("ephemeral") is True
 
 
 @pytest.mark.asyncio

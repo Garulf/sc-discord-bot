@@ -6,7 +6,6 @@ import discord
 
 from . import lifecycle
 from .categories import CATEGORIES
-from .modals import TicketModal
 
 
 class _PanelButton(discord.ui.Button):
@@ -22,7 +21,9 @@ class _PanelButton(discord.ui.Button):
         self._category_key = category_key
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_modal(TicketModal(self._cog, self._category_key))
+        mention = self._cog.command_mention(self._category_key)
+        label = CATEGORIES[self._category_key].label
+        await interaction.response.send_message(f"Run {mention} to open a {label} ticket.", ephemeral=True)
 
 
 class PanelView(discord.ui.View):
