@@ -59,9 +59,9 @@ def test_choice_fields_declare_their_choices():
         ("backup", "urgency"),
         ("salvage", "target"),
         ("contested", "objective"),
-        ("medic", "area"),
-        ("cargo", "area"),
-        ("escort", "area"),
+        ("medic", "area_status"),
+        ("cargo", "area_status"),
+        ("escort", "area_status"),
     }
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "choice"}
     assert found == expected
@@ -76,12 +76,18 @@ def test_choice_fields_declare_their_choices():
 
 def test_int_fields():
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "int"}
-    assert found == {("squad", "size"), ("cargo", "scu"), ("contested", "size"), ("mining", "size"), ("salvage", "size")}
+    assert found == {
+        ("squad", "size"),
+        ("cargo", "scu"),
+        ("contested", "size"),
+        ("mining", "size"),
+        ("salvage", "size"),
+    }
 
 
 def test_area_status_choices():
     for key in ("medic", "cargo", "escort"):
-        spec = next(s for s in CATEGORIES[key].fields if s.key == "area")
+        spec = next(s for s in CATEGORIES[key].fields if s.key == "area_status")
         assert spec.label == "Area status"
         assert spec.choices == ("Safe", "Unsafe", "Combat expected", "Unknown")
 

@@ -52,8 +52,9 @@ def test_mining_and_salvage_take_optional_crew():
 def test_area_status_is_optional_on_medic_cargo_escort():
     for name in ("medic", "cargo", "escort"):
         params = _params(name)
-        assert params["area"].required is False
-        values = [choice.value for choice in params["area"].choices]
+        assert params["area_status"].required is False
+        assert params["area_status"].display_name == "area-status"
+        values = [choice.value for choice in params["area_status"].choices]
         assert values == ["Safe", "Unsafe", "Combat expected", "Unknown"]
 
 

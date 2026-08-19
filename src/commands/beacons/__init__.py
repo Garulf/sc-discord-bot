@@ -163,10 +163,11 @@ class BeaconsCog(commands.Cog):
         await open_beacon(self, interaction, "mining", fields)
 
     @beacon.command(name="medic", description="Request a medic")
+    @app_commands.rename(area_status="area-status")
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         tier="Injury tier (T1 to T3)",
-        area="Area status",
+        area_status="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete)
@@ -175,14 +176,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         tier: Literal["T1", "T2", "T3"] | None = None,
-        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
+        area_status: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if tier:
             fields["tier"] = tier
-        if area:
-            fields["area"] = area
+        if area_status:
+            fields["area_status"] = area_status
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "medic", fields)
@@ -230,12 +231,12 @@ class BeaconsCog(commands.Cog):
         await open_beacon(self, interaction, "backup", fields)
 
     @beacon.command(name="cargo", description="Request cargo hauling help")
-    @app_commands.rename(route_from="route-from", route_to="route-to")
+    @app_commands.rename(route_from="route-from", route_to="route-to", area_status="area-status")
     @app_commands.describe(
         route_from="Pickup (system:planet:location)",
         route_to="Destination (system:planet:location)",
         scu="Cargo size in SCU",
-        area="Area status",
+        area_status="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(route_from=location_autocomplete, route_to=location_autocomplete)
@@ -245,14 +246,14 @@ class BeaconsCog(commands.Cog):
         route_from: str,
         route_to: str,
         scu: app_commands.Range[int, 1, 100000] | None = None,
-        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
+        area_status: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"route_from": route_from, "route_to": route_to}
         if scu:
             fields["scu"] = str(scu)
-        if area:
-            fields["area"] = area
+        if area_status:
+            fields["area_status"] = area_status
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "cargo", fields)
@@ -283,10 +284,11 @@ class BeaconsCog(commands.Cog):
         await open_beacon(self, interaction, "salvage", fields)
 
     @beacon.command(name="escort", description="Request a ship escort")
+    @app_commands.rename(area_status="area-status")
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         destination="Where you are headed (system:planet:location)",
-        area="Area status",
+        area_status="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete, destination=location_autocomplete)
@@ -295,14 +297,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         destination: str | None = None,
-        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
+        area_status: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if destination:
             fields["destination"] = destination
-        if area:
-            fields["area"] = area
+        if area_status:
+            fields["area_status"] = area_status
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "escort", fields)

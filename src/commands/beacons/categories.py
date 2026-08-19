@@ -38,7 +38,9 @@ def _notes() -> FieldSpec:
 
 
 def _area() -> FieldSpec:
-    return FieldSpec("area", "Area status", kind="choice", choices=("Safe", "Unsafe", "Combat expected", "Unknown"))
+    return FieldSpec(
+        "area_status", "Area status", kind="choice", choices=("Safe", "Unsafe", "Combat expected", "Unknown")
+    )
 
 
 def _crew() -> FieldSpec:
