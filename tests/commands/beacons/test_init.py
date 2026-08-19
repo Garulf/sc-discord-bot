@@ -42,6 +42,21 @@ def test_int_fields_are_integer_options():
     assert _params("cargo")["scu"].type is AppCommandOptionType.integer
 
 
+def test_mining_and_salvage_take_optional_crew():
+    for name in ("mining", "salvage"):
+        params = _params(name)
+        assert params["crew"].required is False
+        assert params["crew"].type is AppCommandOptionType.integer
+
+
+def test_area_status_is_optional_on_medic_cargo_escort():
+    for name in ("medic", "cargo", "escort"):
+        params = _params(name)
+        assert params["area"].required is False
+        values = [choice.value for choice in params["area"].choices]
+        assert values == ["Safe", "Unsafe", "Combat expected", "Unknown"]
+
+
 def test_escort_and_transport_take_optional_destination():
     for name in ("escort", "transport"):
         params = _params(name)

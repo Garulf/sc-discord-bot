@@ -141,6 +141,7 @@ class BeaconsCog(commands.Cog):
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         need="What you need",
+        crew="Crew members needed",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete)
@@ -149,11 +150,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         need: Literal["Extra mining ship", "Refining help", "Escort", "Equipment"] | None = None,
+        crew: app_commands.Range[int, 1, 50] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if need:
             fields["need"] = need
+        if crew:
+            fields["size"] = str(crew)
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "mining", fields)
@@ -162,6 +166,7 @@ class BeaconsCog(commands.Cog):
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         tier="Injury tier (T1 to T3)",
+        area="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete)
@@ -170,11 +175,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         tier: Literal["T1", "T2", "T3"] | None = None,
+        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if tier:
             fields["tier"] = tier
+        if area:
+            fields["area"] = area
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "medic", fields)
@@ -227,6 +235,7 @@ class BeaconsCog(commands.Cog):
         route_from="Pickup (system:planet:location)",
         route_to="Destination (system:planet:location)",
         scu="Cargo size in SCU",
+        area="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(route_from=location_autocomplete, route_to=location_autocomplete)
@@ -236,11 +245,14 @@ class BeaconsCog(commands.Cog):
         route_from: str,
         route_to: str,
         scu: app_commands.Range[int, 1, 100000] | None = None,
+        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"route_from": route_from, "route_to": route_to}
         if scu:
             fields["scu"] = str(scu)
+        if area:
+            fields["area"] = area
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "cargo", fields)
@@ -249,6 +261,7 @@ class BeaconsCog(commands.Cog):
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         target="Salvage target",
+        crew="Crew members needed",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete)
@@ -257,11 +270,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         target: Literal["Ship wreck", "Panels", "Structure", "Unknown"] | None = None,
+        crew: app_commands.Range[int, 1, 50] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if target:
             fields["target"] = target
+        if crew:
+            fields["size"] = str(crew)
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "salvage", fields)
@@ -270,6 +286,7 @@ class BeaconsCog(commands.Cog):
     @app_commands.describe(
         location="Where you are (system:planet:location)",
         destination="Where you are headed (system:planet:location)",
+        area="Area status",
         notes="Extra details",
     )
     @app_commands.autocomplete(location=location_autocomplete, destination=location_autocomplete)
@@ -278,11 +295,14 @@ class BeaconsCog(commands.Cog):
         interaction: discord.Interaction,
         location: str,
         destination: str | None = None,
+        area: Literal["Safe", "Unsafe", "Combat expected", "Unknown"] | None = None,
         notes: str | None = None,
     ) -> None:
         fields = {"location": location}
         if destination:
             fields["destination"] = destination
+        if area:
+            fields["area"] = area
         if notes:
             fields["notes"] = notes
         await open_beacon(self, interaction, "escort", fields)

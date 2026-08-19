@@ -59,6 +59,9 @@ def test_choice_fields_declare_their_choices():
         ("backup", "urgency"),
         ("salvage", "target"),
         ("contested", "objective"),
+        ("medic", "area"),
+        ("cargo", "area"),
+        ("escort", "area"),
     }
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "choice"}
     assert found == expected
@@ -73,7 +76,21 @@ def test_choice_fields_declare_their_choices():
 
 def test_int_fields():
     found = {(cat.key, spec.key) for cat in CATEGORIES.values() for spec in cat.fields if spec.kind == "int"}
-    assert found == {("squad", "size"), ("cargo", "scu"), ("contested", "size")}
+    assert found == {("squad", "size"), ("cargo", "scu"), ("contested", "size"), ("mining", "size"), ("salvage", "size")}
+
+
+def test_area_status_choices():
+    for key in ("medic", "cargo", "escort"):
+        spec = next(s for s in CATEGORIES[key].fields if s.key == "area")
+        assert spec.label == "Area status"
+        assert spec.choices == ("Safe", "Unsafe", "Combat expected", "Unknown")
+
+
+def test_crew_fields_reuse_size_key_for_full_announcements():
+    for key in ("mining", "salvage"):
+        spec = next(s for s in CATEGORIES[key].fields if s.key == "size")
+        assert spec.label == "Crew needed"
+        assert spec.kind == "int"
 
 
 def test_notes_fields_stay_free_text():

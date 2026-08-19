@@ -37,14 +37,19 @@ async def _search_pois(interaction: discord.Interaction, query: str) -> list:
         return []
 
 
+def _is_placeholder(name: str | None) -> bool:
+    return bool(name) and name.startswith("<=") and name.endswith("=>")
+
+
 async def location_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     query = current.strip().lower()
     values = [name for name in FLYABLE_SYSTEMS if query in name.lower()]
     for poi in await _search_pois(interaction, current):
-        if poi.star_system_name not in FLYABLE_SYSTEMS:
+        if poi.star_system_name not in FLYABLE_SYSTEMS or _is_placeholder(poi.name):
             continue
-        if poi.parent_name and poi.parent_name != poi.star_system_name:
-            values.append(f"{poi.star_system_name}:{poi.parent_name}:{poi.name}")
+        parent = None if _is_placeholder(poi.parent_name) else poi.parent_name
+        if parent and parent != poi.star_system_name:
+            values.append(f"{poi.star_system_name}:{parent}:{poi.name}")
         else:
             values.append(f"{poi.star_system_name}:{poi.name}")
     return name_choices(values)

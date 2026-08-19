@@ -83,6 +83,26 @@ async def test_autocomplete_excludes_non_flyable_systems():
 
 
 @pytest.mark.asyncio
+async def test_autocomplete_drops_uninitialized_pois():
+    ghost = _poi("<= UNINITIALIZED =>", "Stanton", "Hurston", "Outpost")
+    interaction = _interaction(pois=[ghost, _LORVILLE])
+    choices = await location_autocomplete(interaction, "lor")
+    values = [c.value for c in choices]
+    assert "Stanton:Hurston:Lorville" in values
+    assert all("UNINITIALIZED" not in v for v in values)
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_degrades_uninitialized_parent_to_system_name():
+    orphan = _poi("Lost Outpost", "Stanton", "<= UNINITIALIZED =>", "Outpost")
+    interaction = _interaction(pois=[orphan])
+    choices = await location_autocomplete(interaction, "lost")
+    values = [c.value for c in choices]
+    assert "Stanton:Lost Outpost" in values
+    assert all("UNINITIALIZED" not in v for v in values)
+
+
+@pytest.mark.asyncio
 async def test_autocomplete_swallows_api_errors():
     interaction = _interaction()
     interaction.client.locations_api.search = AsyncMock(side_effect=RuntimeError("api down"))
