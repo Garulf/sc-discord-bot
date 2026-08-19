@@ -6,6 +6,7 @@ from typing import Any
 
 from src.storage import StateStore
 
+from .categories import CATEGORIES
 from .rules import STATUS_CLOSED, normalize_beacon
 
 
@@ -54,15 +55,24 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "idle_warn_minutes": 120,
     "idle_close_minutes": 60,
     "escalate_minutes": 15,
-    "voice": False,
+    "voice": (),
     "digest_channel_id": None,
 }
+
+
+def _normalize_voice(value: Any) -> tuple[str, ...]:
+    if value is True:
+        return tuple(CATEGORIES)
+    if isinstance(value, (list, tuple)):
+        return tuple(key for key in value if key in CATEGORIES)
+    return ()
 
 
 def get_settings(config: dict[str, Any] | None) -> dict[str, Any]:
     merged = dict(DEFAULT_SETTINGS)
     if config:
         merged.update(config.get("settings") or {})
+    merged["voice"] = _normalize_voice(merged["voice"])
     return merged
 
 

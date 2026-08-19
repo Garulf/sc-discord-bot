@@ -139,3 +139,10 @@ def test_config_options_are_all_optional():
     params = _params("config")
     for name in ("idle_warn", "idle_close", "escalate", "voice", "digest_channel", "clear_digest"):
         assert params[name].required is False
+
+
+def test_config_takes_optional_voice_category():
+    params = _params("config")
+    assert params["voice_category"].required is False
+    assert params["voice_category"].display_name == "voice-category"
+    assert [c.value for c in params["voice_category"].choices] == list(CATEGORIES)

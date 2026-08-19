@@ -346,7 +346,7 @@ async def test_join_does_not_reannounce_full_after_leave_and_rejoin(make_cog):
 
 @pytest.mark.asyncio
 async def test_join_creates_voice_channel_when_enabled(make_cog):
-    config = dict(THREAD_CONFIG, settings={"voice": True})
+    config = dict(THREAD_CONFIG, settings={"voice": True})  # legacy bool still honored
     cog = make_cog(config=config, beacon=_open_beacon_record())
     interaction = _interaction(user_id=2)
     interaction.channel.add_user = AsyncMock()
@@ -790,3 +790,24 @@ async def test_activity_update_is_throttled_within_60_seconds(make_cog):
     message = _thread_message(author_id=2)
     await lifecycle.handle_thread_message(cog, message)
     lifecycle.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_join_creates_voice_only_for_enabled_categories(make_cog):
+    config = dict(THREAD_CONFIG, settings={"voice": ["mining"]})
+    cog = make_cog(config=config, beacon=_open_beacon_record(category="medic"))
+    interaction = _interaction(user_id=2)
+    interaction.channel.add_user = AsyncMock()
+    interaction.guild.create_voice_channel = AsyncMock()
+    await lifecycle.handle_join(cog, interaction)
+    interaction.guild.create_voice_channel.assert_not_awaited()
+
+    cog = make_cog(config=config, beacon=_open_beacon_record(category="mining"))
+    interaction = _interaction(user_id=2)
+    interaction.channel.add_user = AsyncMock()
+    voice = MagicMock()
+    voice.id = 777
+    voice.mention = "<#777>"
+    interaction.guild.create_voice_channel = AsyncMock(return_value=voice)
+    await lifecycle.handle_join(cog, interaction)
+    interaction.guild.create_voice_channel.assert_awaited_once()
