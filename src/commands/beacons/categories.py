@@ -37,10 +37,8 @@ def _notes() -> FieldSpec:
     return FieldSpec("notes", "Notes")
 
 
-def _area() -> FieldSpec:
-    return FieldSpec(
-        "area_status", "Area status", kind="choice", choices=("Safe", "Unsafe", "Combat expected", "Unknown")
-    )
+def _danger() -> FieldSpec:
+    return FieldSpec("danger", "Danger level", kind="choice", choices=("Unknown", "None", "Low", "Medium", "High"))
 
 
 def _crew() -> FieldSpec:
@@ -82,7 +80,7 @@ CATEGORIES: dict[str, Category] = {
         fields=(
             _location(),
             FieldSpec("tier", "Injury tier", kind="choice", choices=("T1", "T2", "T3")),
-            _area(),
+            _danger(),
             _notes(),
         ),
     ),
@@ -117,7 +115,7 @@ CATEGORIES: dict[str, Category] = {
             FieldSpec("route_from", "Route from", required=True, kind="route"),
             FieldSpec("route_to", "Route to", required=True, kind="route"),
             FieldSpec("scu", "Cargo size (SCU)", kind="int"),
-            _area(),
+            _danger(),
             _notes(),
         ),
     ),
@@ -141,7 +139,7 @@ CATEGORIES: dict[str, Category] = {
         fields=(
             _location(),
             FieldSpec("destination", "Destination", kind="route"),
-            _area(),
+            _danger(),
             _notes(),
         ),
     ),

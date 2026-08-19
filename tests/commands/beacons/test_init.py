@@ -49,13 +49,12 @@ def test_mining_and_salvage_take_optional_crew():
         assert params["crew"].type is AppCommandOptionType.integer
 
 
-def test_area_status_is_optional_on_medic_cargo_escort():
+def test_danger_level_is_optional_on_medic_cargo_escort():
     for name in ("medic", "cargo", "escort"):
         params = _params(name)
-        assert params["area_status"].required is False
-        assert params["area_status"].display_name == "area-status"
-        values = [choice.value for choice in params["area_status"].choices]
-        assert values == ["Safe", "Unsafe", "Combat expected", "Unknown"]
+        assert params["danger"].required is False
+        values = [choice.value for choice in params["danger"].choices]
+        assert values == ["Unknown", "None", "Low", "Medium", "High"]
 
 
 def test_escort_and_transport_take_optional_destination():
