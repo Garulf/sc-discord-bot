@@ -1,3 +1,6 @@
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from discord import AppCommandOptionType
 
 from src.commands.beacons import BeaconsCog
@@ -111,10 +114,11 @@ def test_cog_load_registers_current_and_legacy_views_and_migrates():
     finally:
         pkg.store.migrate_legacy_keys = original
     custom_ids = {item.custom_id for call in bot.add_view.call_args_list for item in call.args[0].children}
-    assert bot.add_view.call_count == 3
+    assert bot.add_view.call_count == 4
     assert "beacons:claim" in custom_ids
     assert "tickets:claim" in custom_ids
     assert "beacons:commend" in custom_ids
+    assert "beacons:sched_join" in custom_ids
     migrate.assert_awaited_once_with(bot.state)
 
 
@@ -146,3 +150,79 @@ def test_config_takes_optional_voice_category_channel():
     assert params["voice_category"].required is False
     assert params["voice_category"].display_name == "voice-category"
     assert params["voice_category"].type is AppCommandOptionType.channel
+
+
+def test_config_takes_optional_schedule_role():
+    params = _params("config")
+    assert params["schedule_role"].required is False
+    assert params["schedule_role"].display_name == "schedule-role"
+    assert params["clear_schedule_role"].required is False
+    assert params["clear_schedule_role"].display_name == "clear-schedule-role"
+
+
+@pytest.mark.asyncio
+async def test_mining_command_schedules_when_when_is_given(monkeypatch):
+    from src.commands.beacons import BeaconsCog
+
+    dispatch = AsyncMock()
+    monkeypatch.setattr("src.commands.beacons.scheduled.open_or_schedule", dispatch)
+    cog = BeaconsCog(MagicMock())
+    interaction = MagicMock()
+
+    await cog.mining.callback(cog, interaction, location="Stanton", when="2h")
+
+    dispatch.assert_awaited_once()
+    args = dispatch.await_args.args
+    assert args[0] is cog
+    assert args[1] is interaction
+    assert args[2] == "mining"
+    assert args[4] == "2h"
+
+
+@pytest.mark.asyncio
+async def test_config_command_forwards_schedule_role(monkeypatch):
+    from src.commands.beacons import BeaconsCog
+
+    handle_config = AsyncMock()
+    monkeypatch.setattr("src.commands.beacons.setup_cmd.handle_config", handle_config)
+    cog = BeaconsCog(MagicMock())
+    interaction = MagicMock()
+    role = MagicMock()
+
+    await cog.config.callback(
+        cog,
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        voice_category=None,
+        digest_channel=None,
+        clear_digest=None,
+        schedule_role=role,
+        clear_schedule_role=None,
+    )
+
+    handle_config.assert_awaited_once()
+    assert handle_config.await_args.kwargs["schedule_role"] is role
+
+
+@pytest.mark.asyncio
+async def test_cog_load_registers_scheduled_beacon_view(monkeypatch):
+    from src.commands.beacons import BeaconsCog
+
+    monkeypatch.setattr("src.commands.beacons.store.migrate_legacy_keys", AsyncMock())
+    bot = MagicMock()
+    bot.state = MagicMock()
+    bot.state.keys = AsyncMock(return_value=[])
+    bot.add_view = MagicMock()
+    bot.tree.fetch_commands = AsyncMock(return_value=[])
+    cog = BeaconsCog(bot)
+    cog.maintenance_loop.start = MagicMock()
+
+    await cog.cog_load()
+
+    from src.commands.beacons.views import ScheduledBeaconView
+
+    assert isinstance(cog.scheduled_beacon_view, ScheduledBeaconView)
+    assert any(isinstance(call.args[0], ScheduledBeaconView) for call in bot.add_view.call_args_list)

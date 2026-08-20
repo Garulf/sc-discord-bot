@@ -60,6 +60,8 @@ Service beacons: a panel of category buttons plus slash commands that open a pub
 | `/beacon transport location:<location> [destination] [notes]` | Request personal transport |
 | `/beacon contested location:<station> [objective] [size] [notes]` | Group up for a contested zone. Location is a fixed list: Orbituary, Ruin Station, Checkmate, the PYAM exec hangar, and the two PYAM-SUPVISR red keycard stations (objective: Vault run / Full clear / Keycard run / Extraction help; size: 1-50) |
 
+Every one of the nine category commands above also takes an optional `when:<duration>` (e.g. `45m`, `2h`, `1d`) to schedule the beacon ahead of time instead of opening it immediately; see [Scheduling a beacon](#scheduling-a-beacon) below.
+
 Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. Location-style options (`location`, `route-from`, `route-to`, `destination`) take a single `system:planet:location` value; as you type, autocomplete suggests flyable star systems (Stanton, Pyro, Nyx), planets and moons, and points of interest as full breadcrumbs (e.g. `Stanton:Hurston:Lorville`) from live game data, and the beacon renders it as a breadcrumb.
 
 **In-beacon and utility commands**:
@@ -77,7 +79,7 @@ Every non-notes option is constrained: category details come from fixed choice l
 | `/beacon setup [channel]` | Install the beacon panel. A text channel opens beacons as threads; a forum channel opens them as tagged forum posts. Defaults to the current channel, and running it inside a forum post resolves to the parent forum. |
 | `/beacon role <category> <role>` | Map a beacon category to the role that gets pinged when a beacon in that category opens |
 | `/beacon board [action]` | Install (default) or remove a live-updating embed listing all open beacons in the current channel |
-| `/beacon config [idle_warn] [idle_close] [escalate] [voice] [digest_channel] [clear_digest]` | View or change beacon settings for this server. Defaults: idle warn 120 minutes, idle close 60 minutes, escalate 15 minutes, voice off, digest channel unset |
+| `/beacon config [idle_warn] [idle_close] [escalate] [voice] [digest_channel] [clear_digest] [schedule_role] [clear_schedule_role]` | View or change beacon settings for this server. Defaults: idle warn 120 minutes, idle close 60 minutes, escalate 15 minutes, voice off, digest channel unset, schedule role unset (everyone can schedule) |
 
 #### Panel and Beacon Lifecycle
 
@@ -96,6 +98,17 @@ A background sweep keeps beacons moving without manual attention:
 - If a beacon has had no responders after the configured escalate window (15 minutes by default), the bot pings the mapped role, or a generic reminder if no role is mapped.
 - If a beacon goes idle for the configured warn window (120 minutes by default), the bot warns the requester that it will auto-close, then closes it automatically after the configured close window (60 minutes by default) unless activity resumes.
 - Setting a digest channel in `/beacon config` posts a weekly summary embed there covering beacons opened, closed, top categories, and top responders over the past 7 days.
+
+#### Scheduling a beacon
+
+Add `when:<duration>` to any category command (e.g. `when:45m`, `when:2h`, `when:1d`) to schedule it instead of opening it right away. Durations accept a combination of `d`/`h`/`m` units and must resolve to between **5 minutes and 24 hours** out. If `schedule_role` is set in `/beacon config`, only that role (and admins) can schedule; leaving it unset lets anyone schedule.
+
+Scheduling posts an RSVP embed in the beacon channel with **Join**, **Leave**, and **Cancel** buttons:
+
+- **Join**/**Leave** add or remove you from the RSVP list shown on the embed; anyone can RSVP ahead of time.
+- **Cancel** removes the scheduled beacon entirely. Allowed for the requester or an admin.
+- 10 minutes before the scheduled time, the bot pings everyone on the RSVP list with a reminder, if anyone has RSVP'd.
+- At the scheduled time, the bot opens the beacon thread automatically (same as running the command with no `when`) and auto-joins every RSVP'd member to it, then updates the embed to link the opened thread.
 
 Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
 
