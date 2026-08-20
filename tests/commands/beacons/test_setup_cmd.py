@@ -365,3 +365,67 @@ async def test_resetup_deletes_previous_panel_message(monkeypatch):
     await setup_cmd.handle_setup(_cog(), interaction)
     old_message.delete.assert_awaited_once()
     assert saved["panel_message_id"] == 11
+
+
+@pytest.mark.asyncio
+async def test_config_sets_schedule_role(monkeypatch):
+    config = {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}}
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = MagicMock()
+    interaction.guild.id = 1
+    interaction.response.send_message = AsyncMock()
+    role = MagicMock()
+    role.id = 77
+    role.mention = "<@&77>"
+
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=None,
+        clear_digest=None,
+        schedule_role=role,
+        clear_schedule_role=None,
+    )
+
+    assert saved["settings"]["schedule_role_id"] == 77
+    reply = interaction.response.send_message.await_args.args[0]
+    assert "<@&77>" in reply
+
+
+@pytest.mark.asyncio
+async def test_config_clears_schedule_role(monkeypatch):
+    config = {
+        "channel_id": 1,
+        "mode": "thread",
+        "panel_message_id": 2,
+        "tag_ids": {},
+        "roles": {},
+        "settings": {"schedule_role_id": 77},
+    }
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = MagicMock()
+    interaction.guild.id = 1
+    interaction.response.send_message = AsyncMock()
+
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        digest_channel=None,
+        clear_digest=None,
+        schedule_role=None,
+        clear_schedule_role=True,
+    )
+
+    assert saved["settings"]["schedule_role_id"] is None

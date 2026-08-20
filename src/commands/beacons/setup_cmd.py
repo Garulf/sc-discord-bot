@@ -131,6 +131,8 @@ async def handle_config(
     voice_category: discord.CategoryChannel | None = None,
     digest_channel: discord.TextChannel | None,
     clear_digest: bool | None,
+    schedule_role: discord.Role | None = None,
+    clear_schedule_role: bool | None = None,
 ) -> None:
     config = await store.get_config(cog.bot.state, interaction.guild.id)
     if config is None:
@@ -151,6 +153,10 @@ async def handle_config(
         settings["digest_channel_id"] = None
     elif digest_channel is not None:
         settings["digest_channel_id"] = digest_channel.id
+    if clear_schedule_role:
+        settings["schedule_role_id"] = None
+    elif schedule_role is not None:
+        settings["schedule_role_id"] = schedule_role.id
     config["settings"] = settings
     await store.set_config(cog.bot.state, interaction.guild.id, config)
     effective = store.get_settings(config)
@@ -158,6 +164,8 @@ async def handle_config(
     digest_line = f"<#{digest_value}>" if digest_value else "not set"
     voice_category_id = effective["voice_category_id"]
     voice_category_line = f"<#{voice_category_id}>" if voice_category_id else "same as beacon channel"
+    schedule_role_id = effective["schedule_role_id"]
+    schedule_role_line = f"<@&{schedule_role_id}>" if schedule_role_id else "everyone"
     lines = [
         f"Idle warn: {effective['idle_warn_minutes']} minutes",
         f"Idle close: {effective['idle_close_minutes']} minutes",
@@ -165,5 +173,6 @@ async def handle_config(
         f"Voice channels: {'on' if effective['voice'] else 'off'}",
         f"Voice category: {voice_category_line}",
         f"Digest channel: {digest_line}",
+        f"Can schedule beacons: {schedule_role_line}",
     ]
     await interaction.response.send_message("\n".join(lines), ephemeral=True)
