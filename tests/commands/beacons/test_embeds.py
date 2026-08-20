@@ -120,3 +120,78 @@ def test_destination_renders_as_breadcrumb():
     embed = build_beacon_embed(beacon)
     values = [f.value for f in embed.fields]
     assert "Stanton › Crusader › Orison" in values
+
+
+def _scheduled(**overrides):
+    scheduled = {
+        "guild_id": 1,
+        "channel_id": 10,
+        "category": "medic",
+        "requester_id": 42,
+        "fields": {"location": "Stanton:Hurston:Lorville", "tier": "T2"},
+        "open_at": 1000.0,
+        "rsvp": [],
+        "reminded_at": None,
+        "created_at": 100.0,
+    }
+    scheduled.update(overrides)
+    return scheduled
+
+
+def test_scheduled_embed_shows_category_requester_and_fields():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled())
+    assert "Medical" in embed.title
+    assert "scheduled" in embed.title.lower()
+    field_names = [f.name for f in embed.fields]
+    field_values = [f.value for f in embed.fields]
+    assert "Location" in field_names
+    assert "Stanton › Hurston › Lorville" in field_values
+    assert any("<@42>" in v for v in field_values)
+
+
+def test_scheduled_embed_pending_status_shows_open_at_timestamp():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled(open_at=1000.0))
+    values = " ".join(f.value for f in embed.fields)
+    assert "<t:1000:R>" in values
+    assert "<t:1000:f>" in values
+
+
+def test_scheduled_embed_lists_rsvp():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled(rsvp=[7, 8]))
+    field_names = [f.name for f in embed.fields]
+    values = " ".join(f.value for f in embed.fields)
+    assert "RSVP (2)" in field_names
+    assert "<@7>" in values
+    assert "<@8>" in values
+
+
+def test_scheduled_embed_omits_rsvp_field_when_empty():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled(rsvp=[]))
+    assert not any(f.name.startswith("RSVP") for f in embed.fields)
+
+
+def test_scheduled_embed_cancelled_status():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled(), cancelled_by_id=7)
+    values = " ".join(f.value for f in embed.fields)
+    assert "Cancelled by <@7>" in values
+
+
+def test_scheduled_embed_opened_status_shows_thread():
+    from src.commands.beacons.embeds import build_scheduled_embed
+
+    embed = build_scheduled_embed(_scheduled(), opened_thread_id=999)
+    field_names = [f.name for f in embed.fields]
+    values = " ".join(f.value for f in embed.fields)
+    assert "Opened" in values
+    assert "Thread" in field_names
+    assert "<#999>" in values

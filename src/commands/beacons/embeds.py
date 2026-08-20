@@ -65,6 +65,15 @@ def beacon_title(category_key: str, username: str, fields: dict[str, Any] | None
     return title[:_TITLE_LIMIT]
 
 
+def _add_category_fields(embed: discord.Embed, category, fields: dict[str, Any]) -> None:
+    for spec in category.fields:
+        value = fields.get(spec.key)
+        if not value:
+            continue
+        shown = format_breadcrumb(value) if spec.kind in ("location", "route") else value
+        embed.add_field(name=spec.label, value=shown, inline=False)
+
+
 def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
     category = CATEGORIES[beacon["category"]]
     embed = discord.Embed(
@@ -78,12 +87,7 @@ def build_beacon_embed(beacon: dict[str, Any]) -> discord.Embed:
         size = beacon["fields"].get("size")
         name = f"Responders ({len(beacon['members'])}/{size})" if size else "Responders"
         embed.add_field(name=name, value=responders, inline=False)
-    for spec in category.fields:
-        value = beacon["fields"].get(spec.key)
-        if not value:
-            continue
-        shown = format_breadcrumb(value) if spec.kind in ("location", "route") else value
-        embed.add_field(name=spec.label, value=shown, inline=False)
+    _add_category_fields(embed, category, beacon["fields"])
     embed.add_field(name="Opened", value=f"<t:{int(beacon['opened_at'])}:R>", inline=True)
     return embed
 
@@ -96,6 +100,34 @@ def _status_text(beacon: dict[str, Any]) -> str:
         when = f" <t:{closed_at}:R>" if closed_at else ""
         return f"Closed by <@{beacon['closed_by_id']}>{when}"
     return "Open"
+
+
+def build_scheduled_embed(
+    scheduled: dict[str, Any], *, cancelled_by_id: int | None = None, opened_thread_id: int | None = None
+) -> discord.Embed:
+    category = CATEGORIES[scheduled["category"]]
+    embed = discord.Embed(
+        title=f"{category.emoji} {category.label} beacon (scheduled)",
+        color=discord.Color.blurple(),
+    )
+    embed.add_field(name="Requester", value=f"<@{scheduled['requester_id']}>", inline=True)
+    embed.add_field(name="Status", value=_scheduled_status_text(scheduled, cancelled_by_id, opened_thread_id), inline=True)
+    if scheduled["rsvp"]:
+        rsvp = ", ".join(f"<@{user_id}>" for user_id in scheduled["rsvp"])
+        embed.add_field(name=f"RSVP ({len(scheduled['rsvp'])})", value=rsvp, inline=False)
+    _add_category_fields(embed, category, scheduled["fields"])
+    if opened_thread_id is not None:
+        embed.add_field(name="Thread", value=f"<#{opened_thread_id}>", inline=False)
+    return embed
+
+
+def _scheduled_status_text(scheduled: dict[str, Any], cancelled_by_id: int | None, opened_thread_id: int | None) -> str:
+    open_at = int(scheduled["open_at"])
+    if opened_thread_id is not None:
+        return f"Opened <t:{open_at}:R>"
+    if cancelled_by_id is not None:
+        return f"Cancelled by <@{cancelled_by_id}>"
+    return f"Opens <t:{open_at}:R> (<t:{open_at}:f>)"
 
 
 def build_panel_content(mention) -> str:
