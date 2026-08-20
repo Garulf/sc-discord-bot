@@ -120,22 +120,6 @@ async def handle_role(cog, interaction: discord.Interaction, category_key: str, 
     await interaction.response.send_message(f"{label} beacons will now ping {role.mention}.", ephemeral=True)
 
 
-def _updated_voice(config: dict, voice: bool, voice_category: str | None) -> list[str]:
-    if voice_category is None:
-        return list(CATEGORIES) if voice else []
-    enabled = set(store.get_settings(config)["voice"])
-    (enabled.add if voice else enabled.discard)(voice_category)
-    return [key for key in CATEGORIES if key in enabled]
-
-
-def _voice_summary(enabled: tuple[str, ...]) -> str:
-    if not enabled:
-        return "off"
-    if set(enabled) == set(CATEGORIES):
-        return "all"
-    return ", ".join(short_label(CATEGORIES[key]) for key in enabled)
-
-
 async def handle_config(
     cog,
     interaction: discord.Interaction,
@@ -144,19 +128,12 @@ async def handle_config(
     idle_close: int | None,
     escalate: int | None,
     voice: bool | None,
-    voice_category: str | None = None,
     digest_channel: discord.TextChannel | None,
     clear_digest: bool | None,
 ) -> None:
     config = await store.get_config(cog.bot.state, interaction.guild.id)
     if config is None:
         await interaction.response.send_message("Run `/beacon setup` first.", ephemeral=True)
-        return
-    if voice_category is not None and voice is None:
-        await interaction.response.send_message(
-            "Use `voice-category` together with `voice` to add (`True`) or remove (`False`) that category.",
-            ephemeral=True,
-        )
         return
     settings = dict(config.get("settings") or {})
     if idle_warn is not None:
@@ -166,7 +143,7 @@ async def handle_config(
     if escalate is not None:
         settings["escalate_minutes"] = escalate
     if voice is not None:
-        settings["voice"] = _updated_voice(config, voice, voice_category)
+        settings["voice"] = voice
     if clear_digest:
         settings["digest_channel_id"] = None
     elif digest_channel is not None:
@@ -180,7 +157,7 @@ async def handle_config(
         f"Idle warn: {effective['idle_warn_minutes']} minutes",
         f"Idle close: {effective['idle_close_minutes']} minutes",
         f"Escalate: {effective['escalate_minutes']} minutes",
-        f"Voice channels: {_voice_summary(effective['voice'])}",
+        f"Voice channels: {'on' if effective['voice'] else 'off'}",
         f"Digest channel: {digest_line}",
     ]
     await interaction.response.send_message("\n".join(lines), ephemeral=True)

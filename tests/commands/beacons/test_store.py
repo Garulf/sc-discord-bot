@@ -125,15 +125,6 @@ def test_get_settings_defaults_and_overlay():
     assert store.get_settings(None) == store.DEFAULT_SETTINGS
     config = {"settings": {"voice": True}}
     merged = store.get_settings(config)
+    assert merged["voice"] is True
     assert merged["idle_warn_minutes"] == 120
     assert config["settings"] == {"voice": True}
-
-
-def test_get_settings_normalizes_voice_values():
-    from src.commands.beacons.categories import CATEGORIES
-
-    assert store.get_settings(None)["voice"] == ()
-    assert store.get_settings({"settings": {"voice": True}})["voice"] == tuple(CATEGORIES)
-    assert store.get_settings({"settings": {"voice": False}})["voice"] == ()
-    assert store.get_settings({"settings": {"voice": ["medic", "mining"]}})["voice"] == ("medic", "mining")
-    assert store.get_settings({"settings": {"voice": ["medic", "bogus"]}})["voice"] == ("medic",)

@@ -4,7 +4,6 @@ import discord
 import pytest
 
 from src.commands.beacons import setup_cmd
-from src.commands.beacons.categories import CATEGORIES
 
 
 def _cog():
@@ -268,66 +267,7 @@ async def test_config_merges_provided_values(monkeypatch):
     )
     assert saved["settings"]["idle_warn_minutes"] == 200
     assert saved["settings"]["idle_close_minutes"] == 30
-    assert saved["settings"]["voice"] == list(CATEGORIES)
-
-
-def _voice_config(**settings):
-    return {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}, "settings": settings}
-
-
-async def _run_config(monkeypatch, config, saved, **kwargs):
-    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
-    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
-    interaction = _admin_interaction(MagicMock())
-    defaults = dict(idle_warn=None, idle_close=None, escalate=None, voice=None, digest_channel=None, clear_digest=None)
-    defaults.update(kwargs)
-    await setup_cmd.handle_config(MagicMock(), interaction, **defaults)
-    return interaction
-
-
-@pytest.mark.asyncio
-async def test_config_voice_category_adds_one_category(monkeypatch):
-    saved = {}
-    await _run_config(monkeypatch, _voice_config(voice=["mining"]), saved, voice=True, voice_category="medic")
-    assert saved["settings"]["voice"] == ["mining", "medic"]
-
-
-@pytest.mark.asyncio
-async def test_config_voice_category_removes_one_category(monkeypatch):
-    saved = {}
-    await _run_config(monkeypatch, _voice_config(voice=["mining", "medic"]), saved, voice=False, voice_category="medic")
-    assert saved["settings"]["voice"] == ["mining"]
-
-
-@pytest.mark.asyncio
-async def test_config_voice_true_alone_enables_all(monkeypatch):
-    saved = {}
-    await _run_config(monkeypatch, _voice_config(), saved, voice=True)
-    assert saved["settings"]["voice"] == list(CATEGORIES)
-
-
-@pytest.mark.asyncio
-async def test_config_voice_false_alone_disables_all(monkeypatch):
-    saved = {}
-    await _run_config(monkeypatch, _voice_config(voice=True), saved, voice=False)
-    assert saved["settings"]["voice"] == []
-
-
-@pytest.mark.asyncio
-async def test_config_voice_category_without_voice_is_rejected(monkeypatch):
-    saved = {}
-    interaction = await _run_config(monkeypatch, _voice_config(), saved, voice_category="medic")
-    assert saved == {}
-    assert "voice" in interaction.response.send_message.await_args.args[0].lower()
-
-
-@pytest.mark.asyncio
-async def test_config_summary_lists_enabled_voice_categories(monkeypatch):
-    saved = {}
-    interaction = await _run_config(monkeypatch, _voice_config(voice=["mining", "medic"]), saved)
-    message = interaction.response.send_message.await_args.args[0]
-    assert "Mining" in message
-    assert "Medical" in message
+    assert saved["settings"]["voice"] is True
 
 
 @pytest.mark.asyncio

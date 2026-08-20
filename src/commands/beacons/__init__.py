@@ -376,17 +376,14 @@ class BeaconsCog(commands.Cog):
         await handle_board(self, interaction, action)
 
     @beacon.command(name="config", description="View or change beacon settings")
-    @app_commands.rename(voice_category="voice-category")
     @app_commands.describe(
         idle_warn="Minutes idle before a warning (5-1440)",
         idle_close="Minutes idle before auto-closing (5-1440)",
         escalate="Minutes with no responders before pinging the category role (1-1440)",
-        voice="Turn voice channel creation on or off (all categories, or one with voice-category)",
-        voice_category="Limit the voice change to a single beacon category",
+        voice="Auto-create a voice channel when a beacon fills",
         digest_channel="Channel to post the weekly digest in",
         clear_digest="Unset the digest channel",
     )
-    @app_commands.choices(voice_category=_CATEGORY_CHOICES)
     @app_commands.check(admin_or_sc_bot)
     async def config(
         self,
@@ -395,7 +392,6 @@ class BeaconsCog(commands.Cog):
         idle_close: app_commands.Range[int, 5, 1440] | None = None,
         escalate: app_commands.Range[int, 1, 1440] | None = None,
         voice: bool | None = None,
-        voice_category: str | None = None,
         digest_channel: discord.TextChannel | None = None,
         clear_digest: bool | None = None,
     ) -> None:
@@ -406,7 +402,6 @@ class BeaconsCog(commands.Cog):
             idle_close=idle_close,
             escalate=escalate,
             voice=voice,
-            voice_category=voice_category,
             digest_channel=digest_channel,
             clear_digest=clear_digest,
         )

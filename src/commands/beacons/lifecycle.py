@@ -261,7 +261,7 @@ async def handle_join(cog, interaction: discord.Interaction) -> None:
             beacon["first_joined_at"] = now
         config = await store.get_config(cog.bot.state, interaction.guild.id)
         settings = store.get_settings(config)
-        if beacon["category"] in settings["voice"] and beacon["voice_channel_id"] is None:
+        if settings["voice"] and beacon["voice_channel_id"] is None:
             await _create_voice_channel(cog, interaction, beacon, config)
         await store.save_beacon(cog.bot.state, interaction.channel.id, beacon)
         try:
