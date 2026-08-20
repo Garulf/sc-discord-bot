@@ -14,6 +14,7 @@ from .duration import MAX_SECONDS, MIN_SECONDS, parse_duration
 from .embeds import build_scheduled_embed
 from .lifecycle import _SC_BOT_ROLE, is_beacon_admin, lock_for
 from .location import parse_location
+from .rules import STATUS_ACTIVE
 
 logger = logging.getLogger(__name__)
 
@@ -198,3 +199,113 @@ async def handle_scheduled_cancel(cog, interaction: discord.Interaction) -> None
         except discord.HTTPException:
             logger.warning("Could not update scheduled beacon message %s after cancel", interaction.message.id)
         await _reply(interaction, "Scheduled beacon cancelled.")
+
+
+_REMINDER_SECONDS = 600
+
+
+async def run_scheduled_beacons(cog, guild: discord.Guild, now: float) -> None:
+    for message_id, record in await store.scheduled_beacons(cog.bot.state, guild.id):
+        try:
+            await _process_scheduled(cog, guild, message_id, record, now)
+        except Exception:
+            logger.exception("Scheduled beacon processing failed for message %s", message_id)
+
+
+async def _process_scheduled(cog, guild: discord.Guild, message_id: int, record: dict, now: float) -> None:
+    if now >= record["open_at"]:
+        await _fire_scheduled(cog, guild, message_id, record, now)
+        return
+    if record["reminded_at"] is None and now >= record["open_at"] - _REMINDER_SECONDS:
+        await _send_reminder(cog, guild, message_id, record, now)
+
+
+async def _send_reminder(cog, guild: discord.Guild, message_id: int, record: dict, now: float) -> None:
+    channel = guild.get_channel(record["channel_id"])
+    if channel is not None and record["rsvp"]:
+        mentions = " ".join(f"<@{user_id}>" for user_id in record["rsvp"])
+        try:
+            await channel.send(f"{mentions} this scheduled beacon opens <t:{int(record['open_at'])}:R>.")
+        except discord.HTTPException:
+            logger.warning("Could not send scheduled beacon reminder for message %s", message_id)
+    record["reminded_at"] = now
+    await store.save_scheduled(cog.bot.state, message_id, record)
+
+
+async def _fetch_scheduled_message(guild: discord.Guild, channel_id: int, message_id: int):
+    channel = guild.get_channel(channel_id)
+    if channel is None:
+        return None
+    try:
+        return await channel.fetch_message(message_id)
+    except discord.HTTPException:
+        return None
+
+
+async def _resolve_display_name(guild: discord.Guild, user_id: int) -> str:
+    member = guild.get_member(user_id)
+    if member is not None:
+        return member.display_name
+    try:
+        member = await guild.fetch_member(user_id)
+        return member.display_name
+    except discord.HTTPException:
+        return "a member who has left"
+
+
+async def _abort_scheduled(cog, message_id: int, record: dict, message, reason: str) -> None:
+    await store.delete_scheduled(cog.bot.state, message_id)
+    await store.clear_scheduled_open(cog.bot.state, record["guild_id"], record["requester_id"], record["category"])
+    if message is not None:
+        try:
+            await message.edit(content=reason, embed=None, view=None)
+        except discord.HTTPException:
+            logger.warning("Could not update scheduled beacon message %s after abort", message_id)
+
+
+async def _add_rsvp_members(cog, thread: discord.Thread, record: dict) -> None:
+    beacon = await store.get_beacon(cog.bot.state, thread.id)
+    now = time.time()
+    changed = False
+    for user_id in record["rsvp"]:
+        if user_id == record["requester_id"] or user_id in beacon["members"]:
+            continue
+        beacon["members"].append(user_id)
+        changed = True
+        try:
+            await thread.add_user(discord.Object(id=user_id))
+        except discord.HTTPException:
+            logger.warning("Could not add RSVP'd user %s to beacon thread %s", user_id, thread.id)
+    if changed:
+        beacon["status"] = STATUS_ACTIVE
+        beacon["last_activity_at"] = now
+        if beacon["first_joined_at"] is None:
+            beacon["first_joined_at"] = now
+        await store.save_beacon(cog.bot.state, thread.id, beacon)
+
+
+async def _fire_scheduled(cog, guild: discord.Guild, message_id: int, record: dict, now: float) -> None:
+    message = await _fetch_scheduled_message(guild, record["channel_id"], message_id)
+    config = await store.get_config(cog.bot.state, guild.id)
+    if config is None or guild.get_channel(config["channel_id"]) is None:
+        await _abort_scheduled(cog, message_id, record, message, "This beacon channel is no longer set up.")
+        return
+
+    display_name = await _resolve_display_name(guild, record["requester_id"])
+    try:
+        thread = await lifecycle.create_beacon_thread(
+            cog, guild, config, record["requester_id"], display_name, record["category"], record["fields"]
+        )
+    except discord.HTTPException as error:
+        logger.exception("Failed to open scheduled beacon")
+        await _abort_scheduled(cog, message_id, record, message, f"Could not open this beacon: {error}")
+        return
+
+    await _add_rsvp_members(cog, thread, record)
+    await store.delete_scheduled(cog.bot.state, message_id)
+    await store.clear_scheduled_open(cog.bot.state, record["guild_id"], record["requester_id"], record["category"])
+    if message is not None:
+        try:
+            await message.edit(embed=build_scheduled_embed(record, opened_thread_id=thread.id), view=None)
+        except discord.HTTPException:
+            logger.warning("Could not update scheduled beacon message %s after opening", message_id)
