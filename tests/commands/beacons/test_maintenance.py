@@ -245,6 +245,29 @@ async def test_run_maintenance_reuses_sweep_entries_for_board_refresh(make_cog, 
 
 
 @pytest.mark.asyncio
+async def test_run_maintenance_calls_scheduled_sweep(monkeypatch, make_cog):
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[])
+    run_scheduled = AsyncMock()
+    monkeypatch.setattr(maintenance.scheduled, "run_scheduled_beacons", run_scheduled)
+    guild = MagicMock()
+    guild.id = 1
+
+    await maintenance.run_maintenance(cog, guild, now=123.0)
+
+    run_scheduled.assert_awaited_once_with(cog, guild, 123.0)
+
+
+@pytest.mark.asyncio
+async def test_run_maintenance_survives_scheduled_sweep_failure(monkeypatch, make_cog):
+    cog = make_cog(config=SETTINGS_CONFIG, beacons=[])
+    monkeypatch.setattr(maintenance.scheduled, "run_scheduled_beacons", AsyncMock(side_effect=RuntimeError("boom")))
+    guild = MagicMock()
+    guild.id = 1
+
+    await maintenance.run_maintenance(cog, guild, now=123.0)
+
+
+@pytest.mark.asyncio
 async def test_beacon_failure_does_not_stop_sweep(make_cog, monkeypatch):
     beacon_ok = _beacon(opened_at=0.0, last_activity_at=0.0)
     beacon_bad = _beacon(opened_at=0.0, last_activity_at=0.0)

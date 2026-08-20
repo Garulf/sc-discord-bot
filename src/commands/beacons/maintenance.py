@@ -6,7 +6,7 @@ import logging
 
 import discord
 
-from . import board, digest, store
+from . import board, digest, scheduled, store
 from .lifecycle import close_beacon, lock_for
 from .rules import STATUS_CLOSED, STATUS_OPEN
 
@@ -112,3 +112,7 @@ async def run_maintenance(cog, guild, now: float) -> None:
         await digest.maybe_post_digest(cog, guild, now)
     except Exception:
         logger.exception("Beacon digest failed for guild %s", guild.id)
+    try:
+        await scheduled.run_scheduled_beacons(cog, guild, now)
+    except Exception:
+        logger.exception("Scheduled beacon sweep failed for guild %s", guild.id)
