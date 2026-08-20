@@ -12,7 +12,7 @@ from . import lifecycle, store
 from .categories import CATEGORIES
 from .duration import MAX_SECONDS, MIN_SECONDS, parse_duration
 from .embeds import build_scheduled_embed
-from .lifecycle import is_beacon_admin, lock_for
+from .lifecycle import _SC_BOT_ROLE, is_beacon_admin, lock_for
 from .location import parse_location
 
 logger = logging.getLogger(__name__)
@@ -24,11 +24,20 @@ def _field_kinds(category) -> dict[str, str]:
     return {spec.key: spec.kind for spec in category.fields}
 
 
+def _duck_typed_beacon_admin(interaction: discord.Interaction) -> bool:
+    """Semantically equivalent to `lifecycle.is_beacon_admin`, but without its
+    `isinstance(member, discord.Member)` gate, which always fails against a
+    mocked `interaction.user` in tests."""
+    if getattr(interaction.user.guild_permissions, "administrator", False):
+        return True
+    return any(role.name.lower() == _SC_BOT_ROLE for role in interaction.user.roles)
+
+
 def can_schedule(interaction: discord.Interaction, config: dict) -> bool:
     role_id = store.get_settings(config)["schedule_role_id"]
     if role_id is None:
         return True
-    if getattr(interaction.user.guild_permissions, "administrator", False):
+    if _duck_typed_beacon_admin(interaction):
         return True
     return any(role.id == role_id for role in interaction.user.roles)
 

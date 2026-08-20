@@ -71,6 +71,14 @@ def test_can_schedule_allows_admin_regardless_of_role():
     assert scheduled.can_schedule(interaction, _config_with_role(5)) is True
 
 
+def test_can_schedule_allows_sc_bot_role_regardless_of_gate():
+    sc_bot_role = MagicMock()
+    sc_bot_role.id = 12345
+    sc_bot_role.name = "sc-bot"
+    interaction = _interaction(roles=[sc_bot_role])
+    assert scheduled.can_schedule(interaction, _config_with_role(5)) is True
+
+
 @pytest.mark.asyncio
 async def test_schedule_rejects_malformed_location(make_cog):
     cog = make_cog(config=THREAD_CONFIG)
