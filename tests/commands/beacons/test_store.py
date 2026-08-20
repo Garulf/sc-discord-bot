@@ -125,6 +125,56 @@ def test_default_settings_include_voice_category():
     assert store.DEFAULT_SETTINGS["voice_category_id"] is None
 
 
+@pytest.mark.asyncio
+async def test_scheduled_roundtrip(state):
+    assert await store.get_scheduled(state, 500) is None
+    scheduled = {
+        "guild_id": 1,
+        "channel_id": 10,
+        "category": "medic",
+        "requester_id": 42,
+        "fields": {"location": "Stanton"},
+        "open_at": 999.0,
+        "rsvp": [],
+        "reminded_at": None,
+        "created_at": 100.0,
+    }
+    await store.save_scheduled(state, 500, scheduled)
+    assert await store.get_scheduled(state, 500) == scheduled
+    await store.delete_scheduled(state, 500)
+    assert await store.get_scheduled(state, 500) is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_beacons_filters_by_guild(state):
+    await store.save_scheduled(state, 1, {"guild_id": 10, "category": "medic"})
+    await store.save_scheduled(state, 2, {"guild_id": 99, "category": "medic"})
+    result = await store.scheduled_beacons(state, 10)
+    assert [mid for mid, _ in result] == [1]
+
+
+@pytest.mark.asyncio
+async def test_scheduled_open_index(state):
+    assert await store.get_scheduled_open(state, 1, 42, "medic") is None
+    await store.set_scheduled_open(state, 1, 42, "medic", 500)
+    assert await store.get_scheduled_open(state, 1, 42, "medic") == 500
+    assert await store.get_scheduled_open(state, 1, 42, "mining") is None
+    await store.clear_scheduled_open(state, 1, 42, "medic")
+    assert await store.get_scheduled_open(state, 1, 42, "medic") is None
+
+
+@pytest.mark.asyncio
+async def test_scheduled_open_index_does_not_collide_with_scheduled_beacons_prefix(state):
+    await store.save_scheduled(state, 500, {"guild_id": 1, "category": "medic"})
+    await store.set_scheduled_open(state, 1, 42, "medic", 500)
+    result = await store.scheduled_beacons(state, 1)
+    assert [mid for mid, _ in result] == [500]
+
+
+def test_default_settings_include_schedule_role():
+    assert store.DEFAULT_SETTINGS["schedule_role_id"] is None
+
+
 def test_get_settings_defaults_and_overlay():
     assert store.get_settings(None) == store.DEFAULT_SETTINGS
     config = {"settings": {"voice": True}}

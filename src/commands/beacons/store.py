@@ -50,6 +50,48 @@ async def clear_open_beacon(state: StateStore, guild_id: int, user_id: int, cate
     await state.delete(_open_key(guild_id, user_id, category))
 
 
+def _scheduled_key(message_id: int) -> str:
+    return f"beacons:scheduled:{message_id}"
+
+
+def _scheduled_open_key(guild_id: int, user_id: int, category: str) -> str:
+    return f"beacons:scheduled_open:{guild_id}:{user_id}:{category}"
+
+
+async def get_scheduled(state: StateStore, message_id: int) -> dict[str, Any] | None:
+    return await state.get(_scheduled_key(message_id))
+
+
+async def save_scheduled(state: StateStore, message_id: int, scheduled: dict[str, Any]) -> None:
+    await state.set(_scheduled_key(message_id), scheduled)
+
+
+async def delete_scheduled(state: StateStore, message_id: int) -> None:
+    await state.delete(_scheduled_key(message_id))
+
+
+async def scheduled_beacons(state: StateStore, guild_id: int) -> list[tuple[int, dict[str, Any]]]:
+    results = []
+    for key in await state.keys("beacons:scheduled:"):
+        raw = await state.get(key)
+        if not raw or raw.get("guild_id") != guild_id:
+            continue
+        results.append((int(key.rsplit(":", 1)[-1]), raw))
+    return results
+
+
+async def get_scheduled_open(state: StateStore, guild_id: int, user_id: int, category: str) -> int | None:
+    return await state.get(_scheduled_open_key(guild_id, user_id, category))
+
+
+async def set_scheduled_open(state: StateStore, guild_id: int, user_id: int, category: str, message_id: int) -> None:
+    await state.set(_scheduled_open_key(guild_id, user_id, category), message_id)
+
+
+async def clear_scheduled_open(state: StateStore, guild_id: int, user_id: int, category: str) -> None:
+    await state.delete(_scheduled_open_key(guild_id, user_id, category))
+
+
 DEFAULT_SETTINGS: dict[str, Any] = {
     "idle_warn_minutes": 120,
     "idle_close_minutes": 60,
@@ -57,6 +99,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "voice": False,
     "voice_category_id": None,
     "digest_channel_id": None,
+    "schedule_role_id": None,
 }
 
 
