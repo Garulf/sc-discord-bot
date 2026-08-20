@@ -271,6 +271,30 @@ async def test_config_merges_provided_values(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_config_sets_voice_category(monkeypatch):
+    config = {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}}
+    monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))
+    saved = {}
+    monkeypatch.setattr(setup_cmd.store, "set_config", AsyncMock(side_effect=lambda s, g, c: saved.update(c)))
+    interaction = _admin_interaction(MagicMock())
+    category = MagicMock()
+    category.id = 900
+    await setup_cmd.handle_config(
+        MagicMock(),
+        interaction,
+        idle_warn=None,
+        idle_close=None,
+        escalate=None,
+        voice=None,
+        voice_category=category,
+        digest_channel=None,
+        clear_digest=None,
+    )
+    assert saved["settings"]["voice_category_id"] == 900
+    assert "<#900>" in interaction.response.send_message.await_args.args[0]
+
+
+@pytest.mark.asyncio
 async def test_config_sets_digest_channel(monkeypatch):
     config = {"channel_id": 1, "mode": "thread", "panel_message_id": 2, "tag_ids": {}, "roles": {}}
     monkeypatch.setattr(setup_cmd.store, "get_config", AsyncMock(return_value=config))

@@ -128,6 +128,7 @@ async def handle_config(
     idle_close: int | None,
     escalate: int | None,
     voice: bool | None,
+    voice_category: discord.CategoryChannel | None = None,
     digest_channel: discord.TextChannel | None,
     clear_digest: bool | None,
 ) -> None:
@@ -144,6 +145,8 @@ async def handle_config(
         settings["escalate_minutes"] = escalate
     if voice is not None:
         settings["voice"] = voice
+    if voice_category is not None:
+        settings["voice_category_id"] = voice_category.id
     if clear_digest:
         settings["digest_channel_id"] = None
     elif digest_channel is not None:
@@ -153,11 +156,14 @@ async def handle_config(
     effective = store.get_settings(config)
     digest_value = effective["digest_channel_id"]
     digest_line = f"<#{digest_value}>" if digest_value else "not set"
+    voice_category_id = effective["voice_category_id"]
+    voice_category_line = f"<#{voice_category_id}>" if voice_category_id else "same as beacon channel"
     lines = [
         f"Idle warn: {effective['idle_warn_minutes']} minutes",
         f"Idle close: {effective['idle_close_minutes']} minutes",
         f"Escalate: {effective['escalate_minutes']} minutes",
         f"Voice channels: {'on' if effective['voice'] else 'off'}",
+        f"Voice category: {voice_category_line}",
         f"Digest channel: {digest_line}",
     ]
     await interaction.response.send_message("\n".join(lines), ephemeral=True)

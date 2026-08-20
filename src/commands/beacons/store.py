@@ -55,6 +55,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "idle_close_minutes": 60,
     "escalate_minutes": 15,
     "voice": False,
+    "voice_category_id": None,
     "digest_channel_id": None,
 }
 

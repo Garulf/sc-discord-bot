@@ -790,3 +790,42 @@ async def test_activity_update_is_throttled_within_60_seconds(make_cog):
     message = _thread_message(author_id=2)
     await lifecycle.handle_thread_message(cog, message)
     lifecycle.store.save_beacon.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_voice_channel_created_in_configured_category(make_cog):
+    config = dict(THREAD_CONFIG, settings={"voice": True, "voice_category_id": 900})
+    cog = make_cog(config=config, beacon=_open_beacon_record())
+    interaction = _interaction(user_id=2)
+    interaction.channel.add_user = AsyncMock()
+    category = MagicMock(spec=discord.CategoryChannel)
+    interaction.guild.get_channel = MagicMock(return_value=category)
+    voice = MagicMock()
+    voice.id = 555
+    voice.mention = "<#555>"
+    interaction.guild.create_voice_channel = AsyncMock(return_value=voice)
+    await lifecycle.handle_join(cog, interaction)
+    assert interaction.guild.create_voice_channel.await_args.kwargs["category"] is category
+    interaction.guild.get_channel.assert_any_call(900)
+
+
+@pytest.mark.asyncio
+async def test_voice_channel_falls_back_to_beacon_channel_category(make_cog):
+    config = dict(THREAD_CONFIG, settings={"voice": True, "voice_category_id": 900})
+    cog = make_cog(config=config, beacon=_open_beacon_record())
+    interaction = _interaction(user_id=2)
+    interaction.channel.add_user = AsyncMock()
+    beacon_channel = MagicMock(spec=discord.ForumChannel)
+    fallback_category = MagicMock(spec=discord.CategoryChannel)
+    beacon_channel.category = fallback_category
+
+    def get_channel(channel_id):
+        return beacon_channel if channel_id == config["channel_id"] else None
+
+    interaction.guild.get_channel = MagicMock(side_effect=get_channel)
+    voice = MagicMock()
+    voice.id = 555
+    voice.mention = "<#555>"
+    interaction.guild.create_voice_channel = AsyncMock(return_value=voice)
+    await lifecycle.handle_join(cog, interaction)
+    assert interaction.guild.create_voice_channel.await_args.kwargs["category"] is fallback_category

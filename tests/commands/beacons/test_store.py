@@ -121,6 +121,10 @@ async def test_last_open_roundtrip(state):
     assert await store.get_last_open(state, 10, 42) == {"category": "medic", "fields": {"location": "Stanton"}}
 
 
+def test_default_settings_include_voice_category():
+    assert store.DEFAULT_SETTINGS["voice_category_id"] is None
+
+
 def test_get_settings_defaults_and_overlay():
     assert store.get_settings(None) == store.DEFAULT_SETTINGS
     config = {"settings": {"voice": True}}

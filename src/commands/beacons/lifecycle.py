@@ -213,10 +213,19 @@ async def _leave_beacon(cog, interaction: discord.Interaction, beacon: dict) -> 
     await _refresh_board(cog, interaction.guild)
 
 
+def _voice_category(guild, config: dict) -> discord.CategoryChannel | None:
+    configured_id = store.get_settings(config)["voice_category_id"]
+    if configured_id:
+        channel = guild.get_channel(configured_id)
+        if isinstance(channel, discord.CategoryChannel):
+            return channel
+    beacon_channel = guild.get_channel(config["channel_id"])
+    return beacon_channel.category if beacon_channel is not None else None
+
+
 async def _create_voice_channel(cog, interaction: discord.Interaction, beacon: dict, config: dict) -> None:
     try:
-        beacon_channel = interaction.guild.get_channel(config["channel_id"])
-        category = beacon_channel.category if beacon_channel is not None else None
+        category = _voice_category(interaction.guild, config)
         voice = await interaction.guild.create_voice_channel(name=interaction.channel.name[:100], category=category)
         beacon["voice_channel_id"] = voice.id
         await interaction.channel.send(f"Voice channel ready: {voice.mention}")
