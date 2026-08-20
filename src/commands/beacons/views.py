@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import discord
 
-from . import lifecycle
+from . import lifecycle, scheduled
 
 
 def _prefix(legacy: bool) -> str:
@@ -63,3 +63,38 @@ class CommendView(discord.ui.View):
     def __init__(self, cog) -> None:
         super().__init__(timeout=None)
         self.add_item(_CommendButton(cog))
+
+
+class _ScheduledJoinButton(discord.ui.Button):
+    def __init__(self, cog) -> None:
+        super().__init__(label="Join", style=discord.ButtonStyle.primary, custom_id="beacons:sched_join")
+        self._cog = cog
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await scheduled.handle_scheduled_join(self._cog, interaction)
+
+
+class _ScheduledLeaveButton(discord.ui.Button):
+    def __init__(self, cog) -> None:
+        super().__init__(label="Leave", style=discord.ButtonStyle.secondary, custom_id="beacons:sched_leave")
+        self._cog = cog
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await scheduled.handle_scheduled_leave(self._cog, interaction)
+
+
+class _ScheduledCancelButton(discord.ui.Button):
+    def __init__(self, cog) -> None:
+        super().__init__(label="Cancel", style=discord.ButtonStyle.danger, custom_id="beacons:sched_cancel")
+        self._cog = cog
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await scheduled.handle_scheduled_cancel(self._cog, interaction)
+
+
+class ScheduledBeaconView(discord.ui.View):
+    def __init__(self, cog) -> None:
+        super().__init__(timeout=None)
+        self.add_item(_ScheduledJoinButton(cog))
+        self.add_item(_ScheduledLeaveButton(cog))
+        self.add_item(_ScheduledCancelButton(cog))
