@@ -65,6 +65,68 @@ async def _send_best_effort(channel, content, **kwargs) -> None:
         logger.warning("Could not send message in beacon channel %s", channel.id)
 
 
+async def create_beacon_thread(
+    cog,
+    guild: discord.Guild,
+    config: dict,
+    requester_id: int,
+    display_name: str,
+    category_key: str,
+    field_values: dict[str, str],
+) -> discord.Thread:
+    """Create the beacon thread/forum post, save its record, and set the
+    open/last-open indexes. Raises discord.HTTPException on failure and
+    writes no state in that case."""
+    category = CATEGORIES[category_key]
+    channel = guild.get_channel(config["channel_id"])
+
+    opened_at = time.time()
+    beacon = {
+        "guild_id": guild.id,
+        "category": category_key,
+        "requester_id": requester_id,
+        "members": [],
+        "status": STATUS_OPEN,
+        "opened_at": opened_at,
+        "closed_at": None,
+        "closed_by_id": None,
+        "fields": field_values,
+        "last_activity_at": opened_at,
+    }
+    name = beacon_title(category_key, display_name, field_values)
+    content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
+    embed = build_beacon_embed(beacon)
+
+    if config["mode"] == "forum":
+        tags = [
+            tag
+            for tag_key in (category_key, "open")
+            if (tag := _resolve_tag(channel, config, tag_key)) is not None
+        ]
+        created = await channel.create_thread(
+            name=name,
+            content=content or None,
+            embed=embed,
+            applied_tags=tags,
+            view=cog.beacon_view,
+        )
+        thread = created.thread
+    else:
+        thread = await channel.create_thread(name=name, type=discord.ChannelType.public_thread)
+        await thread.send(content=content, embed=embed, view=cog.beacon_view)
+    if dropped_role_note:
+        await thread.send(dropped_role_note)
+    await thread.add_user(discord.Object(id=requester_id))
+
+    if role_dropped:
+        config["roles"].pop(category_key, None)
+        await store.set_config(cog.bot.state, guild.id, config)
+    await store.save_beacon(cog.bot.state, thread.id, beacon)
+    await store.set_open_beacon(cog.bot.state, guild.id, requester_id, category_key, thread.id)
+    await store.set_last_open(cog.bot.state, guild.id, requester_id, category_key, field_values)
+    return thread
+
+
 async def open_beacon(cog, interaction: discord.Interaction, category_key: str, field_values: dict[str, str]) -> None:
     await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
@@ -95,60 +157,19 @@ async def open_beacon(cog, interaction: discord.Interaction, category_key: str, 
             )
             return
 
-        channel = guild.get_channel(config["channel_id"])
-        if channel is None:
+        if guild.get_channel(config["channel_id"]) is None:
             await _reply(interaction, "The beacon channel is missing. Ask an admin to re-run `/beacon setup`.")
             return
 
-        opened_at = time.time()
-        beacon = {
-            "guild_id": guild.id,
-            "category": category_key,
-            "requester_id": interaction.user.id,
-            "members": [],
-            "status": STATUS_OPEN,
-            "opened_at": opened_at,
-            "closed_at": None,
-            "closed_by_id": None,
-            "fields": field_values,
-            "last_activity_at": opened_at,
-        }
-        name = beacon_title(category_key, interaction.user.display_name, field_values)
-        content, dropped_role_note, role_dropped = _resolve_ping_content(guild, config, category_key, category)
-        embed = build_beacon_embed(beacon)
-
         try:
-            if config["mode"] == "forum":
-                tags = [
-                    tag
-                    for tag_key in (category_key, "open")
-                    if (tag := _resolve_tag(channel, config, tag_key)) is not None
-                ]
-                created = await channel.create_thread(
-                    name=name,
-                    content=content or None,
-                    embed=embed,
-                    applied_tags=tags,
-                    view=cog.beacon_view,
-                )
-                thread = created.thread
-            else:
-                thread = await channel.create_thread(name=name, type=discord.ChannelType.public_thread)
-                await thread.send(content=content, embed=embed, view=cog.beacon_view)
-            if dropped_role_note:
-                await thread.send(dropped_role_note)
-            await thread.add_user(interaction.user)
+            thread = await create_beacon_thread(
+                cog, guild, config, interaction.user.id, interaction.user.display_name, category_key, field_values
+            )
         except discord.HTTPException as error:
             logger.exception("Failed to create beacon thread")
             await _reply(interaction, f"Could not create the beacon: {error}. Check the bot's channel permissions.")
             return
 
-        if role_dropped:
-            config["roles"].pop(category_key, None)
-            await store.set_config(cog.bot.state, guild.id, config)
-        await store.save_beacon(cog.bot.state, thread.id, beacon)
-        await store.set_open_beacon(cog.bot.state, guild.id, interaction.user.id, category_key, thread.id)
-        await store.set_last_open(cog.bot.state, guild.id, interaction.user.id, category_key, field_values)
         await _reply(interaction, f"Beacon opened: {thread.mention}")
         await _refresh_board(cog, guild)
 

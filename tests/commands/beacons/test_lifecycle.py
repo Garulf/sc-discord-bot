@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import time
 from unittest.mock import AsyncMock, MagicMock
 
@@ -103,7 +104,55 @@ async def test_open_creates_thread_and_saves_state(make_cog):
     assert "<@&5>" in sent.kwargs.get("content", "")
     lifecycle.store.save_beacon.assert_awaited_once()
     lifecycle.store.set_open_beacon.assert_awaited_once()
-    thread.add_user.assert_awaited_once_with(interaction.user)
+    thread.add_user.assert_awaited_once()
+    added = thread.add_user.await_args.args[0]
+    assert added.id == interaction.user.id
+
+
+@pytest.mark.asyncio
+async def test_create_beacon_thread_builds_thread_and_saves_state(make_cog):
+    cog = make_cog(config=THREAD_CONFIG)
+    thread = MagicMock()
+    thread.id = 900
+    thread.send = AsyncMock()
+    thread.add_user = AsyncMock()
+    channel = MagicMock()
+    channel.create_thread = AsyncMock(return_value=thread)
+    guild = MagicMock()
+    guild.id = 1
+    guild.get_channel = MagicMock(return_value=channel)
+    guild.get_role = MagicMock(return_value=None)
+
+    result = await lifecycle.create_beacon_thread(
+        cog, guild, copy.deepcopy(THREAD_CONFIG), 55, "Nova", "medic", {"location": "Stanton"}
+    )
+
+    assert result is thread
+    lifecycle.store.save_beacon.assert_awaited_once()
+    saved_beacon = lifecycle.store.save_beacon.await_args.args[2]
+    assert saved_beacon["requester_id"] == 55
+    assert saved_beacon["fields"] == {"location": "Stanton"}
+    lifecycle.store.set_open_beacon.assert_awaited_once_with(cog.bot.state, 1, 55, "medic", 900)
+    lifecycle.store.set_last_open.assert_awaited_once_with(cog.bot.state, 1, 55, "medic", {"location": "Stanton"})
+    added = thread.add_user.await_args.args[0]
+    assert added.id == 55
+
+
+@pytest.mark.asyncio
+async def test_create_beacon_thread_raises_on_http_failure(make_cog):
+    cog = make_cog(config=THREAD_CONFIG)
+    channel = MagicMock()
+    channel.create_thread = AsyncMock(side_effect=discord.HTTPException(MagicMock(status=500), "boom"))
+    guild = MagicMock()
+    guild.id = 1
+    guild.get_channel = MagicMock(return_value=channel)
+    guild.get_role = MagicMock(return_value=None)
+
+    with pytest.raises(discord.HTTPException):
+        await lifecycle.create_beacon_thread(cog, guild, THREAD_CONFIG, 55, "Nova", "medic", {"location": "Stanton"})
+
+    lifecycle.store.save_beacon.assert_not_awaited()
+    lifecycle.store.set_open_beacon.assert_not_awaited()
 
 
 @pytest.mark.asyncio
