@@ -138,7 +138,10 @@ async def test_schedule_posts_embed_and_saves_state(make_cog):
     assert saved["rsvp"] == []
     assert saved["open_at"] >= before + 3600
     scheduled.store.set_scheduled_open.assert_awaited_once_with(cog.bot.state, 1, 42, "medic", 700)
-    assert "700" in interaction.followup.send.await_args.args[0] or message.jump_url in interaction.followup.send.await_args.args[0]
+    assert (
+        "700" in interaction.followup.send.await_args.args[0]
+        or message.jump_url in interaction.followup.send.await_args.args[0]
+    )
 
 
 @pytest.mark.asyncio
@@ -254,7 +257,7 @@ def _member(user_id=42, display_name="Nova"):
 
 @pytest.fixture
 def make_maintenance_cog(monkeypatch):
-    def _make(*, records=None, config=THREAD_CONFIG, beacon=None, thread=None, create_error=None):
+    def _make(*, records=None, config=THREAD_CONFIG, beacon=None, thread=None, create_error=None, get_scheduled=None):
         records = records or []
         cog = MagicMock()
         cog.bot.state = MagicMock()
@@ -265,10 +268,20 @@ def make_maintenance_cog(monkeypatch):
         monkeypatch.setattr(scheduled.store, "clear_scheduled_open", AsyncMock())
         monkeypatch.setattr(scheduled.store, "get_beacon", AsyncMock(return_value=beacon))
         monkeypatch.setattr(scheduled.store, "save_beacon", AsyncMock())
+        if get_scheduled is not None:
+            monkeypatch.setattr(scheduled.store, "get_scheduled", get_scheduled)
+        else:
+            records_by_id = dict(records)
+            monkeypatch.setattr(
+                scheduled.store,
+                "get_scheduled",
+                AsyncMock(side_effect=lambda state, message_id: records_by_id.get(message_id)),
+            )
         if create_error is not None:
             monkeypatch.setattr(scheduled.lifecycle, "create_beacon_thread", AsyncMock(side_effect=create_error))
         else:
             monkeypatch.setattr(scheduled.lifecycle, "create_beacon_thread", AsyncMock(return_value=thread))
+        monkeypatch.setattr(scheduled.lifecycle, "_refresh_board", AsyncMock())
         return cog
 
     return _make
@@ -406,6 +419,77 @@ async def test_run_scheduled_beacons_processes_every_record_in_one_sweep(make_ma
     assert scheduled.lifecycle.create_beacon_thread.await_count == 2
     scheduled.store.delete_scheduled.assert_any_await(cog.bot.state, 700)
     scheduled.store.delete_scheduled.assert_any_await(cog.bot.state, 701)
+
+
+@pytest.mark.asyncio
+async def test_run_scheduled_beacons_rereads_record_under_lock(make_maintenance_cog):
+    message = MagicMock()
+    message.id = 700
+    message.edit = AsyncMock()
+    channel = MagicMock()
+    channel.fetch_message = AsyncMock(return_value=message)
+    thread = MagicMock()
+    thread.id = 900
+    thread.add_user = AsyncMock()
+    beacon = {"members": [], "status": "open", "last_activity_at": 0.0, "first_joined_at": None}
+    stale_record = _scheduled_record(open_at=1000.0, rsvp=[])
+    cog = make_maintenance_cog(records=[(700, stale_record)], beacon=beacon, thread=thread)
+    guild = _guild(member=_member(), channel=channel)
+
+    await scheduled.run_scheduled_beacons(cog, guild, now=1000.0)
+
+    scheduled.store.get_scheduled.assert_any_await(cog.bot.state, 700)
+
+
+@pytest.mark.asyncio
+async def test_run_scheduled_beacons_skips_fire_when_concurrently_cancelled(make_maintenance_cog):
+    message = MagicMock()
+    message.id = 700
+    message.edit = AsyncMock()
+    channel = MagicMock()
+    channel.fetch_message = AsyncMock(return_value=message)
+    record = _scheduled_record(open_at=1000.0)
+    cog = make_maintenance_cog(records=[(700, record)], get_scheduled=AsyncMock(return_value=None))
+    guild = _guild(member=_member(), channel=channel)
+
+    await scheduled.run_scheduled_beacons(cog, guild, now=1000.0)
+
+    scheduled.lifecycle.create_beacon_thread.assert_not_awaited()
+    scheduled.store.delete_scheduled.assert_not_awaited()
+    scheduled.lifecycle._refresh_board.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_scheduled_beacons_refreshes_board_on_fire(make_maintenance_cog):
+    message = MagicMock()
+    message.id = 700
+    message.edit = AsyncMock()
+    channel = MagicMock()
+    channel.fetch_message = AsyncMock(return_value=message)
+    thread = MagicMock()
+    thread.id = 900
+    thread.add_user = AsyncMock()
+    beacon = {"members": [], "status": "open", "last_activity_at": 0.0, "first_joined_at": None}
+    record = _scheduled_record(open_at=1000.0, rsvp=[])
+    cog = make_maintenance_cog(records=[(700, record)], beacon=beacon, thread=thread)
+    guild = _guild(member=_member(), channel=channel)
+
+    await scheduled.run_scheduled_beacons(cog, guild, now=1000.0)
+
+    scheduled.lifecycle._refresh_board.assert_awaited_once_with(cog, guild)
+
+
+@pytest.mark.asyncio
+async def test_run_scheduled_beacons_does_not_refresh_board_on_reminder(make_maintenance_cog):
+    channel = MagicMock()
+    channel.send = AsyncMock()
+    record = _scheduled_record(open_at=1000.0, rsvp=[7], reminded_at=None)
+    cog = make_maintenance_cog(records=[(700, record)])
+    guild = _guild(channel=channel)
+
+    await scheduled.run_scheduled_beacons(cog, guild, now=1000.0 - 500)
+
+    scheduled.lifecycle._refresh_board.assert_not_awaited()
 
 
 @pytest.mark.asyncio

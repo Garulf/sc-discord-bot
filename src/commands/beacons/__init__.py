@@ -396,7 +396,9 @@ class BeaconsCog(commands.Cog):
         await handle_board(self, interaction, action)
 
     @beacon.command(name="config", description="View or change beacon settings")
-    @app_commands.rename(voice_category="voice-category", schedule_role="schedule-role", clear_schedule_role="clear-schedule-role")
+    @app_commands.rename(
+        voice_category="voice-category", schedule_role="schedule-role", clear_schedule_role="clear-schedule-role"
+    )
     @app_commands.describe(
         idle_warn="Minutes idle before a warning (5-1440)",
         idle_close="Minutes idle before auto-closing (5-1440)",

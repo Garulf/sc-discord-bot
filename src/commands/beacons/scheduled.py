@@ -213,11 +213,15 @@ async def run_scheduled_beacons(cog, guild: discord.Guild, now: float) -> None:
 
 
 async def _process_scheduled(cog, guild: discord.Guild, message_id: int, record: dict, now: float) -> None:
-    if now >= record["open_at"]:
-        await _fire_scheduled(cog, guild, message_id, record, now)
-        return
-    if record["reminded_at"] is None and now >= record["open_at"] - _REMINDER_SECONDS:
-        await _send_reminder(cog, guild, message_id, record, now)
+    async with lock_for(f"scheduled:{message_id}"):
+        current = await store.get_scheduled(cog.bot.state, message_id)
+        if current is None:
+            return
+        if now >= current["open_at"]:
+            await _fire_scheduled(cog, guild, message_id, current, now)
+            return
+        if current["reminded_at"] is None and now >= current["open_at"] - _REMINDER_SECONDS:
+            await _send_reminder(cog, guild, message_id, current, now)
 
 
 async def _send_reminder(cog, guild: discord.Guild, message_id: int, record: dict, now: float) -> None:
@@ -309,3 +313,4 @@ async def _fire_scheduled(cog, guild: discord.Guild, message_id: int, record: di
             await message.edit(embed=build_scheduled_embed(record, opened_thread_id=thread.id), view=None)
         except discord.HTTPException:
             logger.warning("Could not update scheduled beacon message %s after opening", message_id)
+    await lifecycle._refresh_board(cog, guild)

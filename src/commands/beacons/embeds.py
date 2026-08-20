@@ -111,7 +111,9 @@ def build_scheduled_embed(
         color=discord.Color.blurple(),
     )
     embed.add_field(name="Requester", value=f"<@{scheduled['requester_id']}>", inline=True)
-    embed.add_field(name="Status", value=_scheduled_status_text(scheduled, cancelled_by_id, opened_thread_id), inline=True)
+    embed.add_field(
+        name="Status", value=_scheduled_status_text(scheduled, cancelled_by_id, opened_thread_id), inline=True
+    )
     if scheduled["rsvp"]:
         rsvp = ", ".join(f"<@{user_id}>" for user_id in scheduled["rsvp"])
         embed.add_field(name=f"RSVP ({len(scheduled['rsvp'])})", value=rsvp, inline=False)

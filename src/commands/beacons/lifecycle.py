@@ -99,9 +99,7 @@ async def create_beacon_thread(
 
     if config["mode"] == "forum":
         tags = [
-            tag
-            for tag_key in (category_key, "open")
-            if (tag := _resolve_tag(channel, config, tag_key)) is not None
+            tag for tag_key in (category_key, "open") if (tag := _resolve_tag(channel, config, tag_key)) is not None
         ]
         created = await channel.create_thread(
             name=name,
