@@ -35,6 +35,12 @@ def build_live_message(stream: StreamInfo) -> str:
     return f"{icon} **{stream.channel_name}** is LIVE on {label}!\n{stream.stream_url}"
 
 
+def build_ended_message(channel_name: str, platform: str) -> str:
+    """Return message content for a notification once the stream has ended."""
+    label = _PLATFORM_LABELS[platform]
+    return f"{channel_name} was live on {label}"
+
+
 class StreamCog(commands.Cog):
     """Live stream notifications for Twitch, YouTube, and TikTok."""
 
@@ -123,9 +129,15 @@ class StreamCog(commands.Cog):
                 logger.warning("Failed to post live notification: %s", exc)
 
         elif not stream and live_id:
-            # Stream ended — leave the notification message in the channel
+            # Stream ended — edit the notification to reflect that
             sub["live_id"] = None
-            sub["notification_message_id"] = None
+            mid = sub.get("notification_message_id")
+            if mid:
+                try:
+                    msg = await channel.fetch_message(mid)
+                    await msg.edit(content=build_ended_message(display, platform))
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
+                    logger.warning("Failed to edit ended-stream notification: %s", exc)
             logger.info("Stream ended for %s/%s", platform, login)
             return True
 
