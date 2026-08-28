@@ -146,10 +146,11 @@ class YouTubeClient:
             return None
         item = items[0]
         snippet = item.get("snippet", {})
-        # liveBroadcastContent is the reliable live indicator; concurrentViewers may be absent
-        if snippet.get("liveBroadcastContent") != "live":
-            return None
         live = item.get("liveStreamingDetails", {})
+        # liveBroadcastContent can report a stale "live" for a broadcast that has
+        # already ended (YouTube API caching quirk) — actualEndTime is authoritative.
+        if snippet.get("liveBroadcastContent") != "live" or live.get("actualEndTime"):
+            return None
         try:
             viewers = int(live["concurrentViewers"])
         except (KeyError, ValueError, TypeError):
