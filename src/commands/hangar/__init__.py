@@ -108,6 +108,7 @@ class HangarCog(commands.Cog):
         name="clear",
         description="Clear this server's hangar override and follow the global schedule",
     )
+    @app_commands.check(admin_or_sc_bot)
     async def clear(self, interaction: discord.Interaction):
         await _handle_clear(self, interaction)
 

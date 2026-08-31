@@ -95,3 +95,10 @@ async def test_clear_resets_guild_notify_state():
 def test_clear_command_registered(registered):
     names = [cmd.name for cmd in HangarCog.hangar.commands]
     assert registered in names
+
+
+def test_clear_command_requires_admin():
+    from src.commands.checks import admin_or_sc_bot
+
+    cmd = next(c for c in HangarCog.hangar.commands if c.name == "clear")
+    assert admin_or_sc_bot in cmd.checks
