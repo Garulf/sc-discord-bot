@@ -35,10 +35,18 @@ def build_live_message(stream: StreamInfo) -> str:
     return f"{icon} **{stream.channel_name}** is LIVE on {label}!\n{stream.stream_url}"
 
 
-def build_ended_message(channel_name: str, platform: str) -> str:
-    """Return message content for a notification once the stream has ended."""
+def build_ended_message(channel_name: str, platform: str, stream_url: str | None) -> str:
+    """Return message content for a notification once the stream has ended.
+
+    Keeps the stream URL so Discord retains the auto-embedded video preview.
+    """
     label = _PLATFORM_LABELS[platform]
-    return f"{channel_name} was live on {label}"
+    text = f"{channel_name} was live on {label}"
+    return f"{text}\n{stream_url}" if stream_url else text
+
+
+def _extract_url(content: str) -> str | None:
+    return next((line for line in content.splitlines() if line.startswith("http")), None)
 
 
 class StreamCog(commands.Cog):
@@ -135,7 +143,8 @@ class StreamCog(commands.Cog):
             if mid:
                 try:
                     msg = await channel.fetch_message(mid)
-                    await msg.edit(content=build_ended_message(display, platform))
+                    url = _extract_url(msg.content)
+                    await msg.edit(content=build_ended_message(display, platform, url))
                 except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
                     logger.warning("Failed to edit ended-stream notification: %s", exc)
             logger.info("Stream ended for %s/%s", platform, login)
