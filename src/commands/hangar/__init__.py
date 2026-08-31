@@ -18,6 +18,7 @@ from discord.ext import commands, tasks
 from src.commands.checks import admin_or_sc_bot, handle_check_failure, is_bot_owner
 from src.exec_hangars import HangarSchedule
 
+from .clear import handle as _handle_clear
 from .global_set import handle as _handle_global_set
 from .global_sync import handle as _handle_global_sync
 from .set import handle as _handle_set
@@ -102,6 +103,13 @@ class HangarCog(commands.Cog):
     @app_commands.describe(timestamp='State and time, e.g. "Open 7/1/2026, 4:11:31 AM"')
     async def sync(self, interaction: discord.Interaction, timestamp: str):
         await _handle_sync(self, interaction, timestamp)
+
+    @hangar.command(
+        name="clear",
+        description="Clear this server's hangar override and follow the global schedule",
+    )
+    async def clear(self, interaction: discord.Interaction):
+        await _handle_clear(self, interaction)
 
     @hangar.command(
         name="subscribe",
