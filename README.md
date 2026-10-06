@@ -94,7 +94,7 @@ The pinned panel lists every category with a short description and a clickable c
 
 A background sweep keeps beacons moving without manual attention:
 
-- Beacons that request a fixed number of responders (squad, contested) get a fill counter, and the bot announces when the party is full.
+- Beacons that request a fixed number of responders (squad, contested, piracy) get a fill counter, and the bot announces when the party is full.
 - Setting `voice:true` in `/beacon config` auto-creates a voice channel the first time someone joins the beacon, and deletes it when the beacon closes.
 - If a beacon has had no responders after the configured escalate window (15 minutes by default), the bot pings the mapped role, or a generic reminder if no role is mapped.
 - If a beacon goes idle for the configured warn window (120 minutes by default), the bot warns the requester that it will auto-close, then closes it automatically after the configured close window (60 minutes by default) unless activity resumes.
@@ -111,7 +111,7 @@ Scheduling posts an RSVP embed in the beacon channel with **Join**, **Leave**, a
 - 10 minutes before the scheduled time, the bot pings everyone on the RSVP list with a reminder, if anyone has RSVP'd.
 - At the scheduled time, the bot opens the beacon thread automatically (same as running the command with no `when`) and auto-joins every RSVP'd member to it, then updates the embed to link the opened thread.
 
-Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
+Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort, Personal Transport and Piracy categories; the bot logs a warning on startup until this is done.
 
 ---
 
