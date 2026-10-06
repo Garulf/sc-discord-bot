@@ -1,0 +1,149 @@
+import pytest
+
+from src.commands.loot import ledger
+from src.commands.loot.ledger import LootError
+
+
+def _record(participants=(1, 2, 3, 4)):
+    return ledger.new_record(
+        loot_id=12,
+        guild_id=7,
+        title="Ruin gold grab",
+        created_by=1,
+        participants=list(participants),
+        organizer_ids=[1],
+        now=100.0,
+    )
+
+
+def test_new_record_shape():
+    record = _record()
+    assert record["id"] == 12
+    assert record["guild_id"] == 7
+    assert record["title"] == "Ruin gold grab"
+    assert record["participants"] == [1, 2, 3, 4]
+    assert record["organizer_ids"] == [1]
+    assert record["cargo"] == []
+    assert record["sales"] == []
+    assert record["card"] is None
+    assert record["beacon_thread_id"] is None
+    assert record["category"] is None
+
+
+def test_new_record_dedupes_participants_keeping_order():
+    record = _record(participants=(3, 1, 3, 2, 1))
+    assert record["participants"] == [3, 1, 2]
+
+
+def test_new_record_requires_title():
+    with pytest.raises(LootError):
+        ledger.new_record(
+            loot_id=1, guild_id=7, title="   ", created_by=1, participants=[1], organizer_ids=[1], now=0.0
+        )
+
+
+def test_normalize_fills_missing_fields():
+    raw = {"id": 1, "guild_id": 7, "title": "t", "created_by": 5, "created_at": 0.0, "participants": [5]}
+    record = ledger.normalize_loot(raw)
+    assert record["organizer_ids"] == [5]
+    assert record["cargo"] == []
+    assert record["sales"] == []
+    assert record["card"] is None
+    assert record["beacon_thread_id"] is None
+
+
+def test_add_cargo_creates_line_with_holder():
+    record = _record()
+    line = ledger.add_cargo(record, "Gold", 96, holder_id=2)
+    assert line == {"commodity": "Gold", "scu": 96, "sold_scu": 0, "holder_id": 2}
+    assert record["cargo"] == [line]
+
+
+def test_add_cargo_merges_same_commodity_case_insensitively_and_keeps_holder():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 50, holder_id=2)
+    line = ledger.add_cargo(record, " gold ", 10, holder_id=3)
+    assert len(record["cargo"]) == 1
+    assert line["scu"] == 60
+    assert line["holder_id"] == 2
+
+
+@pytest.mark.parametrize("commodity,scu", [("", 5), ("Gold", 0), ("Gold", -1)])
+def test_add_cargo_rejects_bad_input(commodity, scu):
+    with pytest.raises(LootError):
+        ledger.add_cargo(_record(), commodity, scu, holder_id=1)
+
+
+def test_require_line_names_missing_commodity():
+    with pytest.raises(LootError, match="Quantanium"):
+        ledger.require_line(_record(), "Quantanium")
+
+
+def test_split_returns_share_and_remainder():
+    assert ledger.split(1_250_003, 4) == (312_500, 3)
+    assert ledger.split(100, 3) == (33, 1)
+
+
+def test_record_sale_splits_equally_and_auto_pays_holder():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 96, holder_id=2)
+    sale = ledger.record_sale(record, commodity="gold", scu=40, total=1_250_003, now=200.0)
+    assert sale["id"] == 1
+    assert sale["commodity"] == "Gold"
+    assert sale["seller_id"] == 2
+    assert sale["share"] == 312_500
+    amounts = {p["user_id"]: p["amount"] for p in sale["payouts"]}
+    assert amounts == {1: 312_500, 2: 312_500, 3: 312_500, 4: 312_500}
+    paid = {p["user_id"] for p in sale["payouts"] if ledger.is_paid(p)}
+    assert paid == {2}
+    assert record["cargo"][0]["sold_scu"] == 40
+    assert ledger.unsold_scu(record["cargo"][0]) == 56
+
+
+def test_record_sale_when_holder_is_not_on_the_crew_owes_everyone():
+    record = _record(participants=(1, 3))
+    ledger.add_cargo(record, "Gold", 10, holder_id=9)
+    sale = ledger.record_sale(record, commodity="Gold", scu=10, total=1000, now=1.0)
+    assert sale["seller_id"] == 9
+    assert not any(ledger.is_paid(p) for p in sale["payouts"])
+    assert ledger.owed_amount(record) == 1000
+
+
+def test_sale_ids_increase():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 96, holder_id=1)
+    first = ledger.record_sale(record, commodity="Gold", scu=10, total=100, now=1.0)
+    second = ledger.record_sale(record, commodity="Gold", scu=10, total=100, now=2.0)
+    assert (first["id"], second["id"]) == (1, 2)
+
+
+@pytest.mark.parametrize(
+    "scu,total,match",
+    [(0, 100, "greater than 0"), (97, 100, "Only 96 SCU"), (10, 0, "aUEC")],
+)
+def test_record_sale_validation(scu, total, match):
+    record = _record()
+    ledger.add_cargo(record, "Gold", 96, holder_id=1)
+    with pytest.raises(LootError, match=match):
+        ledger.record_sale(record, commodity="Gold", scu=scu, total=total, now=1.0)
+    assert record["sales"] == []
+    assert record["cargo"][0]["sold_scu"] == 0
+
+
+def test_record_sale_needs_participants():
+    record = _record(participants=())
+    ledger.add_cargo(record, "Gold", 10, holder_id=1)
+    with pytest.raises(LootError, match="participants"):
+        ledger.record_sale(record, commodity="Gold", scu=5, total=100, now=1.0)
+
+
+def test_status_progression():
+    record = _record(participants=(1, 2))
+    assert ledger.status(record) == ledger.STATUS_HOLDING
+    ledger.add_cargo(record, "Gold", 10, holder_id=1)
+    assert ledger.status(record) == ledger.STATUS_HOLDING
+    sale = ledger.record_sale(record, commodity="Gold", scu=10, total=100, now=1.0)
+    assert ledger.status(record) == ledger.STATUS_PAYING
+    for payout in sale["payouts"]:
+        payout["paid_at"] = 5.0
+    assert ledger.status(record) == ledger.STATUS_SETTLED
