@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 MAX_SALES_SHOWN = 8
 _FIELD_LIMIT = 1024
+_EMBED_LIMIT = 6000
 _MESSAGE_LIMIT = 2000
 _STATUS_COLORS = {
     ledger.STATUS_HOLDING: discord.Color.gold(),
@@ -71,16 +72,32 @@ def build_card_embed(record: Record, estimates: dict[str, float | None]) -> disc
     embed.add_field(name=f"Crew ({len(record['participants'])})", value=_clip(crew), inline=False)
     cargo = "\n".join(_cargo_line(line, estimates.get(line["commodity"])) for line in record["cargo"])
     embed.add_field(name="Cargo", value=_clip(cargo or "No cargo logged"), inline=False)
+    first_sale_field = len(embed.fields)
     shown = record["sales"][-MAX_SALES_SHOWN:]
     for sale in shown:
-        name = f"Sale {sale['id']}: {sale['scu']} SCU {sale['commodity']} for {sale['total']:,} aUEC"
-        lines = [f"Sold by <@{sale['seller_id']}> <t:{int(sale['sold_at'])}:R>"]
-        lines += [_payout_line(payout) for payout in sale["payouts"]]
-        embed.add_field(name=name[:256], value=_clip("\n".join(lines)), inline=False)
-    hidden = len(record["sales"]) - len(shown)
+        embed.add_field(**_sale_field(sale))
+    _drop_oldest_sales_to_fit(embed, first_sale_field, hidden=len(record["sales"]) - len(shown))
+    return embed
+
+
+def _sale_field(sale: Record) -> dict[str, Any]:
+    name = f"Sale {sale['id']}: {sale['scu']} SCU {sale['commodity']} for {sale['total']:,} aUEC"
+    lines = [f"Sold by <@{sale['seller_id']}> <t:{int(sale['sold_at'])}:R>"]
+    lines += [_payout_line(payout) for payout in sale["payouts"]]
+    return {"name": name[:256], "value": _clip("\n".join(lines)), "inline": False}
+
+
+def _note_hidden_sales(embed: discord.Embed, hidden: int) -> None:
     if hidden:
         embed.set_footer(text=f"{hidden} older sales not shown. /loot owed has the full picture.")
-    return embed
+
+
+def _drop_oldest_sales_to_fit(embed: discord.Embed, first_sale_field: int, hidden: int) -> None:
+    _note_hidden_sales(embed, hidden)
+    while len(embed) > _EMBED_LIMIT and len(embed.fields) > first_sale_field + 1:
+        embed.remove_field(first_sale_field)
+        hidden += 1
+        _note_hidden_sales(embed, hidden)
 
 
 def _raid_label(record: Record) -> str:

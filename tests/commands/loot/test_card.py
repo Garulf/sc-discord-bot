@@ -68,6 +68,19 @@ def test_card_caps_sales_shown():
     assert "2 older" in embed.footer.text
 
 
+def test_card_drops_oldest_sales_to_stay_under_embed_limit():
+    record = _record(participants=range(10**17, 10**17 + 40))
+    for _ in range(card.MAX_SALES_SHOWN):
+        ledger.record_sale(record, commodity="Gold", scu=1, total=4000, now=1.0)
+    embed = card.build_card_embed(record, {})
+    assert len(embed) <= 6000
+    sale_names = [f.name for f in embed.fields if f.name.startswith("Sale")]
+    assert sale_names[-1].startswith(f"Sale {card.MAX_SALES_SHOWN}:")
+    assert len(sale_names) < card.MAX_SALES_SHOWN
+    hidden = card.MAX_SALES_SHOWN - len(sale_names)
+    assert f"{hidden} older" in embed.footer.text
+
+
 def test_owed_summary_sections():
     record = _record(participants=(1, 2))
     ledger.record_sale(record, commodity="Gold", scu=40, total=200, now=1.0)
