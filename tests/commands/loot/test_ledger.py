@@ -377,12 +377,35 @@ def test_undo_follows_the_sale_when_the_holder_changed_since():
     assert record["cargo"][0]["holder_id"] == 3
 
 
-def test_undo_with_changed_holder_and_split_lines_names_the_holders():
+def test_undo_after_handover_finds_the_only_line_with_enough_sold():
     record = _split_gold_record()
     _sell(record, "Gold", user_id=1, scu=10, total=100, now=1.0)
     record["cargo"][0]["holder_id"] = 9
-    with pytest.raises(LootError, match="held by"):
-        ledger.undo_last_sale(record, user_id=1, is_admin=False)
+    ledger.undo_last_sale(record, user_id=1, is_admin=False)
+    assert [line["sold_scu"] for line in record["cargo"]] == [0, 0]
+
+
+def test_undo_after_handover_and_relog_never_goes_negative():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 50, holder_id=1)
+    _sell(record, "Gold", user_id=1, scu=10, total=100, now=1.0)
+    ledger.set_holder(record, record["cargo"][0], 2)
+    ledger.add_cargo(record, "Gold", 5, holder_id=1)
+    ledger.undo_last_sale(record, user_id=1, is_admin=False)
+    lines = {line["holder_id"]: (line["scu"], line["sold_scu"]) for line in record["cargo"]}
+    assert lines == {2: (50, 0), 1: (5, 0)}
+
+
+def test_undo_refuses_when_the_source_line_is_ambiguous():
+    record = _split_gold_record()
+    _sell(record, "Gold", user_id=1, scu=10, total=100, now=1.0)
+    _sell(record, "Gold", user_id=2, scu=10, total=100, now=2.0)
+    record["sales"].pop(0)
+    record["cargo"][0]["holder_id"] = 8
+    record["cargo"][1]["holder_id"] = 9
+    with pytest.raises(LootError, match="can't be undone"):
+        ledger.undo_last_sale(record, user_id=2, is_admin=False)
+    assert [line["sold_scu"] for line in record["cargo"]] == [10, 10]
     assert len(record["sales"]) == 1
 
 

@@ -284,8 +284,16 @@ def dispute(record: Record, *, user_id: int, now: float) -> list[int]:
 
 
 def _sale_line(record: Record, sale: Record) -> Record:
-    return find_line(record, sale["commodity"], sale["seller_id"]) or resolve_line(
-        record, sale["commodity"], sale["seller_id"]
+    """The line a sale came from: the seller's own, else the only one with that much sold."""
+    candidates = [line for line in _lines_for(record, sale["commodity"]) if line["sold_scu"] >= sale["scu"]]
+    own = next((line for line in candidates if line["holder_id"] == sale["seller_id"]), None)
+    if own is not None:
+        return own
+    if len(candidates) == 1:
+        return candidates[0]
+    raise LootError(
+        f"The {sale['commodity']} from sale {sale['id']} has changed hands since, so it can't be undone. "
+        "Use `/loot cargo fix` to correct the totals instead."
     )
 
 
@@ -298,7 +306,9 @@ def undo_last_sale(record: Record, *, user_id: int, is_admin: bool) -> Record:
     if any(is_paid(p) for p in sale["payouts"] if p["user_id"] != sale["seller_id"]):
         raise LootError("Some of this sale's payouts are already marked paid, so it can't be undone.")
     if any(p["disputed_at"] is not None for p in sale["payouts"]):
-        raise LootError("This sale has a disputed payout. Sort it out and mark it paid before undoing.")
+        raise LootError(
+            "This sale has a disputed payout, so it can't be undone. Settle the dispute with the crew first."
+        )
     _sale_line(record, sale)["sold_scu"] -= sale["scu"]
     record["sales"].pop()
     return sale
