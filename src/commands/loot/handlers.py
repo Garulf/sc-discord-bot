@@ -373,3 +373,22 @@ async def handle_card_leave(cog, interaction: discord.Interaction) -> None:
         return Outcome(f"You left raid #{record['id']}. Past sales are unchanged.")
 
     await _card_roster_change(cog, interaction, change)
+
+
+async def handle_owed(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    records = await store.guild_records(cog.bot.state, interaction.guild.id)
+    await _reply(interaction, card.build_owed_summary(records, interaction.user.id))
+
+
+async def handle_list(cog, interaction: discord.Interaction) -> None:
+    await interaction.response.defer()
+    records = [
+        record
+        for record in await store.guild_records(cog.bot.state, interaction.guild.id)
+        if ledger.status(record) != ledger.STATUS_SETTLED
+    ]
+    estimates = {record["id"]: await card.estimate_prices(cog.bot, record) for record in records}
+    await interaction.followup.send(
+        card.build_raid_list(records, estimates), allowed_mentions=discord.AllowedMentions.none()
+    )

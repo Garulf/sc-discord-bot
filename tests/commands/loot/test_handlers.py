@@ -410,3 +410,23 @@ async def test_card_join_on_untracked_message(cog):
     interaction.message.id = 999
     await handlers.handle_card_join(cog, interaction)
     assert "no longer tracked" in interaction.response.send_message.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_owed_is_ephemeral_summary(cog):
+    await _sold_raid(cog)
+    interaction = _interaction(user_id=43)
+    await handlers.handle_owed(cog, interaction)
+    assert "Owed to you" in _reply(interaction)
+    assert interaction.followup.send.await_args.kwargs["ephemeral"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_shows_unsettled_with_estimates(cog, monkeypatch):
+    await _new_raid(cog)
+    monkeypatch.setattr(handlers.card, "estimate_prices", AsyncMock(return_value={"Gold": 10.0}))
+    interaction = _interaction()
+    await handlers.handle_list(cog, interaction)
+    text = interaction.followup.send.await_args.args[0]
+    assert "#1 Gold grab" in text
+    assert "est. 960 aUEC" in text
