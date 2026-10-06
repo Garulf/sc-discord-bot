@@ -428,14 +428,15 @@ async def _delete_card_message(cog, interaction: discord.Interaction, record: Re
 
 
 async def confirm_delete(cog, interaction: discord.Interaction, guild_id: int, loot_id: int) -> None:
+    await interaction.response.defer()
     async with _record_lock(guild_id, loot_id):
         record = await store.get_record(cog.bot.state, guild_id, loot_id)
         if record is None:
-            await interaction.response.edit_message(content=f"Raid #{loot_id} is already gone.", view=None)
+            await interaction.edit_original_response(content=f"Raid #{loot_id} is already gone.", view=None)
             return
         if not ledger.can_delete(record):
-            await interaction.response.edit_message(content=f"Raid #{loot_id} has payouts owed again.", view=None)
+            await interaction.edit_original_response(content=f"Raid #{loot_id} has payouts owed again.", view=None)
             return
         await store.delete_record(cog.bot.state, record)
     await _delete_card_message(cog, interaction, record)
-    await interaction.response.edit_message(content=f"Deleted raid #{loot_id}.", view=None)
+    await interaction.edit_original_response(content=f"Deleted raid #{loot_id}.", view=None)

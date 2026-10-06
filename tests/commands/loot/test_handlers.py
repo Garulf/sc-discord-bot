@@ -519,7 +519,44 @@ async def test_delete_asks_for_confirmation_then_deletes(cog):
     await handlers.handle_delete(cog, interaction, raid="1")
     assert interaction.followup.send.await_args.kwargs["view"] is not None
     confirm = _interaction(admin=True)
-    confirm.response.edit_message = AsyncMock()
+    confirm.edit_original_response = AsyncMock()
     await handlers.confirm_delete(cog, confirm, 1, 1)
     assert await store.get_record(cog.bot.state, 1, 1) is None
-    assert "Deleted raid #1" in confirm.response.edit_message.await_args.kwargs["content"]
+    assert "Deleted raid #1" in confirm.edit_original_response.await_args.kwargs["content"]
+    assert confirm.edit_original_response.await_args.kwargs["view"] is None
+
+
+@pytest.mark.asyncio
+async def test_confirm_delete_defers_before_doing_any_work(cog, monkeypatch):
+    await _new_raid(cog)
+    confirm = _interaction(admin=True)
+    confirm.edit_original_response = AsyncMock()
+    order = []
+    confirm.response.defer = AsyncMock(side_effect=lambda *a, **k: order.append("defer"))
+    real_delete = store.delete_record
+
+    async def delete(state, record):
+        order.append("delete")
+        await real_delete(state, record)
+
+    monkeypatch.setattr(handlers.store, "delete_record", delete)
+    await handlers.confirm_delete(cog, confirm, 1, 1)
+    assert order == ["defer", "delete"]
+
+
+@pytest.mark.asyncio
+async def test_confirm_delete_reports_a_missing_raid(cog):
+    confirm = _interaction(admin=True)
+    confirm.edit_original_response = AsyncMock()
+    await handlers.confirm_delete(cog, confirm, 1, 404)
+    assert "already gone" in confirm.edit_original_response.await_args.kwargs["content"]
+
+
+@pytest.mark.asyncio
+async def test_confirm_delete_refuses_when_payouts_are_owed_again(cog):
+    await _sold_raid(cog)
+    confirm = _interaction(admin=True)
+    confirm.edit_original_response = AsyncMock()
+    await handlers.confirm_delete(cog, confirm, 1, 1)
+    assert "owed again" in confirm.edit_original_response.await_args.kwargs["content"]
+    assert await store.get_record(cog.bot.state, 1, 1) is not None
