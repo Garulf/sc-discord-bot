@@ -878,3 +878,37 @@ async def test_voice_channel_falls_back_to_beacon_channel_category(make_cog):
     interaction.guild.create_voice_channel = AsyncMock(return_value=voice)
     await lifecycle.handle_join(cog, interaction)
     assert interaction.guild.create_voice_channel.await_args.kwargs["category"] is fallback_category
+
+
+def _closing_channel():
+    channel = MagicMock()
+    channel.id = 99
+    channel.send = AsyncMock()
+    channel.edit = AsyncMock()
+    return channel
+
+
+@pytest.mark.asyncio
+async def test_close_message_carries_log_loot_button(make_cog):
+    record = _open_beacon_record(status=STATUS_OPEN, members=[])
+    cog = make_cog(config=THREAD_CONFIG, beacon=record)
+    loot_cog = MagicMock()
+    cog.bot.get_cog = MagicMock(return_value=loot_cog)
+    channel = _closing_channel()
+    await lifecycle.close_beacon(cog, channel, record, 1)
+    first = channel.send.await_args_list[0]
+    assert first.kwargs["view"] is loot_cog.log_view
+    assert "Log loot" in first.args[0]
+    cog.bot.get_cog.assert_called_with("LootCog")
+
+
+@pytest.mark.asyncio
+async def test_close_message_without_loot_cog_has_no_button(make_cog):
+    record = _open_beacon_record(status=STATUS_OPEN, members=[])
+    cog = make_cog(config=THREAD_CONFIG, beacon=record)
+    cog.bot.get_cog = MagicMock(return_value=None)
+    channel = _closing_channel()
+    await lifecycle.close_beacon(cog, channel, record, None)
+    first = channel.send.await_args_list[0]
+    assert "view" not in first.kwargs
+    assert "Log loot" not in first.args[0]
