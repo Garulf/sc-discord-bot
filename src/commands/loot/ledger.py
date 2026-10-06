@@ -157,3 +157,122 @@ def status(record: Record) -> str:
     if _unpaid(record):
         return STATUS_PAYING
     return STATUS_SETTLED
+
+
+def parse_mentions(text: str | None) -> list[int]:
+    if not text:
+        return []
+    return _unique(int(match) for match in _MENTION.findall(text))
+
+
+def can_handle_line(line: Record, user_id: int, is_admin: bool) -> bool:
+    return is_admin or line["holder_id"] == user_id
+
+
+def can_manage_roster(record: Record, user_id: int, is_admin: bool) -> bool:
+    if is_admin or user_id in record["organizer_ids"]:
+        return True
+    return any(line["holder_id"] == user_id for line in record["cargo"])
+
+
+def can_delete(record: Record) -> bool:
+    return owed_amount(record) == 0
+
+
+def add_participant(record: Record, user_id: int) -> None:
+    if record["sales"] and status(record) == STATUS_SETTLED:
+        raise LootError(f"Raid #{record['id']} is settled.")
+    if user_id in record["participants"]:
+        raise LootError(f"<@{user_id}> is already on raid #{record['id']}.")
+    record["participants"].append(user_id)
+
+
+def remove_participant(record: Record, user_id: int) -> None:
+    if user_id not in record["participants"]:
+        raise LootError(f"<@{user_id}> isn't on raid #{record['id']}.")
+    record["participants"].remove(user_id)
+
+
+def set_holder(record: Record, commodity: str, holder_id: int) -> Record:
+    line = require_line(record, commodity)
+    line["holder_id"] = holder_id
+    return line
+
+
+def fix_cargo(record: Record, commodity: str, scu: int) -> Record | None:
+    line = require_line(record, commodity)
+    if scu < 0:
+        raise LootError("SCU can't be negative.")
+    if scu < line["sold_scu"]:
+        raise LootError(
+            f"{line['sold_scu']} SCU of {line['commodity']} is already sold, so the total can't go below that."
+        )
+    if scu == 0:
+        record["cargo"].remove(line)
+        return None
+    line["scu"] = scu
+    return line
+
+
+def mark_paid(record: Record, *, member_id: int | None, seller_id: int | None, now: float) -> int:
+    count = 0
+    for sale, payout in _unpaid(record):
+        if seller_id is not None and sale["seller_id"] != seller_id:
+            continue
+        if member_id is not None and payout["user_id"] != member_id:
+            continue
+        payout["paid_at"] = now
+        payout["disputed_at"] = None
+        count += 1
+    if count == 0:
+        raise LootError("Nothing left to mark paid.")
+    return count
+
+
+def dispute(record: Record, *, user_id: int, now: float) -> list[int]:
+    payers = []
+    for sale in record["sales"]:
+        if sale["seller_id"] == user_id:
+            continue
+        for payout in sale["payouts"]:
+            if payout["user_id"] == user_id and is_paid(payout):
+                payout["paid_at"] = None
+                payout["disputed_at"] = now
+                payers.append(sale["seller_id"])
+    if not payers:
+        raise LootError(f"You have no payouts marked paid on raid #{record['id']}.")
+    return _unique(payers)
+
+
+def undo_last_sale(record: Record, *, user_id: int, is_admin: bool) -> Record:
+    if not record["sales"]:
+        raise LootError(f"Raid #{record['id']} has no sales to undo.")
+    sale = record["sales"][-1]
+    if not is_admin and sale["seller_id"] != user_id:
+        raise LootError("Only the seller or an admin can undo this sale.")
+    if any(is_paid(p) for p in sale["payouts"] if p["user_id"] != sale["seller_id"]):
+        raise LootError("Some of this sale's payouts are already marked paid, so it can't be undone.")
+    require_line(record, sale["commodity"])["sold_scu"] -= sale["scu"]
+    record["sales"].pop()
+    return sale
+
+
+def owed_to(records: list[Record], user_id: int) -> list[tuple[Record, Record, Record]]:
+    return [
+        (record, sale, payout) for record in records for sale, payout in _unpaid(record) if payout["user_id"] == user_id
+    ]
+
+
+def owed_by(records: list[Record], user_id: int) -> list[tuple[Record, Record, Record]]:
+    return [
+        (record, sale, payout) for record in records for sale, payout in _unpaid(record) if sale["seller_id"] == user_id
+    ]
+
+
+def held_by(records: list[Record], user_id: int) -> list[tuple[Record, Record]]:
+    return [
+        (record, line)
+        for record in records
+        for line in record["cargo"]
+        if line["holder_id"] == user_id and unsold_scu(line) > 0
+    ]

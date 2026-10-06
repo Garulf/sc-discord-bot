@@ -147,3 +147,164 @@ def test_status_progression():
     for payout in sale["payouts"]:
         payout["paid_at"] = 5.0
     assert ledger.status(record) == ledger.STATUS_SETTLED
+
+
+def _sold_record():
+    record = _record(participants=(1, 2, 3))
+    ledger.add_cargo(record, "Gold", 30, holder_id=1)
+    ledger.record_sale(record, commodity="Gold", scu=30, total=300, now=10.0)
+    return record
+
+
+def test_parse_mentions_handles_both_forms_and_dedupes():
+    assert ledger.parse_mentions("<@11> <@!22> and <@11>, bob") == [11, 22]
+    assert ledger.parse_mentions("bob alice") == []
+    assert ledger.parse_mentions(None) == []
+
+
+def test_line_permissions():
+    line = {"commodity": "Gold", "scu": 1, "sold_scu": 0, "holder_id": 5}
+    assert ledger.can_handle_line(line, 5, is_admin=False)
+    assert not ledger.can_handle_line(line, 6, is_admin=False)
+    assert ledger.can_handle_line(line, 6, is_admin=True)
+
+
+def test_roster_permissions_cover_organizers_holders_and_admins():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 1, holder_id=9)
+    assert ledger.can_manage_roster(record, 1, is_admin=False)
+    assert ledger.can_manage_roster(record, 9, is_admin=False)
+    assert ledger.can_manage_roster(record, 50, is_admin=True)
+    assert not ledger.can_manage_roster(record, 50, is_admin=False)
+
+
+def test_add_and_remove_participant():
+    record = _record(participants=(1,))
+    ledger.add_participant(record, 2)
+    assert record["participants"] == [1, 2]
+    with pytest.raises(LootError, match="already"):
+        ledger.add_participant(record, 2)
+    ledger.remove_participant(record, 1)
+    assert record["participants"] == [2]
+    with pytest.raises(LootError, match="isn't on"):
+        ledger.remove_participant(record, 1)
+
+
+def test_cannot_join_settled_raid():
+    record = _sold_record()
+    ledger.mark_paid(record, member_id=None, seller_id=None, now=11.0)
+    with pytest.raises(LootError, match="settled"):
+        ledger.add_participant(record, 99)
+
+
+def test_roster_change_only_affects_future_sales():
+    record = _record(participants=(1, 2))
+    ledger.add_cargo(record, "Gold", 20, holder_id=1)
+    ledger.record_sale(record, commodity="Gold", scu=10, total=100, now=1.0)
+    ledger.add_participant(record, 3)
+    second = ledger.record_sale(record, commodity="Gold", scu=10, total=90, now=2.0)
+    assert [p["user_id"] for p in record["sales"][0]["payouts"]] == [1, 2]
+    assert [p["user_id"] for p in second["payouts"]] == [1, 2, 3]
+
+
+def test_set_holder():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 5, holder_id=1)
+    assert ledger.set_holder(record, "gold", 4)["holder_id"] == 4
+
+
+def test_fix_cargo_rules():
+    record = _record()
+    ledger.add_cargo(record, "Gold", 50, holder_id=1)
+    ledger.record_sale(record, commodity="Gold", scu=20, total=100, now=1.0)
+    assert ledger.fix_cargo(record, "Gold", 30)["scu"] == 30
+    with pytest.raises(LootError, match="already sold"):
+        ledger.fix_cargo(record, "Gold", 10)
+    ledger.add_cargo(record, "Silver", 5, holder_id=1)
+    assert ledger.fix_cargo(record, "Silver", 0) is None
+    assert ledger.find_line(record, "Silver") is None
+    with pytest.raises(LootError):
+        ledger.fix_cargo(record, "Gold", -1)
+
+
+def test_mark_paid_single_member_and_all():
+    record = _sold_record()
+    assert ledger.mark_paid(record, member_id=2, seller_id=1, now=11.0) == 1
+    assert ledger.owed_amount(record) == 100
+    assert ledger.mark_paid(record, member_id=None, seller_id=1, now=12.0) == 1
+    assert ledger.status(record) == ledger.STATUS_SETTLED
+    with pytest.raises(LootError, match="Nothing"):
+        ledger.mark_paid(record, member_id=None, seller_id=1, now=13.0)
+
+
+def test_mark_paid_respects_seller_filter():
+    record = _sold_record()
+    with pytest.raises(LootError):
+        ledger.mark_paid(record, member_id=2, seller_id=3, now=11.0)
+    assert ledger.mark_paid(record, member_id=2, seller_id=None, now=11.0) == 1
+
+
+def test_dispute_reopens_paid_share_and_returns_payer():
+    record = _sold_record()
+    ledger.mark_paid(record, member_id=2, seller_id=1, now=11.0)
+    assert ledger.dispute(record, user_id=2, now=12.0) == [1]
+    payout = next(p for p in record["sales"][0]["payouts"] if p["user_id"] == 2)
+    assert payout["paid_at"] is None
+    assert payout["disputed_at"] == 12.0
+    ledger.mark_paid(record, member_id=2, seller_id=1, now=13.0)
+    assert payout["disputed_at"] is None
+
+
+def test_dispute_with_nothing_paid_is_an_error():
+    with pytest.raises(LootError, match="no payouts marked paid"):
+        ledger.dispute(_sold_record(), user_id=2, now=12.0)
+
+
+def test_seller_cannot_dispute_own_auto_paid_share():
+    with pytest.raises(LootError):
+        ledger.dispute(_sold_record(), user_id=1, now=12.0)
+
+
+def test_undo_last_sale_restores_scu():
+    record = _sold_record()
+    sale = ledger.undo_last_sale(record, user_id=1, is_admin=False)
+    assert sale["id"] == 1
+    assert record["sales"] == []
+    assert record["cargo"][0]["sold_scu"] == 0
+
+
+def test_undo_rules():
+    record = _sold_record()
+    with pytest.raises(LootError, match="seller or an admin"):
+        ledger.undo_last_sale(record, user_id=2, is_admin=False)
+    ledger.mark_paid(record, member_id=2, seller_id=1, now=11.0)
+    with pytest.raises(LootError, match="already marked paid"):
+        ledger.undo_last_sale(record, user_id=1, is_admin=True)
+    with pytest.raises(LootError, match="no sales"):
+        ledger.undo_last_sale(_record(), user_id=1, is_admin=True)
+
+
+def test_can_delete_only_when_nothing_owed():
+    record = _sold_record()
+    assert not ledger.can_delete(record)
+    ledger.mark_paid(record, member_id=None, seller_id=None, now=11.0)
+    assert ledger.can_delete(record)
+    assert ledger.can_delete(_record())
+
+
+def test_aggregation_across_records():
+    first = _sold_record()
+    second = _record(participants=(2, 3))
+    second["id"] = 13
+    ledger.add_cargo(second, "Silver", 10, holder_id=2)
+    ledger.record_sale(second, commodity="Silver", scu=4, total=40, now=1.0)
+    records = [first, second]
+
+    owed_to_3 = [(r["id"], s["id"], p["amount"]) for r, s, p in ledger.owed_to(records, 3)]
+    assert owed_to_3 == [(12, 1, 100), (13, 1, 20)]
+
+    owed_by_1 = [(r["id"], p["user_id"]) for r, _, p in ledger.owed_by(records, 1)]
+    assert owed_by_1 == [(12, 2), (12, 3)]
+
+    held = [(r["id"], line["commodity"]) for r, line in ledger.held_by(records, 2)]
+    assert held == [(13, "Silver")]
