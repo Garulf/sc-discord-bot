@@ -392,3 +392,50 @@ async def handle_list(cog, interaction: discord.Interaction) -> None:
     await interaction.followup.send(
         card.build_raid_list(records, estimates), allowed_mentions=discord.AllowedMentions.none()
     )
+
+
+async def handle_delete(cog, interaction: discord.Interaction, *, raid: str) -> None:
+    from .views import ConfirmDeleteView
+
+    await interaction.response.defer(ephemeral=True)
+    loot_id = parse_raid_id(raid)
+    record = await store.get_record(cog.bot.state, interaction.guild.id, loot_id) if loot_id is not None else None
+    if record is None:
+        await _reply(interaction, f"Raid {raid} not found.")
+        return
+    if not ledger.can_delete(record):
+        await _reply(
+            interaction, f"Raid #{record['id']} still has {ledger.owed_amount(record):,} aUEC owed. Settle it first."
+        )
+        return
+    await interaction.followup.send(
+        f"Delete raid #{record['id']} {record['title']}? This can't be undone.",
+        view=ConfirmDeleteView(cog, interaction.guild.id, record["id"]),
+        ephemeral=True,
+    )
+
+
+async def _delete_card_message(cog, interaction: discord.Interaction, record: Record) -> None:
+    if record["card"] is None:
+        return
+    channel = interaction.guild.get_channel(record["card"]["channel_id"])
+    if channel is None:
+        return
+    try:
+        await channel.get_partial_message(record["card"]["message_id"]).delete()
+    except discord.HTTPException:
+        logger.info("Loot card for raid %s was already gone", record["id"])
+
+
+async def confirm_delete(cog, interaction: discord.Interaction, guild_id: int, loot_id: int) -> None:
+    async with _record_lock(guild_id, loot_id):
+        record = await store.get_record(cog.bot.state, guild_id, loot_id)
+        if record is None:
+            await interaction.response.edit_message(content=f"Raid #{loot_id} is already gone.", view=None)
+            return
+        if not ledger.can_delete(record):
+            await interaction.response.edit_message(content=f"Raid #{loot_id} has payouts owed again.", view=None)
+            return
+        await store.delete_record(cog.bot.state, record)
+    await _delete_card_message(cog, interaction, record)
+    await interaction.response.edit_message(content=f"Deleted raid #{loot_id}.", view=None)

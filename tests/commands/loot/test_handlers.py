@@ -430,3 +430,25 @@ async def test_list_shows_unsettled_with_estimates(cog, monkeypatch):
     text = interaction.followup.send.await_args.args[0]
     assert "#1 Gold grab" in text
     assert "est. 960 aUEC" in text
+
+
+@pytest.mark.asyncio
+async def test_delete_blocked_while_owed(cog):
+    await _sold_raid(cog)
+    interaction = _interaction(admin=True)
+    await handlers.handle_delete(cog, interaction, raid="1")
+    assert "aUEC owed" in _reply(interaction)
+    assert await store.get_record(cog.bot.state, 1, 1) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_asks_for_confirmation_then_deletes(cog):
+    await _new_raid(cog)
+    interaction = _interaction(admin=True)
+    await handlers.handle_delete(cog, interaction, raid="1")
+    assert interaction.followup.send.await_args.kwargs["view"] is not None
+    confirm = _interaction(admin=True)
+    confirm.response.edit_message = AsyncMock()
+    await handlers.confirm_delete(cog, confirm, 1, 1)
+    assert await store.get_record(cog.bot.state, 1, 1) is None
+    assert "Deleted raid #1" in confirm.response.edit_message.await_args.kwargs["content"]
