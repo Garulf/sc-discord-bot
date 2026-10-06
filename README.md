@@ -58,9 +58,10 @@ Service beacons: a panel of category buttons plus slash commands that open a pub
 | `/beacon salvage location:<location> [target] [notes]` | Request salvage assistance (target: Ship wreck / Panels / Structure / Unknown) |
 | `/beacon escort location:<location> [destination] [notes]` | Request a ship escort |
 | `/beacon transport location:<location> [destination] [notes]` | Request personal transport |
+| `/beacon piracy location:<location> [target] [crew] [notes]` | Crew up for a piracy run |
 | `/beacon contested location:<station> [objective] [size] [notes]` | Group up for a contested zone. Location is a fixed list: Orbituary, Ruin Station, Checkmate, the PYAM exec hangar, and the two PYAM-SUPVISR red keycard stations (objective: Vault run / Full clear / Keycard run / Extraction help; size: 1-50) |
 
-Every one of the nine category commands above also takes an optional `when:<duration>` (e.g. `45m`, `2h`, `1d`) to schedule the beacon ahead of time instead of opening it immediately; see [Scheduling a beacon](#scheduling-a-beacon) below.
+Every one of the ten category commands above also takes an optional `when:<duration>` (e.g. `45m`, `2h`, `1d`) to schedule the beacon ahead of time instead of opening it immediately; see [Scheduling a beacon](#scheduling-a-beacon) below.
 
 Every non-notes option is constrained: category details come from fixed choice lists or numeric ranges, so beacon data stays consistent. Location-style options (`location`, `route-from`, `route-to`, `destination`) take a single `system:planet:location` value; as you type, autocomplete suggests flyable star systems (Stanton, Pyro, Nyx), planets and moons, and points of interest as full breadcrumbs (e.g. `Stanton:Hurston:Lorville`) from live game data, and the beacon renders it as a breadcrumb.
 
@@ -111,6 +112,28 @@ Scheduling posts an RSVP embed in the beacon channel with **Join**, **Leave**, a
 - At the scheduled time, the bot opens the beacon thread automatically (same as running the command with no `when`) and auto-joins every RSVP'd member to it, then updates the embed to link the opened thread.
 
 Beacons created before the ticket-to-beacon rename keep working: stored state is copied to the new keys on startup (legacy keys are kept so a rollback still finds its data) and the old buttons stay registered. After upgrading, re-run `/beacon setup` once per server to refresh the panel and provision forum tags for the Escort and Personal Transport categories; the bot logs a warning on startup until this is done.
+
+---
+
+### Loot (`/loot`)
+
+Track cargo taken on a raid while someone holds it, then split each sale equally among the crew. Loot can be logged from a closed beacon (**Log loot** button) or started without one. Each raid gets a live card in the loot channel with Join/Leave buttons and per-person payout status.
+
+| Command | Description |
+|---|---|
+| `/loot new title:<title> commodity:<commodity> scu:<scu> [participants] [holder]` | Start a raid without a beacon; tag the crew with @mentions |
+| `/loot log commodity:<commodity> scu:<scu> [holder] [raid]` | Log loot inside a beacon thread, or add cargo to an existing raid |
+| `/loot sell raid:<raid> commodity:<commodity> scu:<scu> total:<aUEC>` | Record a sale; each crew member is owed an equal share |
+| `/loot paid raid:<raid> [member]` | Mark a share paid, or everyone you owe on that raid |
+| `/loot dispute raid:<raid>` | Flag a share marked paid that you never received |
+| `/loot undo raid:<raid>` | Remove the latest sale if nothing from it is paid yet |
+| `/loot holder raid:<raid> commodity:<commodity> member:<member>` | Hand cargo to another member |
+| `/loot participants add\|remove raid:<raid> member:<member>` | Change the crew for future sales |
+| `/loot cargo fix raid:<raid> commodity:<commodity> scu:<scu>` | Correct a logged amount (0 removes it) |
+| `/loot owed` | What you're owed, what you owe, and what you hold |
+| `/loot list` | Raids that aren't settled yet |
+| `/loot delete raid:<raid>` | Delete a raid with nothing owed (admin) |
+| `/loot config channel:<channel>` | Set the loot card channel (admin) |
 
 ---
 
