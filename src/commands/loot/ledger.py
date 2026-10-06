@@ -15,6 +15,8 @@ STATUS_HOLDING = "holding"
 STATUS_PAYING = "paying out"
 STATUS_SETTLED = "settled"
 
+MAX_SCU = 1_000_000
+
 _MENTION = re.compile(r"<@!?(\d+)>")
 
 Record = dict[str, Any]

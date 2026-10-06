@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import discord
 
-from . import handlers
+from . import handlers, ledger
 
 
 class _JoinButton(discord.ui.Button):
@@ -42,7 +42,7 @@ class LogLootModal(discord.ui.Modal, title="Log loot"):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         raw = self.scu.value.strip()
-        if not raw.isdigit() or int(raw) == 0:
+        if not raw.isdecimal() or not 0 < int(raw) <= ledger.MAX_SCU:
             await interaction.response.send_message("SCU must be a whole number above 0.", ephemeral=True)
             return
         await handlers.handle_log(

@@ -11,9 +11,9 @@ from src.commands.checks import admin_or_sc_bot, handle_check_failure
 from src.commands.commodity.shared import autocomplete_commodity
 
 from . import handlers
+from .ledger import MAX_SCU
 from .views import LogLootView, LootCardView
 
-_MAX_SCU = 1_000_000
 _MAX_AUEC = 1_000_000_000_000
 
 
@@ -62,7 +62,7 @@ class LootCog(commands.Cog):
         interaction: discord.Interaction,
         title: app_commands.Range[str, 1, 100],
         commodity: app_commands.Range[str, 1, 100],
-        scu: app_commands.Range[int, 1, _MAX_SCU],
+        scu: app_commands.Range[int, 1, MAX_SCU],
         participants: str | None = None,
         holder: discord.Member | None = None,
     ) -> None:
@@ -88,7 +88,7 @@ class LootCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         commodity: app_commands.Range[str, 1, 100],
-        scu: app_commands.Range[int, 1, _MAX_SCU],
+        scu: app_commands.Range[int, 1, MAX_SCU],
         holder: discord.Member | None = None,
         raid: str | None = None,
     ) -> None:
@@ -109,7 +109,7 @@ class LootCog(commands.Cog):
         interaction: discord.Interaction,
         raid: str,
         commodity: str,
-        scu: app_commands.Range[int, 1, _MAX_SCU],
+        scu: app_commands.Range[int, 1, MAX_SCU],
         total: app_commands.Range[int, 1, _MAX_AUEC],
     ) -> None:
         await handlers.handle_sell(self, interaction, raid=raid, commodity=commodity, scu=scu, total=total)
@@ -173,7 +173,7 @@ class LootCog(commands.Cog):
         interaction: discord.Interaction,
         raid: str,
         commodity: str,
-        scu: app_commands.Range[int, 0, _MAX_SCU],
+        scu: app_commands.Range[int, 0, MAX_SCU],
     ) -> None:
         await handlers.handle_cargo_fix(self, interaction, raid=raid, commodity=commodity, scu=scu)
 

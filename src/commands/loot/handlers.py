@@ -35,7 +35,7 @@ class Outcome:
 
 def parse_raid_id(raw: str) -> int | None:
     digits = raw.strip().lstrip("#")
-    return int(digits) if digits.isdigit() else None
+    return int(digits) if digits.isdecimal() else None
 
 
 def _record_lock(guild_id: int, loot_id: int):

@@ -79,6 +79,8 @@ def test_parse_raid_id():
     assert handlers.parse_raid_id("12") == 12
     assert handlers.parse_raid_id("#12") == 12
     assert handlers.parse_raid_id("Gold grab") is None
+    assert handlers.parse_raid_id("\u00b2") is None
+    assert handlers.parse_raid_id("#\u0663") == 3
 
 
 @pytest.mark.asyncio

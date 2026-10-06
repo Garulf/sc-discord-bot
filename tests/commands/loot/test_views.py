@@ -64,3 +64,29 @@ async def test_modal_logs_for_submitter(monkeypatch):
     interaction.user.id = 8
     await modal.on_submit(interaction)
     log.assert_awaited_once_with(cog, interaction, commodity="Gold", scu=96, holder_id=8, raid=None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", ["\u00b2", "2000000", "0", "-5", ""])
+async def test_modal_rejects_unusable_scu_with_a_friendly_message(monkeypatch, raw):
+    log = AsyncMock()
+    monkeypatch.setattr(views.handlers, "handle_log", log)
+    modal = views.LogLootModal(MagicMock())
+    modal.commodity._value = "Gold"
+    modal.scu._value = raw
+    interaction = MagicMock()
+    interaction.response.send_message = AsyncMock()
+    await modal.on_submit(interaction)
+    log.assert_not_awaited()
+    assert "whole number" in interaction.response.send_message.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_modal_accepts_the_maximum_scu(monkeypatch):
+    log = AsyncMock()
+    monkeypatch.setattr(views.handlers, "handle_log", log)
+    modal = views.LogLootModal(MagicMock())
+    modal.commodity._value = "Gold"
+    modal.scu._value = "1000000"
+    await modal.on_submit(MagicMock())
+    assert log.await_args.kwargs["scu"] == 1_000_000
