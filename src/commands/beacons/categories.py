@@ -171,4 +171,16 @@ CATEGORIES: dict[str, Category] = {
             _notes(),
         ),
     ),
+    "piracy": Category(
+        key="piracy",
+        description="Crew up to hit a target and take its cargo",
+        label="Piracy",
+        emoji="\N{SKULL AND CROSSBONES}",
+        fields=(
+            _location(),
+            FieldSpec("target", "Target ship"),
+            _crew(),
+            _notes(),
+        ),
+    ),
 }

@@ -195,3 +195,11 @@ def test_scheduled_embed_opened_status_shows_thread():
     assert "Opened" in values
     assert "Thread" in field_names
     assert "<#999>" in values
+
+
+def test_beacon_summary_uses_target_and_place():
+    from src.commands.beacons.embeds import beacon_summary
+
+    fields = {"location": "Pyro:Ruin Station", "target": "Caterpillar"}
+    assert beacon_summary("piracy", fields) == "Caterpillar @ Ruin Station"
+    assert beacon_summary("cargo", {}) is None

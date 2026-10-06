@@ -1,6 +1,17 @@
 from src.commands.beacons.categories import CATEGORIES, short_label
 
-_EXPECTED_KEYS = {"mining", "medic", "squad", "backup", "cargo", "salvage", "escort", "transport", "contested"}
+_EXPECTED_KEYS = {
+    "mining",
+    "medic",
+    "squad",
+    "backup",
+    "cargo",
+    "salvage",
+    "escort",
+    "transport",
+    "contested",
+    "piracy",
+}
 _EXPECTED_LABELS = {
     "mining": "Mining",
     "medic": "Medical",
@@ -11,10 +22,11 @@ _EXPECTED_LABELS = {
     "escort": "Escort",
     "transport": "Personal Transport",
     "contested": "Contested Zone",
+    "piracy": "Piracy",
 }
 
 
-def test_all_nine_categories_present():
+def test_all_categories_present():
     assert set(CATEGORIES) == _EXPECTED_KEYS
 
 
@@ -82,7 +94,17 @@ def test_int_fields():
         ("contested", "size"),
         ("mining", "size"),
         ("salvage", "size"),
+        ("piracy", "size"),
     }
+
+
+def test_piracy_fields():
+    spec = {f.key: f for f in CATEGORIES["piracy"].fields}
+    assert list(spec) == ["location", "target", "size", "notes"]
+    assert spec["location"].required is True
+    assert spec["target"].label == "Target ship"
+    assert spec["target"].kind == "text"
+    assert spec["size"].label == "Crew needed"
 
 
 def test_danger_level_choices():

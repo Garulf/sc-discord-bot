@@ -7,7 +7,7 @@ from src.commands.beacons import BeaconsCog
 from src.commands.beacons.categories import CATEGORIES
 from src.commands.checks import admin_or_sc_bot
 
-_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport")
+_CASCADE_CATEGORIES = ("mining", "medic", "squad", "backup", "salvage", "escort", "transport", "piracy")
 
 
 def _params(name):
@@ -226,3 +226,9 @@ async def test_cog_load_registers_scheduled_beacon_view(monkeypatch):
 
     assert isinstance(cog.scheduled_beacon_view, ScheduledBeaconView)
     assert any(isinstance(call.args[0], ScheduledBeaconView) for call in bot.add_view.call_args_list)
+
+
+def test_piracy_takes_optional_target_and_crew():
+    params = _params("piracy")
+    assert params["target"].required is False
+    assert params["crew"].type is AppCommandOptionType.integer

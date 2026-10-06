@@ -373,6 +373,33 @@ class BeaconsCog(commands.Cog):
             fields["notes"] = notes
         await scheduled.open_or_schedule(self, interaction, "contested", fields, when)
 
+    @beacon.command(name="piracy", description="Crew up for a piracy run")
+    @app_commands.describe(
+        location="Where the target is (system:planet:location)",
+        target="Target ship",
+        crew="Crew members needed",
+        notes="Extra details",
+        when='Schedule this beacon instead of opening it now (e.g. "45m", "2h")',
+    )
+    @app_commands.autocomplete(location=location_autocomplete)
+    async def piracy(
+        self,
+        interaction: discord.Interaction,
+        location: str,
+        target: str | None = None,
+        crew: app_commands.Range[int, 1, 50] | None = None,
+        notes: str | None = None,
+        when: str | None = None,
+    ) -> None:
+        fields = {"location": location}
+        if target:
+            fields["target"] = target
+        if crew:
+            fields["size"] = str(crew)
+        if notes:
+            fields["notes"] = notes
+        await scheduled.open_or_schedule(self, interaction, "piracy", fields, when)
+
     @beacon.command(name="close", description="Close this beacon")
     async def close(self, interaction: discord.Interaction) -> None:
         await handle_close_command(self, interaction)

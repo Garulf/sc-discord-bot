@@ -114,6 +114,7 @@ async def test_setup_in_forum_channel_creates_tags_and_pinned_post(monkeypatch):
         "escort",
         "transport",
         "contested",
+        "piracy",
         "open",
         "closed",
     }

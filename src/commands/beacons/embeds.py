@@ -58,6 +58,10 @@ def _join_present(*parts: str | None) -> str | None:
     return " ".join(present) if present else None
 
 
+def beacon_summary(category_key: str, fields: dict[str, Any]) -> str | None:
+    return _title_summary(category_key, fields)
+
+
 def beacon_title(category_key: str, username: str, fields: dict[str, Any] | None = None) -> str:
     label = f"[{short_label(CATEGORIES[category_key])}]"
     summary = _title_summary(category_key, fields or {})
