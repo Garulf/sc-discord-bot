@@ -146,44 +146,44 @@ async def poll(cog) -> None:
 async def _poll_incidents(cog, subscriptions: list[int]) -> None:
     try:
         entries = await fetch_status_entries(STATUS_FEED_URL)
+        if not entries:
+            return
+
+        current = {entry.guid: (entry.published or "") for entry in entries}
+        seen = await cog.bot.state.get(SEEN_KEY, {})
+        if not seen:
+            await cog.bot.state.set(SEEN_KEY, current)
+            return
+
+        updated = [entry for entry in entries if seen.get(entry.guid) != current[entry.guid]]
+        for entry in reversed(updated):
+            await _broadcast(cog, subscriptions, build_status_embed(entry))
+
+        await cog.bot.state.set(SEEN_KEY, current)
     except Exception:  # noqa: BLE001 - log and keep the loop alive
         logger.exception("RSI status feed poll failed")
-        return
-    if not entries:
-        return
-
-    current = {entry.guid: (entry.published or "") for entry in entries}
-    seen = await cog.bot.state.get(SEEN_KEY, {})
-    if not seen:
-        await cog.bot.state.set(SEEN_KEY, current)
-        return
-
-    updated = [entry for entry in entries if seen.get(entry.guid) != current[entry.guid]]
-    for entry in reversed(updated):
-        await _broadcast(cog, subscriptions, build_status_embed(entry))
-
-    await cog.bot.state.set(SEEN_KEY, current)
 
 
 async def _poll_systems(cog, subscriptions: list[int]) -> None:
     try:
         overview = await fetch_status_overview()
+
+        current = {system.name: system.status for system in overview.systems}
+        if not current:
+            return
+        previous = await cog.bot.state.get(SYSTEMS_KEY, {})
+        if not previous:
+            await cog.bot.state.set(SYSTEMS_KEY, current)
+            return
+
+        changes = [
+            (name, previous.get(name), status) for name, status in current.items() if previous.get(name) != status
+        ]
+        if changes:
+            await _broadcast(cog, subscriptions, build_overview_embed(overview, changes=changes))
+        await cog.bot.state.set(SYSTEMS_KEY, current)
     except Exception:  # noqa: BLE001 - log and keep the loop alive
         logger.exception("RSI status overview poll failed")
-        return
-
-    current = {system.name: system.status for system in overview.systems}
-    if not current:
-        return
-    previous = await cog.bot.state.get(SYSTEMS_KEY, {})
-    if not previous:
-        await cog.bot.state.set(SYSTEMS_KEY, current)
-        return
-
-    changes = [(name, previous.get(name), status) for name, status in current.items() if previous.get(name) != status]
-    if changes:
-        await _broadcast(cog, subscriptions, build_overview_embed(overview, changes=changes))
-    await cog.bot.state.set(SYSTEMS_KEY, current)
 
 
 async def latest_incident(cog, overview: StatusOverview) -> tuple[str, str, str | None] | None:
