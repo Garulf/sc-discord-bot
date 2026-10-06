@@ -386,6 +386,16 @@ def test_undo_with_changed_holder_and_split_lines_names_the_holders():
     assert len(record["sales"]) == 1
 
 
+def test_undo_blocked_while_a_payout_is_disputed():
+    record = _sold_record()
+    ledger.mark_paid(record, member_id=2, seller_id=1, now=11.0)
+    ledger.dispute(record, user_id=2, now=12.0)
+    with pytest.raises(LootError, match="disputed payout"):
+        ledger.undo_last_sale(record, user_id=1, is_admin=True)
+    assert len(record["sales"]) == 1
+    assert record["cargo"][0]["sold_scu"] == 30
+
+
 def test_can_delete_only_when_nothing_owed():
     record = _sold_record()
     assert not ledger.can_delete(record)

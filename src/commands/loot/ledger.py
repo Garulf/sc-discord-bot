@@ -293,6 +293,8 @@ def undo_last_sale(record: Record, *, user_id: int, is_admin: bool) -> Record:
         raise LootError("Only the seller or an admin can undo this sale.")
     if any(is_paid(p) for p in sale["payouts"] if p["user_id"] != sale["seller_id"]):
         raise LootError("Some of this sale's payouts are already marked paid, so it can't be undone.")
+    if any(p["disputed_at"] is not None for p in sale["payouts"]):
+        raise LootError("This sale has a disputed payout. Sort it out and mark it paid before undoing.")
     _sale_line(record, sale)["sold_scu"] -= sale["scu"]
     record["sales"].pop()
     return sale
