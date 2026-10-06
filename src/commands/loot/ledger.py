@@ -189,6 +189,10 @@ def parse_mentions(text: str | None) -> list[int]:
     return _unique(int(match) for match in _MENTION.findall(text))
 
 
+def is_seller(record: Record, user_id: int) -> bool:
+    return any(sale["seller_id"] == user_id for sale in record["sales"])
+
+
 def can_handle_line(line: Record, user_id: int, is_admin: bool) -> bool:
     return is_admin or line["holder_id"] == user_id
 

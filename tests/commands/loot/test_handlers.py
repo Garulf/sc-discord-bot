@@ -420,7 +420,17 @@ async def test_non_seller_cannot_mark_paid(cog):
     await _sold_raid(cog)
     interaction = _interaction(user_id=43)
     await handlers.handle_paid(cog, interaction, raid="1", member_id=44)
-    assert "Nothing left" in _reply(interaction)
+    assert _reply(interaction) == "Only the seller or an admin can mark payouts paid."
+    assert ledger.owed_amount(await store.get_record(cog.bot.state, 1, 1)) == 200
+
+
+@pytest.mark.asyncio
+async def test_seller_with_nothing_unpaid_is_told_so(cog):
+    await _sold_raid(cog)
+    await handlers.handle_paid(cog, _interaction(user_id=42), raid="1", member_id=None)
+    interaction = _interaction(user_id=42)
+    await handlers.handle_paid(cog, interaction, raid="1", member_id=None)
+    assert _reply(interaction) == "Nothing left to mark paid."
 
 
 @pytest.mark.asyncio

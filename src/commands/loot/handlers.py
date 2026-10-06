@@ -273,6 +273,8 @@ async def handle_paid(cog, interaction: discord.Interaction, *, raid: str, membe
     seller_filter = None if is_beacon_admin(interaction) else interaction.user.id
 
     def change(record: Record) -> Outcome:
+        if seller_filter is not None and not ledger.is_seller(record, seller_filter):
+            raise LootError("Only the seller or an admin can mark payouts paid.")
         count = ledger.mark_paid(record, member_id=member_id, seller_id=seller_filter, now=time.time())
         noun = "payout" if count == 1 else "payouts"
         return Outcome(f"Marked {count} {noun} paid on raid #{record['id']}.")
