@@ -288,3 +288,125 @@ async def test_first_save_of_new_raids_happens_under_the_record_lock(cog, monkey
     await beacon_store.save_beacon(cog.bot.state, 99, _beacon())
     await handlers.handle_log(cog, _interaction(user_id=8), commodity="Gold", scu=5, holder_id=8, raid=None)
     assert held == [True, True]
+
+
+async def _sold_raid(cog, total=300):
+    await _new_raid(cog, user_id=42, participants="<@43> <@44>")
+    await handlers.handle_sell(cog, _interaction(user_id=42), raid="1", commodity="Gold", scu=40, total=total)
+    return await store.get_record(cog.bot.state, 1, 1)
+
+
+@pytest.mark.asyncio
+async def test_sell_splits_and_announces(cog):
+    record = await _sold_raid(cog, total=301)
+    sale = record["sales"][0]
+    assert sale["share"] == 100
+    assert sale["seller_id"] == 42
+    text = handlers.card.announce.await_args.args[2]
+    assert "<@42> sold 40 SCU Gold for 301 aUEC, 100 each" in text
+    assert "<@43>" in text and "<@44>" in text
+
+
+@pytest.mark.asyncio
+async def test_only_holder_or_admin_can_sell(cog):
+    await _new_raid(cog)
+    interaction = _interaction(user_id=43)
+    await handlers.handle_sell(cog, interaction, raid="1", commodity="Gold", scu=10, total=100)
+    assert "holder" in _reply(interaction)
+    assert (await store.get_record(cog.bot.state, 1, 1))["sales"] == []
+
+
+@pytest.mark.asyncio
+async def test_admin_sale_is_paid_by_the_holder(cog):
+    await _new_raid(cog)
+    await handlers.handle_sell(cog, _interaction(user_id=500, admin=True), raid="1", commodity="Gold", scu=10, total=90)
+    sale = (await store.get_record(cog.bot.state, 1, 1))["sales"][0]
+    assert sale["seller_id"] == 42
+
+
+@pytest.mark.asyncio
+async def test_oversell_is_rejected(cog):
+    await _new_raid(cog, scu=10)
+    interaction = _interaction()
+    await handlers.handle_sell(cog, interaction, raid="1", commodity="Gold", scu=11, total=100)
+    assert "Only 10 SCU" in _reply(interaction)
+
+
+@pytest.mark.asyncio
+async def test_paid_by_seller(cog):
+    await _sold_raid(cog)
+    interaction = _interaction(user_id=42)
+    await handlers.handle_paid(cog, interaction, raid="1", member_id=43)
+    assert "1 payout" in _reply(interaction)
+    await handlers.handle_paid(cog, _interaction(user_id=42), raid="1", member_id=None)
+    assert ledger.status(await store.get_record(cog.bot.state, 1, 1)) == ledger.STATUS_HOLDING
+
+
+@pytest.mark.asyncio
+async def test_non_seller_cannot_mark_paid(cog):
+    await _sold_raid(cog)
+    interaction = _interaction(user_id=43)
+    await handlers.handle_paid(cog, interaction, raid="1", member_id=44)
+    assert "Nothing left" in _reply(interaction)
+
+
+@pytest.mark.asyncio
+async def test_dispute_pings_payer(cog):
+    await _sold_raid(cog)
+    await handlers.handle_paid(cog, _interaction(user_id=42), raid="1", member_id=43)
+    interaction = _interaction(user_id=43)
+    await handlers.handle_dispute(cog, interaction, raid="1")
+    text = handlers.card.announce.await_args.args[2]
+    assert "<@43>" in text and "<@42>" in text
+
+
+@pytest.mark.asyncio
+async def test_undo_and_holder_and_fix(cog):
+    await _sold_raid(cog)
+    await handlers.handle_undo(cog, _interaction(user_id=42), raid="1")
+    record = await store.get_record(cog.bot.state, 1, 1)
+    assert record["sales"] == []
+    await handlers.handle_holder(cog, _interaction(user_id=42), raid="1", commodity="Gold", member_id=43)
+    await handlers.handle_cargo_fix(cog, _interaction(user_id=43), raid="1", commodity="Gold", scu=80)
+    line = (await store.get_record(cog.bot.state, 1, 1))["cargo"][0]
+    assert (line["holder_id"], line["scu"]) == (43, 80)
+
+
+@pytest.mark.asyncio
+async def test_holder_change_needs_current_holder(cog):
+    await _new_raid(cog)
+    interaction = _interaction(user_id=43)
+    await handlers.handle_holder(cog, interaction, raid="1", commodity="Gold", member_id=43)
+    assert "holder" in _reply(interaction)
+
+
+@pytest.mark.asyncio
+async def test_participants_add_remove_permissions(cog):
+    await _new_raid(cog)
+    await handlers.handle_participants(cog, _interaction(user_id=42), raid="1", action="add", member_id=50)
+    await handlers.handle_participants(cog, _interaction(user_id=42), raid="1", action="remove", member_id=43)
+    assert (await store.get_record(cog.bot.state, 1, 1))["participants"] == [42, 44, 50]
+    outsider = _interaction(user_id=60)
+    await handlers.handle_participants(cog, outsider, raid="1", action="add", member_id=60)
+    assert "organizers" in _reply(outsider)
+
+
+@pytest.mark.asyncio
+async def test_card_join_and_leave(cog):
+    record = await _new_raid(cog)
+    record["card"] = {"channel_id": 20, "message_id": 555}
+    await store.save_record(cog.bot.state, record)
+    joiner = _interaction(user_id=70)
+    await handlers.handle_card_join(cog, joiner)
+    assert 70 in (await store.get_record(cog.bot.state, 1, 1))["participants"]
+    leaver = _interaction(user_id=70)
+    await handlers.handle_card_leave(cog, leaver)
+    assert 70 not in (await store.get_record(cog.bot.state, 1, 1))["participants"]
+
+
+@pytest.mark.asyncio
+async def test_card_join_on_untracked_message(cog):
+    interaction = _interaction()
+    interaction.message.id = 999
+    await handlers.handle_card_join(cog, interaction)
+    assert "no longer tracked" in interaction.response.send_message.await_args.args[0]

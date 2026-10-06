@@ -8,6 +8,7 @@ import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Literal
 
 import discord
 from discord import app_commands
@@ -16,7 +17,7 @@ from src.commands.autocomplete import MAX_AUTOCOMPLETE_CHOICES, MAX_CHOICE_LABEL
 from src.commands.beacons import store as beacon_store
 from src.commands.beacons.categories import CATEGORIES
 from src.commands.beacons.embeds import beacon_summary
-from src.commands.beacons.lifecycle import lock_for
+from src.commands.beacons.lifecycle import is_beacon_admin, lock_for
 
 from . import card, ledger, store
 from .ledger import LootError, Record
@@ -228,3 +229,147 @@ async def cargo_autocomplete(cog, interaction: discord.Interaction, current: str
         return []
     needle = current.strip().lower()
     return name_choices(line["commodity"] for line in record["cargo"] if needle in line["commodity"].lower())
+
+
+def _mentions(user_ids: list[int]) -> str:
+    return " ".join(f"<@{user_id}>" for user_id in user_ids)
+
+
+def _sale_announcement(record: Record, sale: Record) -> str:
+    owed = [p["user_id"] for p in sale["payouts"] if not ledger.is_paid(p)]
+    text = (
+        f"Raid #{record['id']}: <@{sale['seller_id']}> sold {sale['scu']} SCU {sale['commodity']} "
+        f"for {sale['total']:,} aUEC, {sale['share']:,} each."
+    )
+    return f"{text} Owed: {_mentions(owed)}" if owed else text
+
+
+def _require_line_access(record: Record, commodity: str, user_id: int, is_admin: bool) -> Record:
+    line = ledger.require_line(record, commodity)
+    if not ledger.can_handle_line(line, user_id, is_admin):
+        raise LootError(
+            f"Only <@{line['holder_id']}> (the holder) or an admin can do that with this {line['commodity']}."
+        )
+    return line
+
+
+async def handle_sell(
+    cog, interaction: discord.Interaction, *, raid: str, commodity: str, scu: int, total: int
+) -> None:
+    is_admin = is_beacon_admin(interaction)
+
+    def change(record: Record) -> Outcome:
+        _require_line_access(record, commodity, interaction.user.id, is_admin)
+        sale = ledger.record_sale(record, commodity=commodity, scu=scu, total=total, now=time.time())
+        return Outcome(
+            f"Recorded sale {sale['id']} on raid #{record['id']}: {sale['share']:,} aUEC each.",
+            _sale_announcement(record, sale),
+        )
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_paid(cog, interaction: discord.Interaction, *, raid: str, member_id: int | None) -> None:
+    seller_filter = None if is_beacon_admin(interaction) else interaction.user.id
+
+    def change(record: Record) -> Outcome:
+        count = ledger.mark_paid(record, member_id=member_id, seller_id=seller_filter, now=time.time())
+        noun = "payout" if count == 1 else "payouts"
+        return Outcome(f"Marked {count} {noun} paid on raid #{record['id']}.")
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_dispute(cog, interaction: discord.Interaction, *, raid: str) -> None:
+    def change(record: Record) -> Outcome:
+        payers = ledger.dispute(record, user_id=interaction.user.id, now=time.time())
+        return Outcome(
+            "Flagged your share as not received. The payer has been pinged.",
+            f"<@{interaction.user.id}> says they haven't received their share from raid #{record['id']}. "
+            f"{_mentions(payers)}, please check.",
+        )
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_undo(cog, interaction: discord.Interaction, *, raid: str) -> None:
+    is_admin = is_beacon_admin(interaction)
+
+    def change(record: Record) -> Outcome:
+        sale = ledger.undo_last_sale(record, user_id=interaction.user.id, is_admin=is_admin)
+        return Outcome(f"Removed sale {sale['id']}. {sale['scu']} SCU {sale['commodity']} is back in the hold.")
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_holder(cog, interaction: discord.Interaction, *, raid: str, commodity: str, member_id: int) -> None:
+    is_admin = is_beacon_admin(interaction)
+
+    def change(record: Record) -> Outcome:
+        line = _require_line_access(record, commodity, interaction.user.id, is_admin)
+        ledger.set_holder(record, line["commodity"], member_id)
+        return Outcome(f"<@{member_id}> now holds the {line['commodity']} from raid #{record['id']}.")
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_cargo_fix(cog, interaction: discord.Interaction, *, raid: str, commodity: str, scu: int) -> None:
+    is_admin = is_beacon_admin(interaction)
+
+    def change(record: Record) -> Outcome:
+        line = _require_line_access(record, commodity, interaction.user.id, is_admin)
+        name = line["commodity"]
+        fixed = ledger.fix_cargo(record, name, scu)
+        if fixed is None:
+            return Outcome(f"Removed {name} from raid #{record['id']}.")
+        return Outcome(f"Raid #{record['id']} now has {scu} SCU {name} in total.")
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def handle_participants(
+    cog, interaction: discord.Interaction, *, raid: str, action: Literal["add", "remove"], member_id: int
+) -> None:
+    is_admin = is_beacon_admin(interaction)
+
+    def change(record: Record) -> Outcome:
+        if not ledger.can_manage_roster(record, interaction.user.id, is_admin):
+            raise LootError("Only the raid's organizers, a cargo holder, or an admin can change the crew.")
+        if action == "add":
+            ledger.add_participant(record, member_id)
+            return Outcome(f"Added <@{member_id}> to raid #{record['id']}. They share in future sales.")
+        ledger.remove_participant(record, member_id)
+        return Outcome(f"Removed <@{member_id}> from raid #{record['id']}. Past sales are unchanged.")
+
+    await run_change(cog, interaction, raid, change)
+
+
+async def _record_id_for_card(cog, interaction: discord.Interaction) -> int | None:
+    for record in await store.guild_records(cog.bot.state, interaction.guild.id):
+        if record["card"] is not None and record["card"]["message_id"] == interaction.message.id:
+            return record["id"]
+    return None
+
+
+async def _card_roster_change(cog, interaction: discord.Interaction, change: Callable[[Record], Outcome]) -> None:
+    loot_id = await _record_id_for_card(cog, interaction)
+    if loot_id is None:
+        await interaction.response.send_message("This loot card is no longer tracked.", ephemeral=True)
+        return
+    await run_change(cog, interaction, loot_id, change)
+
+
+async def handle_card_join(cog, interaction: discord.Interaction) -> None:
+    def change(record: Record) -> Outcome:
+        ledger.add_participant(record, interaction.user.id)
+        return Outcome(f"You're on raid #{record['id']}. You'll share in future sales.")
+
+    await _card_roster_change(cog, interaction, change)
+
+
+async def handle_card_leave(cog, interaction: discord.Interaction) -> None:
+    def change(record: Record) -> Outcome:
+        ledger.remove_participant(record, interaction.user.id)
+        return Outcome(f"You left raid #{record['id']}. Past sales are unchanged.")
+
+    await _card_roster_change(cog, interaction, change)
