@@ -29,7 +29,7 @@ def _record(loot_id, guild_id=1, beacon_thread_id=None):
 async def test_record_roundtrip_keeps_int_user_ids(state):
     record = _record(3)
     ledger.add_cargo(record, "Gold", 10, holder_id=5)
-    ledger.record_sale(record, commodity="Gold", scu=10, total=100, now=1.0)
+    ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=10, total=100, now=1.0)
     await store.save_record(state, record)
     loaded = await store.get_record(state, 1, 3)
     assert loaded == record

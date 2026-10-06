@@ -74,16 +74,37 @@ def normalize_loot(record: Record) -> Record:
     return record
 
 
-def find_line(record: Record, commodity: str) -> Record | None:
+def _lines_for(record: Record, commodity: str) -> list[Record]:
     needle = commodity.strip().lower()
-    return next((line for line in record["cargo"] if line["commodity"].lower() == needle), None)
+    return [line for line in record["cargo"] if line["commodity"].lower() == needle]
 
 
-def require_line(record: Record, commodity: str) -> Record:
-    line = find_line(record, commodity)
-    if line is None:
+def find_line(record: Record, commodity: str, holder_id: int | None = None) -> Record | None:
+    return next(
+        (line for line in _lines_for(record, commodity) if holder_id is None or line["holder_id"] == holder_id),
+        None,
+    )
+
+
+def _join_mentions(user_ids: list[int]) -> str:
+    mentions = [f"<@{user_id}>" for user_id in user_ids]
+    if len(mentions) == 1:
+        return mentions[0]
+    return f"{', '.join(mentions[:-1])} and {mentions[-1]}"
+
+
+def resolve_line(record: Record, commodity: str, user_id: int) -> Record:
+    """The line a commodity command acts on: the caller's own, else the only one."""
+    lines = _lines_for(record, commodity)
+    if not lines:
         raise LootError(f"Raid #{record['id']} has no {commodity.strip()} cargo.")
-    return line
+    own = next((line for line in lines if line["holder_id"] == user_id), None)
+    if own is not None:
+        return own
+    if len(lines) == 1:
+        return lines[0]
+    holders = _join_mentions(_unique(line["holder_id"] for line in lines))
+    raise LootError(f"Raid #{record['id']} has {lines[0]['commodity']} held by {holders}. Ask the holder to run this.")
 
 
 def unsold_scu(line: Record) -> int:
@@ -96,9 +117,11 @@ def add_cargo(record: Record, commodity: str, scu: int, holder_id: int) -> Recor
         raise LootError("Commodity can't be empty.")
     if scu <= 0:
         raise LootError("SCU must be greater than 0.")
-    line = find_line(record, commodity)
+    line = find_line(record, commodity, holder_id)
     if line is None:
-        line = {"commodity": commodity, "scu": 0, "sold_scu": 0, "holder_id": holder_id}
+        existing = find_line(record, commodity)
+        name = existing["commodity"] if existing is not None else commodity
+        line = {"commodity": name, "scu": 0, "sold_scu": 0, "holder_id": holder_id}
         record["cargo"].append(line)
     line["scu"] += scu
     return line
@@ -112,8 +135,7 @@ def is_paid(payout: Record) -> bool:
     return payout["paid_at"] is not None
 
 
-def record_sale(record: Record, *, commodity: str, scu: int, total: int, now: float) -> Record:
-    line = require_line(record, commodity)
+def record_sale(record: Record, line: Record, *, scu: int, total: int, now: float) -> Record:
     if scu <= 0:
         raise LootError("SCU must be greater than 0.")
     left = unsold_scu(line)
@@ -193,14 +215,25 @@ def remove_participant(record: Record, user_id: int) -> None:
     record["participants"].remove(user_id)
 
 
-def set_holder(record: Record, commodity: str, holder_id: int) -> Record:
-    line = require_line(record, commodity)
-    line["holder_id"] = holder_id
-    return line
+def set_holder(record: Record, line: Record, holder_id: int) -> Record:
+    existing = next(
+        (
+            other
+            for other in _lines_for(record, line["commodity"])
+            if other is not line and other["holder_id"] == holder_id
+        ),
+        None,
+    )
+    if existing is None:
+        line["holder_id"] = holder_id
+        return line
+    existing["scu"] += line["scu"]
+    existing["sold_scu"] += line["sold_scu"]
+    record["cargo"].remove(line)
+    return existing
 
 
-def fix_cargo(record: Record, commodity: str, scu: int) -> Record | None:
-    line = require_line(record, commodity)
+def fix_cargo(record: Record, line: Record, scu: int) -> Record | None:
     if scu < 0:
         raise LootError("SCU can't be negative.")
     if scu < line["sold_scu"]:
@@ -244,6 +277,12 @@ def dispute(record: Record, *, user_id: int, now: float) -> list[int]:
     return _unique(payers)
 
 
+def _sale_line(record: Record, sale: Record) -> Record:
+    return find_line(record, sale["commodity"], sale["seller_id"]) or resolve_line(
+        record, sale["commodity"], sale["seller_id"]
+    )
+
+
 def undo_last_sale(record: Record, *, user_id: int, is_admin: bool) -> Record:
     if not record["sales"]:
         raise LootError(f"Raid #{record['id']} has no sales to undo.")
@@ -252,7 +291,7 @@ def undo_last_sale(record: Record, *, user_id: int, is_admin: bool) -> Record:
         raise LootError("Only the seller or an admin can undo this sale.")
     if any(is_paid(p) for p in sale["payouts"] if p["user_id"] != sale["seller_id"]):
         raise LootError("Some of this sale's payouts are already marked paid, so it can't be undone.")
-    require_line(record, sale["commodity"])["sold_scu"] -= sale["scu"]
+    _sale_line(record, sale)["sold_scu"] -= sale["scu"]
     record["sales"].pop()
     return sale
 

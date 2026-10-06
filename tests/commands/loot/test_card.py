@@ -38,7 +38,7 @@ def test_card_shows_crew_cargo_and_estimate():
 def test_card_shows_sale_payout_states_and_beacon_link():
     record = _record(participants=(1, 2, 3))
     record["beacon_thread_id"] = 555
-    ledger.record_sale(record, commodity="Gold", scu=96, total=300, now=50.0)
+    ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=96, total=300, now=50.0)
     ledger.mark_paid(record, member_id=2, seller_id=1, now=51.0)
     ledger.dispute(record, user_id=2, now=52.0)
     embed = card.build_card_embed(record, {})
@@ -52,7 +52,7 @@ def test_card_shows_sale_payout_states_and_beacon_link():
 
 def test_settled_card_is_green():
     record = _record()
-    ledger.record_sale(record, commodity="Gold", scu=96, total=200, now=1.0)
+    ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=96, total=200, now=1.0)
     ledger.mark_paid(record, member_id=None, seller_id=None, now=2.0)
     embed = card.build_card_embed(record, {})
     assert embed.color == discord.Color.green()
@@ -62,7 +62,7 @@ def test_settled_card_is_green():
 def test_card_caps_sales_shown():
     record = _record()
     for _ in range(card.MAX_SALES_SHOWN + 2):
-        ledger.record_sale(record, commodity="Gold", scu=1, total=10, now=1.0)
+        ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=1, total=10, now=1.0)
     embed = card.build_card_embed(record, {})
     assert sum(f.name.startswith("Sale") for f in embed.fields) == card.MAX_SALES_SHOWN
     assert "2 older" in embed.footer.text
@@ -71,7 +71,7 @@ def test_card_caps_sales_shown():
 def test_card_drops_oldest_sales_to_stay_under_embed_limit():
     record = _record(participants=range(10**17, 10**17 + 40))
     for _ in range(card.MAX_SALES_SHOWN):
-        ledger.record_sale(record, commodity="Gold", scu=1, total=4000, now=1.0)
+        ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=1, total=4000, now=1.0)
     embed = card.build_card_embed(record, {})
     assert len(embed) <= 6000
     sale_names = [f.name for f in embed.fields if f.name.startswith("Sale")]
@@ -83,7 +83,7 @@ def test_card_drops_oldest_sales_to_stay_under_embed_limit():
 
 def test_owed_summary_sections():
     record = _record(participants=(1, 2))
-    ledger.record_sale(record, commodity="Gold", scu=40, total=200, now=1.0)
+    ledger.record_sale(record, ledger.find_line(record, "Gold"), scu=40, total=200, now=1.0)
     text_for_2 = card.build_owed_summary([record], 2)
     assert "Owed to you" in text_for_2
     assert "100 aUEC from <@1>" in text_for_2
@@ -98,7 +98,7 @@ def test_raid_list_hides_settled():
     open_raid = _record()
     settled = _record()
     settled["id"] = 13
-    ledger.record_sale(settled, commodity="Gold", scu=96, total=10, now=1.0)
+    ledger.record_sale(settled, ledger.find_line(settled, "Gold"), scu=96, total=10, now=1.0)
     ledger.mark_paid(settled, member_id=None, seller_id=None, now=2.0)
     text = card.build_raid_list([open_raid, settled], {12: {"Gold": 10.0}})
     assert "#12" in text

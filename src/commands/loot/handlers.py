@@ -245,7 +245,7 @@ def _sale_announcement(record: Record, sale: Record) -> str:
 
 
 def _require_line_access(record: Record, commodity: str, user_id: int, is_admin: bool) -> Record:
-    line = ledger.require_line(record, commodity)
+    line = ledger.resolve_line(record, commodity, user_id)
     if not ledger.can_handle_line(line, user_id, is_admin):
         raise LootError(
             f"Only <@{line['holder_id']}> (the holder) or an admin can do that with this {line['commodity']}."
@@ -259,8 +259,8 @@ async def handle_sell(
     is_admin = is_beacon_admin(interaction)
 
     def change(record: Record) -> Outcome:
-        _require_line_access(record, commodity, interaction.user.id, is_admin)
-        sale = ledger.record_sale(record, commodity=commodity, scu=scu, total=total, now=time.time())
+        line = _require_line_access(record, commodity, interaction.user.id, is_admin)
+        sale = ledger.record_sale(record, line, scu=scu, total=total, now=time.time())
         return Outcome(
             f"Recorded sale {sale['id']} on raid #{record['id']}: {sale['share']:,} aUEC each.",
             _sale_announcement(record, sale),
@@ -307,7 +307,7 @@ async def handle_holder(cog, interaction: discord.Interaction, *, raid: str, com
 
     def change(record: Record) -> Outcome:
         line = _require_line_access(record, commodity, interaction.user.id, is_admin)
-        ledger.set_holder(record, line["commodity"], member_id)
+        ledger.set_holder(record, line, member_id)
         return Outcome(f"<@{member_id}> now holds the {line['commodity']} from raid #{record['id']}.")
 
     await run_change(cog, interaction, raid, change)
@@ -319,7 +319,7 @@ async def handle_cargo_fix(cog, interaction: discord.Interaction, *, raid: str, 
     def change(record: Record) -> Outcome:
         line = _require_line_access(record, commodity, interaction.user.id, is_admin)
         name = line["commodity"]
-        fixed = ledger.fix_cargo(record, name, scu)
+        fixed = ledger.fix_cargo(record, line, scu)
         if fixed is None:
             return Outcome(f"Removed {name} from raid #{record['id']}.")
         return Outcome(f"Raid #{record['id']} now has {scu} SCU {name} in total.")

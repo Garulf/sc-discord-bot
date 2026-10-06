@@ -151,6 +151,19 @@ async def test_second_log_on_same_beacon_adds_cargo(cog):
 
 
 @pytest.mark.asyncio
+async def test_two_holders_logging_gold_on_one_beacon_get_their_own_lines(cog):
+    await beacon_store.save_beacon(cog.bot.state, 99, _beacon())
+    await handlers.handle_log(cog, _interaction(user_id=8), commodity="Gold", scu=50, holder_id=8, raid=None)
+    await handlers.handle_log(cog, _interaction(user_id=9), commodity="Gold", scu=30, holder_id=9, raid=None)
+    await handlers.handle_log(cog, _interaction(user_id=8), commodity="gold", scu=5, holder_id=8, raid=None)
+    record = (await store.guild_records(cog.bot.state, 1))[0]
+    assert [(line["commodity"], line["scu"], line["holder_id"]) for line in record["cargo"]] == [
+        ("Gold", 55, 8),
+        ("Gold", 30, 9),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_concurrent_logs_on_same_beacon_make_one_raid(cog):
     await beacon_store.save_beacon(cog.bot.state, 99, _beacon())
     await asyncio.gather(
@@ -213,7 +226,7 @@ async def test_config_channel(cog):
 async def test_raid_autocomplete_lists_open_raids_first(cog):
     await _new_raid(cog)
     settled = await _new_raid(cog)
-    ledger.record_sale(settled, commodity="Gold", scu=96, total=30, now=1.0)
+    ledger.record_sale(settled, ledger.find_line(settled, "Gold"), scu=96, total=30, now=1.0)
     ledger.mark_paid(settled, member_id=None, seller_id=None, now=2.0)
     await store.save_record(cog.bot.state, settled)
     choices = await handlers.raid_autocomplete(cog, _interaction(), "")
@@ -322,6 +335,64 @@ async def test_admin_sale_is_paid_by_the_holder(cog):
     await handlers.handle_sell(cog, _interaction(user_id=500, admin=True), raid="1", commodity="Gold", scu=10, total=90)
     sale = (await store.get_record(cog.bot.state, 1, 1))["sales"][0]
     assert sale["seller_id"] == 42
+
+
+async def _split_gold_raid(cog):
+    await _new_raid(cog, scu=50)
+    await handlers.handle_log(cog, _interaction(channel_id=12345), commodity="Gold", scu=30, holder_id=43, raid="1")
+    return await store.get_record(cog.bot.state, 1, 1)
+
+
+@pytest.mark.asyncio
+async def test_second_holder_sells_their_own_gold(cog):
+    await _split_gold_raid(cog)
+    await handlers.handle_sell(cog, _interaction(user_id=43), raid="1", commodity="Gold", scu=10, total=300)
+    record = await store.get_record(cog.bot.state, 1, 1)
+    assert record["sales"][0]["seller_id"] == 43
+    assert [line["sold_scu"] for line in record["cargo"]] == [0, 10]
+
+
+@pytest.mark.asyncio
+async def test_admin_sale_with_split_gold_names_the_holders(cog):
+    await _split_gold_raid(cog)
+    interaction = _interaction(user_id=500, admin=True)
+    await handlers.handle_sell(cog, interaction, raid="1", commodity="Gold", scu=10, total=300)
+    assert _reply(interaction) == "Raid #1 has Gold held by <@42> and <@43>. Ask the holder to run this."
+    assert (await store.get_record(cog.bot.state, 1, 1))["sales"] == []
+
+
+@pytest.mark.asyncio
+async def test_non_holder_with_split_gold_is_told_to_ask_a_holder(cog):
+    await _split_gold_raid(cog)
+    interaction = _interaction(user_id=44)
+    await handlers.handle_sell(cog, interaction, raid="1", commodity="Gold", scu=10, total=300)
+    assert "Ask the holder" in _reply(interaction)
+
+
+@pytest.mark.asyncio
+async def test_undo_restores_the_right_line_when_gold_is_split(cog):
+    await _split_gold_raid(cog)
+    await handlers.handle_sell(cog, _interaction(user_id=42), raid="1", commodity="Gold", scu=10, total=300)
+    await handlers.handle_sell(cog, _interaction(user_id=43), raid="1", commodity="Gold", scu=20, total=300)
+    await handlers.handle_undo(cog, _interaction(user_id=43), raid="1")
+    record = await store.get_record(cog.bot.state, 1, 1)
+    assert [line["sold_scu"] for line in record["cargo"]] == [10, 0]
+
+
+@pytest.mark.asyncio
+async def test_holder_handover_merges_with_the_new_holders_line(cog):
+    await _split_gold_raid(cog)
+    await handlers.handle_holder(cog, _interaction(user_id=42), raid="1", commodity="Gold", member_id=43)
+    record = await store.get_record(cog.bot.state, 1, 1)
+    assert [(line["scu"], line["holder_id"]) for line in record["cargo"]] == [(80, 43)]
+
+
+@pytest.mark.asyncio
+async def test_cargo_fix_changes_only_the_callers_line(cog):
+    await _split_gold_raid(cog)
+    await handlers.handle_cargo_fix(cog, _interaction(user_id=43), raid="1", commodity="Gold", scu=25)
+    record = await store.get_record(cog.bot.state, 1, 1)
+    assert [(line["scu"], line["holder_id"]) for line in record["cargo"]] == [(50, 42), (25, 43)]
 
 
 @pytest.mark.asyncio
