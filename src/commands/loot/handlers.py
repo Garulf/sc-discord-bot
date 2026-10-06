@@ -88,11 +88,14 @@ def beacon_loot_title(beacon: Record) -> str:
     return f"{label} {summary}" if summary else label
 
 
-async def _save_new(cog, record: Record) -> Record:
-    async with _id_lock(record["guild_id"]):
-        record["id"] = await store.allocate_id(cog.bot.state, record["guild_id"])
-    await store.save_record(cog.bot.state, record)
-    return record
+async def _publish_new(cog, guild: discord.Guild, record: Record) -> discord.Message | None:
+    async with _id_lock(guild.id):
+        record["id"] = await store.allocate_id(cog.bot.state, guild.id)
+    async with _record_lock(guild.id, record["id"]):
+        await store.save_record(cog.bot.state, record)
+        if record["beacon_thread_id"] is not None:
+            await store.set_by_beacon(cog.bot.state, record["beacon_thread_id"], record["id"])
+        return await card.refresh_card(cog, guild, record)
 
 
 async def handle_new(
@@ -124,9 +127,7 @@ async def handle_new(
     except LootError as error:
         await _reply(interaction, str(error))
         return
-    await _save_new(cog, record)
-    async with _record_lock(record["guild_id"], record["id"]):
-        message = await card.refresh_card(cog, interaction.guild, record)
+    message = await _publish_new(cog, interaction.guild, record)
     await _reply(interaction, f"Created raid #{record['id']}.{_card_note(message)}")
 
 
@@ -155,10 +156,7 @@ async def _log_on_beacon(cog, interaction: discord.Interaction, commodity: str, 
             category=beacon["category"],
         )
         ledger.add_cargo(record, commodity, scu, holder_id)
-        await _save_new(cog, record)
-        await store.set_by_beacon(cog.bot.state, thread_id, record["id"])
-        async with _record_lock(record["guild_id"], record["id"]):
-            message = await card.refresh_card(cog, interaction.guild, record)
+        message = await _publish_new(cog, interaction.guild, record)
         return record, message, True
 
 

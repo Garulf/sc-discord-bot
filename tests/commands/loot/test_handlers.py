@@ -64,8 +64,13 @@ def _beacon(requester=7, members=(8, 9), category="piracy"):
 
 async def _new_raid(cog, user_id=42, participants="<@43> <@44>", scu=96):
     await handlers.handle_new(
-        cog, _interaction(user_id=user_id), title="Gold grab", commodity="Gold", scu=scu,
-        participants=participants, holder_id=None,
+        cog,
+        _interaction(user_id=user_id),
+        title="Gold grab",
+        commodity="Gold",
+        scu=scu,
+        participants=participants,
+        holder_id=None,
     )
     return (await store.guild_records(cog.bot.state, 1))[-1]
 
@@ -116,9 +121,7 @@ async def test_new_with_bad_scu_allocates_no_id(cog):
 
 @pytest.mark.asyncio
 async def test_new_with_explicit_holder(cog):
-    await handlers.handle_new(
-        cog, _interaction(), title="x", commodity="Gold", scu=5, participants=None, holder_id=77
-    )
+    await handlers.handle_new(cog, _interaction(), title="x", commodity="Gold", scu=5, participants=None, holder_id=77)
     record = (await store.guild_records(cog.bot.state, 1))[0]
     assert record["cargo"][0]["holder_id"] == 77
 
@@ -228,3 +231,60 @@ async def test_cargo_autocomplete_reads_selected_raid(cog):
     assert [c.value for c in choices] == ["Gold"]
     interaction.namespace.raid = None
     assert await handlers.cargo_autocomplete(cog, interaction, "") == []
+
+
+@pytest.mark.asyncio
+async def test_new_raid_is_saved_and_carded_under_its_lock(cog, monkeypatch):
+    held = []
+
+    async def refresh(cog_, guild, record):
+        held.append(handlers._record_lock(1, record["id"]).locked())
+        return None
+
+    monkeypatch.setattr(handlers.card, "refresh_card", refresh)
+    await _new_raid(cog)
+    assert held == [True]
+
+
+@pytest.mark.asyncio
+async def test_new_beacon_raid_is_saved_and_carded_under_its_lock(cog, monkeypatch):
+    held = []
+
+    async def refresh(cog_, guild, record):
+        held.append(handlers._record_lock(1, record["id"]).locked())
+        return None
+
+    monkeypatch.setattr(handlers.card, "refresh_card", refresh)
+    await beacon_store.save_beacon(cog.bot.state, 99, _beacon())
+    await handlers.handle_log(cog, _interaction(user_id=8), commodity="Gold", scu=5, holder_id=8, raid=None)
+    assert held == [True]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_new_raids_get_distinct_ids(cog):
+    await asyncio.gather(
+        handlers.handle_new(
+            cog, _interaction(user_id=1), title="a", commodity="Gold", scu=1, participants=None, holder_id=None
+        ),
+        handlers.handle_new(
+            cog, _interaction(user_id=2), title="b", commodity="Gold", scu=1, participants=None, holder_id=None
+        ),
+    )
+    records = await store.guild_records(cog.bot.state, 1)
+    assert sorted(r["id"] for r in records) == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_first_save_of_new_raids_happens_under_the_record_lock(cog, monkeypatch):
+    held = []
+    real_save = store.save_record
+
+    async def save(state, record):
+        held.append(handlers._record_lock(1, record["id"]).locked())
+        await real_save(state, record)
+
+    monkeypatch.setattr(handlers.store, "save_record", save)
+    await _new_raid(cog)
+    await beacon_store.save_beacon(cog.bot.state, 99, _beacon())
+    await handlers.handle_log(cog, _interaction(user_id=8), commodity="Gold", scu=5, holder_id=8, raid=None)
+    assert held == [True, True]
