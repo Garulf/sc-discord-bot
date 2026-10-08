@@ -115,25 +115,24 @@ Beacons created before the ticket-to-beacon rename keep working: stored state is
 
 ---
 
-### Loot (`/loot`)
+### Manifests (`/manifest`)
 
-Track cargo taken on a raid while someone holds it, then split each sale equally among the crew. Loot can be logged from a closed beacon (**Log loot** button) or started without one. Each raid gets a live card in the loot channel with Join/Leave buttons and per-person payout status.
+A manifest is one haul's cargo record: each commodity with its SCU and estimated price per SCU, any costs (cargo purchase, fuel, repairs), the crew, and one carrier who holds and sells the cargo. Each manifest gets a private thread in the manifest channel with a live card showing estimated value, costs, profit, and every crew member's share.
+
+- **Create** with `/manifest new`, or the **Create manifest** button on a closed beacon (crew prefilled from the beacon). One form takes the crew, the carrier, the cargo (one per line, e.g. `Gold 96` or `Gold 96 6500`; prices left out are filled from UEX) and the costs (e.g. `Fuel 20000`).
+- **Sell** from the card, one commodity at a time and in as many partial sales as you like, entering the SCU sold and the aUEC actually received. Each sale first pays back the manifest's costs to the carrier, then the rest is split by crew weight. The card moves from Open to Partial to Sold, using real sale prices where they exist and estimates for the rest.
+- **Crew & weights** changes the crew, the carrier, or someone's weight (1 to 10, default 1). Weights apply to future sales.
+- **Mark paid**, **Not received** and **Undo last sale** track whether the carrier has paid each share.
+
+The creator, the carrier and officers (admins or the sc-bot role) can edit a manifest; only the carrier or an officer can sell. Members see manifests they created or crewed on; officers see all of them.
 
 | Command | Description |
 |---|---|
-| `/loot new title:<title> commodity:<commodity> scu:<scu> [participants] [holder]` | Start a raid without a beacon; tag the crew with @mentions |
-| `/loot log commodity:<commodity> scu:<scu> [holder] [raid]` | Log loot inside a beacon thread, or add cargo to an existing raid |
-| `/loot sell raid:<raid> commodity:<commodity> scu:<scu> total:<aUEC>` | Record a sale; each crew member is owed an equal share |
-| `/loot paid raid:<raid> [member]` | Mark a share paid, or everyone you owe on that raid |
-| `/loot dispute raid:<raid>` | Flag a share marked paid that you never received |
-| `/loot undo raid:<raid>` | Remove the latest sale if nothing from it is paid yet |
-| `/loot holder raid:<raid> commodity:<commodity> member:<member>` | Hand cargo to another member |
-| `/loot participants add\|remove raid:<raid> member:<member>` | Change the crew for future sales |
-| `/loot cargo fix raid:<raid> commodity:<commodity> scu:<scu>` | Correct a logged amount (0 removes it) |
-| `/loot owed` | What you're owed, what you owe, and what you hold |
-| `/loot list` | Raids that aren't settled yet |
-| `/loot delete raid:<raid>` | Delete a raid with nothing owed (admin) |
-| `/loot config channel:<channel>` | Set the loot card channel (admin) |
+| `/manifest new` | Open the form to start a manifest |
+| `/manifest list` | Your manifests, with open cargo value and overall profit |
+| `/manifest owed` | What you're owed, what you owe, and what you're carrying |
+| `/manifest delete manifest:<manifest>` | Delete a manifest with nothing owed (officer) |
+| `/manifest config channel channel:<channel>` | Set the channel for manifest threads (officer). The bot needs Create Private Threads, Send Messages in Threads and Manage Threads there |
 
 ---
 

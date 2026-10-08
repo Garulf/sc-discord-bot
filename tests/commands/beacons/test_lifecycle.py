@@ -889,21 +889,21 @@ def _closing_channel():
 
 
 @pytest.mark.asyncio
-async def test_close_message_carries_log_loot_button(make_cog):
+async def test_close_message_carries_create_manifest_button(make_cog):
     record = _open_beacon_record(status=STATUS_OPEN, members=[])
     cog = make_cog(config=THREAD_CONFIG, beacon=record)
-    loot_cog = MagicMock()
-    cog.bot.get_cog = MagicMock(return_value=loot_cog)
+    manifest_cog = MagicMock()
+    cog.bot.get_cog = MagicMock(return_value=manifest_cog)
     channel = _closing_channel()
     await lifecycle.close_beacon(cog, channel, record, 1)
     first = channel.send.await_args_list[0]
-    assert first.kwargs["view"] is loot_cog.log_view
-    assert "Log loot" in first.args[0]
-    cog.bot.get_cog.assert_called_with("LootCog")
+    assert first.kwargs["view"] is manifest_cog.log_view
+    assert "Create manifest" in first.args[0]
+    cog.bot.get_cog.assert_called_with("ManifestCog")
 
 
 @pytest.mark.asyncio
-async def test_close_message_without_loot_cog_has_no_button(make_cog):
+async def test_close_message_without_manifest_cog_has_no_button(make_cog):
     record = _open_beacon_record(status=STATUS_OPEN, members=[])
     cog = make_cog(config=THREAD_CONFIG, beacon=record)
     cog.bot.get_cog = MagicMock(return_value=None)
@@ -911,4 +911,4 @@ async def test_close_message_without_loot_cog_has_no_button(make_cog):
     await lifecycle.close_beacon(cog, channel, record, None)
     first = channel.send.await_args_list[0]
     assert "view" not in first.kwargs
-    assert "Log loot" not in first.args[0]
+    assert "Create manifest" not in first.args[0]

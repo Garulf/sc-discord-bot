@@ -69,7 +69,7 @@ INITIAL_EXTENSIONS = [
     "src.commands.twisc",
     "src.commands.devtracker",
     "src.commands.beacons",
-    "src.commands.loot",
+    "src.commands.manifest",
 ]
 
 

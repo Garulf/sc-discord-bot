@@ -365,11 +365,11 @@ async def handle_close(cog, interaction: discord.Interaction) -> None:
         await _reply(interaction, "Beacon closed.")
 
 
-_LOG_LOOT_PROMPT = " Got loot from this one? Hit **Log loot** to split it with the crew."
+_CREATE_MANIFEST_PROMPT = " Got cargo from this one? Hit **Create manifest** to split it with the crew."
 
 
-def _log_loot_view(cog):
-    return getattr(cog.bot.get_cog("LootCog"), "log_view", None)
+def _create_manifest_view(cog):
+    return getattr(cog.bot.get_cog("ManifestCog"), "log_view", None)
 
 
 async def close_beacon(cog, channel, beacon: dict, closed_by_id: int | None, message=None) -> None:
@@ -382,13 +382,13 @@ async def close_beacon(cog, channel, beacon: dict, closed_by_id: int | None, mes
     await store.clear_open_beacon(cog.bot.state, beacon["guild_id"], beacon["requester_id"], beacon["category"])
     if message is not None:
         await _finalize_beacon_message(message, beacon)
-    loot_view = _log_loot_view(cog)
-    loot_kwargs = {"view": loot_view} if loot_view is not None else {}
-    prompt = _LOG_LOOT_PROMPT if loot_view is not None else ""
+    manifest_view = _create_manifest_view(cog)
+    manifest_kwargs = {"view": manifest_view} if manifest_view is not None else {}
+    prompt = _CREATE_MANIFEST_PROMPT if manifest_view is not None else ""
     if closed_by_id is not None:
-        await _send_best_effort(channel, f"Beacon closed by <@{closed_by_id}>.{prompt}", **loot_kwargs)
+        await _send_best_effort(channel, f"Beacon closed by <@{closed_by_id}>.{prompt}", **manifest_kwargs)
     else:
-        await _send_best_effort(channel, f"Beacon automatically closed for inactivity.{prompt}", **loot_kwargs)
+        await _send_best_effort(channel, f"Beacon automatically closed for inactivity.{prompt}", **manifest_kwargs)
     if beacon["members"]:
         await _send_best_effort(channel, "Time to commend the responders who helped!", view=CommendView(cog))
     if beacon["voice_channel_id"]:

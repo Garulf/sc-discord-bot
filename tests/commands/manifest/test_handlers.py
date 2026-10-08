@@ -155,9 +155,7 @@ async def test_sell_records_sale_and_announces(cog):
     assert record["sales"][0]["cost_recovered"] == 300
     assert _reply(interaction) == "Recorded sale 1: 3,000 aUEC split after 300 to costs."
     announcement = handlers.card.announce.await_args.args[2]
-    assert announcement == (
-        "<@1> sold 10 SCU Gold for 3,300 aUEC. 300 went to costs. Owed: <@2> 1,000, <@3> 1,000"
-    )
+    assert announcement == ("<@1> sold 10 SCU Gold for 3,300 aUEC. 300 went to costs. Owed: <@2> 1,000, <@3> 1,000")
 
 
 async def test_sell_refuses_non_carrier(cog):
