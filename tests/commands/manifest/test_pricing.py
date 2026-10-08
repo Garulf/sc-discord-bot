@@ -68,3 +68,9 @@ async def test_accepts_names_as_typed_when_uex_is_down():
 async def test_price_lookup_failure_leaves_estimate_empty():
     bot = _bot(price_error=RuntimeError("down"))
     assert await pricing.resolve_cargo(bot, [_line("Gold")]) == [_line("Gold")]
+
+
+async def test_known_names_skip_uex_validation():
+    bot = _bot(prices={1: 6500.0})
+    resolved = await pricing.resolve_cargo(bot, [_line("goldd", 3), _line("gold", 1)], known=["Goldd"])
+    assert resolved == [_line("Goldd", 3), _line("Gold", 1, 6500.0)]

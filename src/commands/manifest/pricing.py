@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
 from .ledger import ManifestError, Record
@@ -36,16 +37,27 @@ async def _best_sell(bot: Any, commodity_id: int) -> float | None:
     return best.price_sell if best is not None else None
 
 
-async def resolve_cargo(bot: Any, cargo: list[Record]) -> list[Record]:
-    found = await _canonical_names(bot, cargo)
+async def resolve_cargo(bot: Any, cargo: list[Record], *, known: Iterable[str] = ()) -> list[Record]:
+    """Canonicalise new commodity names via UEX. Names in `known` are already on
+    the manifest and are kept as stored, so a name saved while UEX was down
+    never blocks a later edit."""
+    known_names = {name.lower(): name for name in known}
+    kept = [
+        {**line, "commodity": known_names[line["commodity"].lower()]}
+        for line in cargo
+        if line["commodity"].lower() in known_names
+    ]
+    new = [line for line in cargo if line["commodity"].lower() not in known_names]
+    found = await _canonical_names(bot, new)
     if found is None:
-        return cargo
-    unknown = [line["commodity"] for line in cargo if not _exact(found[line["commodity"]], line["commodity"])]
+        return merge_cargo(kept + new)
+    unknown = [line["commodity"] for line in new if not _exact(found[line["commodity"]], line["commodity"])]
     if unknown:
         raise ManifestError(f"Unknown commodities: {', '.join(unknown)}. Check the spelling against UEX.")
-    resolved = merge_cargo([{**line, "commodity": found[line["commodity"]].name} for line in cargo])
-    ids = {found[line["commodity"]].name: found[line["commodity"]].id for line in cargo}
+    ids = {found[line["commodity"]].name: found[line["commodity"]].id for line in new}
+    resolved = merge_cargo(kept + [{**line, "commodity": found[line["commodity"]].name} for line in new])
     for line in resolved:
-        if line["est_price"] is None and ids[line["commodity"]] is not None:
-            line["est_price"] = await _best_sell(bot, ids[line["commodity"]])
+        commodity_id = ids.get(line["commodity"])
+        if line["est_price"] is None and commodity_id is not None:
+            line["est_price"] = await _best_sell(bot, commodity_id)
     return resolved

@@ -20,7 +20,10 @@ from .ledger import ManifestError, Record
 
 logger = logging.getLogger(__name__)
 
-_NO_THREAD_HINT = "No manifest channel is set, so there's no thread yet. An officer can run `/manifest config channel`."
+_NO_THREAD_HINT = (
+    "I couldn't open a thread for it. An officer needs to run `/manifest config channel` "
+    "and give me Create Private Threads, Send Messages in Threads and Manage Threads there."
+)
 EDIT_REFUSAL = "Only the creator, the carrier or an officer can change this manifest."
 PAID_REFUSAL = "Only whoever sold it or an officer can mark payouts paid."
 
@@ -106,10 +109,25 @@ def _require_edit(record: Record, interaction: discord.Interaction) -> None:
         raise ManifestError(EDIT_REFUSAL)
 
 
-async def _parse_draft(cog, draft: Draft) -> tuple[list[Record], list[Record]]:
-    cargo = parsing.parse_cargo(draft.cargo_text)
-    costs = parsing.parse_costs(draft.costs_text)
-    return await pricing.resolve_cargo(cog.bot, cargo), costs
+async def _parse_draft(cog, draft: Draft, known: list[str] | None = None) -> tuple[list[Record], list[Record]]:
+    problems = []
+    cargo = costs = None
+    try:
+        cargo = parsing.parse_cargo(draft.cargo_text)
+    except ManifestError as error:
+        problems.append(str(error))
+    try:
+        costs = parsing.parse_costs(draft.costs_text)
+    except ManifestError as error:
+        problems.append(str(error))
+    if cargo is not None:
+        try:
+            cargo = await pricing.resolve_cargo(cog.bot, cargo, known=known or [])
+        except ManifestError as error:
+            problems.append(str(error))
+    if problems:
+        raise ManifestError("\n".join(problems))
+    return cargo, costs
 
 
 async def _offer_retry(cog, interaction: discord.Interaction, error: ManifestError, draft: Draft, editing=None):
@@ -129,8 +147,8 @@ async def _publish(cog, guild: discord.Guild, record: Record):
         return await card.open_thread(cog, guild, record)
 
 
-def _where(thread) -> str:
-    return f": {thread.mention}" if thread is not None else f". {_NO_THREAD_HINT}"
+class _NoThread(ManifestError):
+    pass
 
 
 async def _post_beacon_link(channel, record: Record) -> None:
@@ -157,6 +175,9 @@ async def _create_locked(cog, interaction: discord.Interaction, draft: Draft, ca
         beacon_thread_id=draft.beacon_thread_id,
     )
     thread = await _publish(cog, interaction.guild, record)
+    if thread is None:
+        await store.delete_record(cog.bot.state, record)
+        raise _NoThread(_NO_THREAD_HINT)
     return record, thread
 
 
@@ -173,19 +194,24 @@ async def handle_create(cog, interaction: discord.Interaction, draft: Draft) -> 
         else:
             async with lock_for(f"manifest:beacon:{draft.beacon_thread_id}"):
                 record, thread = await _create_locked(cog, interaction, draft, cargo, costs)
+    except _NoThread as error:
+        await _offer_retry(cog, interaction, error, draft)
+        return
     except ManifestError as error:
         await _reply(interaction, str(error))
         return
     if draft.beacon_thread_id is not None:
         await _post_beacon_link(interaction.channel, record)
-    await _reply(interaction, f"Created manifest #{record['id']}{_where(thread)}")
+    await _reply(interaction, f"Created manifest #{record['id']}: {thread.mention}")
 
 
 async def handle_edit(cog, interaction: discord.Interaction, manifest_id: int, cargo_text: str, costs_text: str):
     await interaction.response.defer(ephemeral=True)
     draft = Draft(crew_ids=[], carrier_id=None, cargo_text=cargo_text, costs_text=costs_text)
+    current = await store.get_record(cog.bot.state, interaction.guild.id, manifest_id)
+    known = [line["commodity"] for line in current["cargo"]] if current is not None else []
     try:
-        cargo, costs = await _parse_draft(cog, draft)
+        cargo, costs = await _parse_draft(cog, draft, known)
     except ManifestError as error:
         await _offer_retry(cog, interaction, error, draft, editing=manifest_id)
         return
@@ -276,10 +302,12 @@ async def handle_dispute(cog, interaction: discord.Interaction, manifest_id: int
     await run_change(cog, interaction, manifest_id, change)
 
 
-async def handle_undo(cog, interaction: discord.Interaction, manifest_id: int) -> None:
+async def handle_undo(cog, interaction: discord.Interaction, manifest_id: int, sale_id: int) -> None:
     is_admin = is_beacon_admin(interaction)
 
     def change(record: Record) -> Outcome:
+        if not record["sales"] or record["sales"][-1]["id"] != sale_id:
+            raise ManifestError(f"Sale {sale_id} is no longer the latest sale, so nothing was undone.")
         sale = ledger.undo_last_sale(record, user_id=interaction.user.id, is_admin=is_admin)
         return Outcome(
             f"Removed sale {sale['id']}. {sale['scu']} SCU {sale['commodity']} is back in the hold.",
@@ -391,7 +419,12 @@ async def handle_beacon_button(cog, interaction: discord.Interaction) -> None:
 
 
 async def manifest_autocomplete(cog, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    records = await store.guild_records(cog.bot.state, interaction.guild_id)
+    is_admin = is_beacon_admin(interaction)
+    records = [
+        record
+        for record in await store.guild_records(cog.bot.state, interaction.guild_id)
+        if ledger.is_visible(record, interaction.user.id, is_admin)
+    ]
     needle = current.strip().lower()
     choices = []
     for record in reversed(records):

@@ -132,18 +132,33 @@ def _description(record: Record) -> str:
     return " · ".join(parts)
 
 
+def _chunk_lines(lines: list[str]) -> list[str]:
+    chunks: list[str] = []
+    for line in lines:
+        line = _clip(line)
+        if chunks and len(chunks[-1]) + 1 + len(line) <= _FIELD_LIMIT:
+            chunks[-1] += "\n" + line
+        else:
+            chunks.append(line)
+    return chunks
+
+
+def _add_line_fields(embed: discord.Embed, name: str, lines: list[str]) -> None:
+    for index, chunk in enumerate(_chunk_lines(lines)):
+        embed.add_field(name=name if index == 0 else f"{name} (cont.)", value=chunk, inline=False)
+
+
 def build_card_embed(record: Record) -> discord.Embed:
     embed = discord.Embed(
         title=f"Manifest #{record['id']}",
         description=_description(record),
         color=_STATUS_COLORS[ledger.status(record)],
     )
-    cargo = "\n".join(_cargo_line(record, line) for line in record["cargo"])
-    embed.add_field(name="Cargo", value=_clip(cargo), inline=False)
+    _add_line_fields(embed, "Cargo", [_cargo_line(record, line) for line in record["cargo"]])
     embed.add_field(name="Costs", value=_clip(_costs_text(record)), inline=False)
     embed.add_field(name="Totals", value=_totals_text(record), inline=False)
-    shares = "\n".join(_share_line(share) for share in ledger.member_shares(record))
-    embed.add_field(name=f"Crew & shares ({len(record['crew'])})", value=_clip(shares), inline=False)
+    shares = [_share_line(share) for share in ledger.member_shares(record)]
+    _add_line_fields(embed, f"Crew & shares ({len(record['crew'])})", shares)
     first_sale_field = len(embed.fields)
     shown = record["sales"][-MAX_SALES_SHOWN:]
     for sale in shown:

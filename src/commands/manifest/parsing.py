@@ -70,16 +70,16 @@ def _cost_line(line: str) -> Record:
     return {"label": label, "amount": _whole(numbers[0], "Amount", MAX_AUEC)}
 
 
-def _parse_lines(text: str, parse_line) -> list[Record]:
+def _parse_lines(text: str, parse_line, box: str) -> list[Record]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if len(lines) > MAX_LINES:
-        raise ManifestError(f"Keep it to {MAX_LINES} lines or fewer.")
+        raise ManifestError(f"{box}: keep it to {MAX_LINES} lines or fewer.")
     entries, problems = [], []
     for number, line in enumerate(lines, start=1):
         try:
             entries.append(parse_line(line))
         except _LineError as error:
-            problems.append(f"Line {number}: {error}")
+            problems.append(f"{box} line {number}: {error}")
     if problems:
         raise ManifestError("\n".join(problems))
     return entries
@@ -100,7 +100,7 @@ def merge_cargo(lines: list[Record]) -> list[Record]:
 
 
 def parse_cargo(text: str) -> list[Record]:
-    cargo = merge_cargo(_parse_lines(text, _cargo_line))
+    cargo = merge_cargo(_parse_lines(text, _cargo_line, "Cargo"))
     if not cargo:
         raise ManifestError("List at least one commodity, e.g. `Gold 96`.")
     too_big = [line["commodity"] for line in cargo if line["scu"] > MAX_SCU]
@@ -110,7 +110,7 @@ def parse_cargo(text: str) -> list[Record]:
 
 
 def parse_costs(text: str) -> list[Record]:
-    return _parse_lines(text, _cost_line)
+    return _parse_lines(text, _cost_line, "Costs")
 
 
 def _format_number(number: float) -> str:

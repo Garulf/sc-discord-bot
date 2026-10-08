@@ -244,14 +244,15 @@ class MarkPaidView(discord.ui.View):
 
 
 class ConfirmUndoView(discord.ui.View):
-    def __init__(self, cog, manifest_id: int) -> None:
+    def __init__(self, cog, manifest_id: int, sale_id: int) -> None:
         super().__init__(timeout=60)
         self._cog = cog
         self._manifest_id = manifest_id
+        self._sale_id = sale_id
 
     @discord.ui.button(label="Undo sale", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
-        await handlers.handle_undo(self._cog, interaction, self._manifest_id)
+        await handlers.handle_undo(self._cog, interaction, self._manifest_id, self._sale_id)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
@@ -369,7 +370,7 @@ async def open_undo(cog, interaction: discord.Interaction) -> None:
     sale = record["sales"][-1]
     await interaction.response.send_message(
         f"Undo sale {sale['id']} ({sale['scu']} SCU {sale['commodity']} for {sale['total']:,} aUEC)?",
-        view=ConfirmUndoView(cog, record["id"]),
+        view=ConfirmUndoView(cog, record["id"], sale["id"]),
         ephemeral=True,
     )
 

@@ -227,3 +227,15 @@ async def test_untracked_thread_stops_openers(monkeypatch):
         interaction = _interaction()
         await opener(MagicMock(), interaction)
         interaction.response.send_message.assert_not_awaited()
+
+
+async def test_undo_confirm_is_bound_to_the_shown_sale(monkeypatch):
+    _with_record(monkeypatch, _record(sales=1))
+    asked = _interaction()
+    await views.open_undo(MagicMock(), asked)
+    view = asked.response.send_message.await_args.kwargs["view"]
+    undo = AsyncMock()
+    monkeypatch.setattr(views.handlers, "handle_undo", undo)
+    clicked = MagicMock()
+    await view.children[0].callback(clicked)
+    assert undo.await_args.args[2:] == (3, 1)

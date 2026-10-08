@@ -41,7 +41,7 @@ def cog(state, monkeypatch, thread):
     monkeypatch.setattr(handlers.card, "announce", AsyncMock())
     monkeypatch.setattr(handlers.card, "add_members", AsyncMock())
     monkeypatch.setattr(handlers.card, "close_thread", AsyncMock())
-    monkeypatch.setattr(handlers.pricing, "resolve_cargo", AsyncMock(side_effect=lambda _bot, cargo: cargo))
+    monkeypatch.setattr(handlers.pricing, "resolve_cargo", AsyncMock(side_effect=lambda _bot, cargo, **_kwargs: cargo))
     return cog
 
 
@@ -102,18 +102,40 @@ async def test_create_uses_chosen_carrier(cog):
 async def test_create_with_bad_text_offers_retry(cog):
     interaction = _interaction()
     await handlers.handle_create(cog, interaction, _draft(cargo="Gold"))
-    assert "Line 1" in _reply(interaction)
+    assert "Cargo line 1" in _reply(interaction)
     assert interaction.followup.send.await_args.kwargs["view"] is not None
     assert await store.guild_records(cog.bot.state, 7) == []
 
 
-async def test_create_without_channel_still_saves(cog):
+async def test_create_without_thread_saves_nothing_and_offers_retry(cog):
     handlers.card.open_thread.side_effect = None
     handlers.card.open_thread.return_value = None
     interaction = _interaction()
-    await handlers.handle_create(cog, interaction, _draft())
-    assert (await _get(cog)) is not None
+    await handlers.handle_create(cog, interaction, _draft(beacon=50))
+    assert await store.guild_records(cog.bot.state, 7) == []
+    assert await store.get_by_beacon(cog.bot.state, 50) is None
     assert "/manifest config channel" in _reply(interaction)
+    assert interaction.followup.send.await_args.kwargs["view"] is not None
+
+
+async def test_create_reports_cargo_costs_and_unknown_names_together(cog):
+    handlers.pricing.resolve_cargo.side_effect = handlers.ManifestError("Unknown commodities: Goldd.")
+    interaction = _interaction()
+    await handlers.handle_create(cog, interaction, _draft(cargo="Goldd 5\nTin", costs="Fuel"))
+    message = _reply(interaction)
+    assert "Cargo line 2:" in message
+    assert "Costs line 1:" in message
+    handlers.pricing.resolve_cargo.side_effect = handlers.ManifestError("Unknown commodities: Goldd.")
+    second = _interaction()
+    await handlers.handle_create(cog, second, _draft(cargo="Goldd 5", costs="Fuel"))
+    assert "Unknown commodities: Goldd." in _reply(second)
+    assert "Costs line 1:" in _reply(second)
+
+
+async def test_edit_keeps_existing_names_without_uex_check(cog):
+    await _create(cog)
+    await handlers.handle_edit(cog, _interaction(user_id=1), 1, "Gold 120", "")
+    assert handlers.pricing.resolve_cargo.await_args.kwargs["known"] == ["Gold"]
 
 
 async def test_create_from_beacon_links_and_blocks_second(cog):
@@ -229,9 +251,28 @@ async def test_undo_last_sale(cog):
     await _create(cog, crew=(2,))
     await handlers.handle_sell(cog, _interaction(user_id=1), 1, "Gold", scu=5, total=200)
     interaction = _interaction(user_id=1)
-    await handlers.handle_undo(cog, interaction, 1)
+    await handlers.handle_undo(cog, interaction, 1, 1)
     assert _reply(interaction) == "Removed sale 1. 5 SCU Gold is back in the hold."
     assert (await _get(cog))["sales"] == []
+
+
+async def test_undo_only_removes_the_confirmed_sale(cog):
+    await _create(cog, crew=(2,))
+    for _ in range(2):
+        await handlers.handle_sell(cog, _interaction(user_id=1), 1, "Gold", scu=5, total=200)
+    await handlers.handle_undo(cog, _interaction(user_id=1), 1, 2)
+    again = _interaction(user_id=1)
+    await handlers.handle_undo(cog, again, 1, 2)
+    assert _reply(again) == "Sale 2 is no longer the latest sale, so nothing was undone."
+    assert [sale["id"] for sale in (await _get(cog))["sales"]] == [1]
+
+
+async def test_delete_autocomplete_hides_other_manifests(cog):
+    await _create(cog, user_id=1, crew=(2,))
+    outsider = _interaction(user_id=9)
+    assert await handlers.manifest_autocomplete(cog, outsider, "") == []
+    officer = _interaction(user_id=9, admin=True)
+    assert [choice.value for choice in await handlers.manifest_autocomplete(cog, officer, "")] == ["1"]
 
 
 async def test_list_is_ephemeral_and_filtered(cog):

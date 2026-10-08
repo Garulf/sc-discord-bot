@@ -82,6 +82,20 @@ def test_crew_shares_show_estimate_and_former_crew():
     assert embed is not None
 
 
+def test_full_crew_and_cargo_are_all_shown():
+    cargo = [{"commodity": f"Commodity {i}", "scu": 1000, "est_price": 123456.0} for i in range(20)]
+    record = _record(crew=range(1000000000000000002, 1000000000000000026), cargo=cargo)
+    for line in cargo[:3]:
+        ledger.record_sale(record, line["commodity"], scu=1, total=1_000_000, now=1.0)
+    embed = card.build_card_embed(record)
+    crew_text = "\n".join(f.value for f in embed.fields if f.name.startswith("Crew & shares"))
+    cargo_text = "\n".join(f.value for f in embed.fields if f.name.startswith("Cargo"))
+    assert len(crew_text.splitlines()) == 25
+    assert len(cargo_text.splitlines()) == 20
+    assert all(len(field.value) <= 1024 for field in embed.fields)
+    assert len(embed) <= 6000
+
+
 def test_long_history_drops_oldest_sales():
     record = _record(crew=range(2, 26), cargo=[{"commodity": "Gold", "scu": 1000, "est_price": None}])
     for _ in range(20):

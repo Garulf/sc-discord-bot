@@ -30,16 +30,16 @@ def test_parse_cargo_reports_every_bad_line():
     with pytest.raises(ManifestError) as error:
         parsing.parse_cargo("Gold\nTin 0\nIron 1 2 3\nCopper 2000000\n5 6\nAgricium 2 -1")
     message = str(error.value)
-    assert "Line 1:" in message
-    assert "Line 2:" in message
-    assert "Line 3:" in message
-    assert "Line 4:" in message
-    assert "Line 5:" in message
-    assert "Line 6:" in message
+    assert "Cargo line 1:" in message
+    assert "Cargo line 2:" in message
+    assert "Cargo line 3:" in message
+    assert "Cargo line 4:" in message
+    assert "Cargo line 5:" in message
+    assert "Cargo line 6:" in message
 
 
 def test_parse_cargo_rejects_decimal_scu():
-    with pytest.raises(ManifestError, match="Line 1"):
+    with pytest.raises(ManifestError, match="Cargo line 1"):
         parsing.parse_cargo("Gold 1.5")
 
 
@@ -69,7 +69,7 @@ def test_parse_costs_reports_bad_lines():
         parsing.parse_costs("Fuel\nRepairs 0\n20000\nTip 1.5")
     message = str(error.value)
     for number in range(1, 5):
-        assert f"Line {number}:" in message
+        assert f"Costs line {number}:" in message
 
 
 def test_format_round_trips():
