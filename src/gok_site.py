@@ -1,14 +1,15 @@
 """Client for the Ghosts of Klescher site's bot API (https://ghostsofklescher.org).
 
 The site decides member and officer access from the Discord role IDs it is
-sent, so the bot only reports raw roles and display names.
+sent, so the bot only reports raw roles, display names and avatar hashes. A
+push that includes a name also adds a member the site has not seen yet.
 """
 
 from __future__ import annotations
 
 import aiohttp
 
-MemberPayload = dict[str, str | list[str]]
+MemberPayload = dict[str, str | list[str] | None]
 
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
 
