@@ -12,6 +12,7 @@ import traceback
 import discord
 from discord.ext import commands
 
+from src.commands.site_sync import SiteSyncConfig
 from src.starcitizenwiki_api import (
     Armor,
     Clothes,
@@ -70,7 +71,16 @@ INITIAL_EXTENSIONS = [
     "src.commands.devtracker",
     "src.commands.beacons",
     "src.commands.manifest",
+    "src.commands.site_sync",
 ]
+
+
+def build_intents() -> discord.Intents:
+    intents = discord.Intents.default()
+    # Privileged: only request it when site sync needs the member list, so the
+    # bot still connects if the intent is off in the developer portal.
+    intents.members = SiteSyncConfig.from_env(os.environ) is not None
+    return intents
 
 
 class SCBot(commands.Bot):
@@ -82,7 +92,7 @@ class SCBot(commands.Bot):
     """
 
     def __init__(self) -> None:
-        intents = discord.Intents.default()
+        intents = build_intents()
         # This bot only uses slash commands, but discord.py still runs every
         # message through get_prefix(); a None prefix raises there. Respond only
         # to @-mentions for the (unused) prefix command path.
