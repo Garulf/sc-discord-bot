@@ -1,7 +1,8 @@
 """Keep the Ghosts of Klescher site's member access in step with Discord roles.
 
-Pushes role, nickname and membership changes in the GOK guild to the site's
-bot API, plus a full roster resync on startup and every few hours. Loaded
+Pushes role, name, avatar and membership changes in the GOK guild to the site's
+bot API, plus a full roster resync on startup and every few hours. Bot accounts
+are left out so they never appear in the site's crew picker. Loaded
 only when GOK_SITE_URL, GOK_SITE_TOKEN and GOK_GUILD_ID are all set.
 """
 
@@ -44,7 +45,12 @@ def member_payload(member: discord.Member) -> MemberPayload:
         "id": str(member.id),
         "roles": [str(role.id) for role in member.roles if not role.is_default()],
         "name": member.display_name,
+        "avatar": member.avatar.key if member.avatar else None,
     }
+
+
+def _profile(user: discord.abc.User) -> tuple:
+    return user.display_name, user.avatar
 
 
 class SiteSyncCog(commands.Cog):
@@ -75,11 +81,11 @@ class SiteSyncCog(commands.Cog):
             return
         if not guild.chunked:
             await guild.chunk()
-        members = guild.members
         expected = guild.member_count or 0
-        if len(members) < expected * MIN_ROSTER_COVERAGE:
-            logger.warning("Site resync skipped: only %d of %d members loaded", len(members), expected)
+        if len(guild.members) < expected * MIN_ROSTER_COVERAGE:
+            logger.warning("Site resync skipped: only %d of %d members loaded", len(guild.members), expected)
             return
+        members = [member for member in guild.members if not member.bot]
         try:
             updated = await self.client.sync_roster([member_payload(member) for member in members])
         except Exception:
@@ -89,19 +95,19 @@ class SiteSyncCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
-        if after.guild.id != self.guild_id:
+        if after.guild.id != self.guild_id or after.bot:
             return
-        if before.roles == after.roles and before.display_name == after.display_name:
+        if member_payload(before) == member_payload(after):
             return
         await self._push(after)
 
     @commands.Cog.listener()
     async def on_user_update(self, before: discord.User, after: discord.User) -> None:
-        if before.display_name == after.display_name:
+        if _profile(before) == _profile(after):
             return
         guild = self.bot.get_guild(self.guild_id)
         member = guild.get_member(after.id) if guild else None
-        if member is not None:
+        if member is not None and not member.bot:
             await self._push(member)
 
     @commands.Cog.listener()

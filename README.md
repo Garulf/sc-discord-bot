@@ -213,7 +213,7 @@ UEX_BEARER_TOKEN=your_uex_token
 
 #### Ghosts of Klescher site sync (optional)
 
-With these set, the bot keeps member and officer access on [ghostsofklescher.org](https://ghostsofklescher.org) in step with Discord. It pushes role, nickname and leave events from the guild to the site's bot API and resends the whole roster on startup and every 6 hours.
+With these set, the bot keeps member and officer access on [ghostsofklescher.org](https://ghostsofklescher.org) in step with Discord. It pushes role, name, avatar and leave events from the guild to the site's bot API and resends the whole roster on startup and every 6 hours. Members the site hasn't seen yet are added, so they show up in the haul ledger crew picker before their first login. Bot accounts are never sent.
 
 ```env
 GOK_SITE_URL=https://ghostsofklescher.org

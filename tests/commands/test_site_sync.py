@@ -32,9 +32,31 @@ class FakeGuild:
         return next((m for m in self.members if m.id == member_id), None)
 
 
-def _member(member_id, *role_ids, name="Ghost", guild_id=GUILD_ID):
+HASH = "a" * 32
+
+
+class FakeAsset:
+    def __init__(self, key: str) -> None:
+        self.key = key
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, FakeAsset) and other.key == self.key
+
+
+def _member(member_id, *role_ids, name="Ghost", avatar=None, bot=False, guild_id=GUILD_ID):
     roles = [FakeRole(GUILD_ID), *(FakeRole(r) for r in role_ids)]
-    return SimpleNamespace(id=member_id, roles=roles, display_name=name, guild=SimpleNamespace(id=guild_id))
+    return SimpleNamespace(
+        id=member_id,
+        roles=roles,
+        display_name=name,
+        avatar=FakeAsset(avatar) if avatar else None,
+        bot=bot,
+        guild=SimpleNamespace(id=guild_id),
+    )
+
+
+def _user(user_id, name="Ghost", avatar=None):
+    return SimpleNamespace(id=user_id, display_name=name, avatar=FakeAsset(avatar) if avatar else None)
 
 
 def _cog(guild=None):
@@ -48,9 +70,13 @@ def _cog(guild=None):
 
 
 def test_member_payload_sends_string_ids_without_everyone_role():
-    payload = member_payload(_member(42, 7, 8, name="Nick"))
+    payload = member_payload(_member(42, 7, 8, name="Nick", avatar=HASH))
 
-    assert payload == {"id": "42", "roles": ["7", "8"], "name": "Nick"}
+    assert payload == {"id": "42", "roles": ["7", "8"], "name": "Nick", "avatar": HASH}
+
+
+def test_member_payload_sends_null_avatar_when_member_has_none():
+    assert member_payload(_member(42))["avatar"] is None
 
 
 async def test_resync_sends_every_guild_member():
@@ -60,8 +86,20 @@ async def test_resync_sends_every_guild_member():
     await cog.resync()
 
     client.sync_roster.assert_awaited_once_with(
-        [{"id": "1", "roles": ["7"], "name": "A"}, {"id": "2", "roles": [], "name": "B"}]
+        [
+            {"id": "1", "roles": ["7"], "name": "A", "avatar": None},
+            {"id": "2", "roles": [], "name": "B", "avatar": None},
+        ]
     )
+
+
+async def test_resync_leaves_out_bot_accounts():
+    guild = FakeGuild([_member(1, 7), _member(2, 7, bot=True)])
+    cog, client = _cog(guild)
+
+    await cog.resync()
+
+    assert [m["id"] for m in client.sync_roster.await_args.args[0]] == ["1"]
 
 
 async def test_resync_loads_members_when_guild_is_not_chunked():
@@ -109,7 +147,7 @@ async def test_role_change_pushes_member():
 
     await cog.on_member_update(_member(1, name="A"), after)
 
-    client.update_member.assert_awaited_once_with({"id": "1", "roles": ["7"], "name": "A"})
+    client.update_member.assert_awaited_once_with({"id": "1", "roles": ["7"], "name": "A", "avatar": None})
 
 
 async def test_nickname_change_pushes_member():
@@ -118,6 +156,22 @@ async def test_nickname_change_pushes_member():
     await cog.on_member_update(_member(1, name="Old"), _member(1, name="New"))
 
     client.update_member.assert_awaited_once()
+
+
+async def test_avatar_change_pushes_member():
+    cog, client = _cog()
+
+    await cog.on_member_update(_member(1), _member(1, avatar=HASH))
+
+    client.update_member.assert_awaited_once()
+
+
+async def test_bot_account_change_is_ignored():
+    cog, client = _cog()
+
+    await cog.on_member_update(_member(1, bot=True), _member(1, 7, bot=True))
+
+    client.update_member.assert_not_awaited()
 
 
 async def test_unrelated_member_change_is_ignored():
@@ -150,15 +204,32 @@ async def test_global_name_change_pushes_guild_member():
     member = _member(1, 7, name="New")
     cog, client = _cog(FakeGuild([member]))
 
-    await cog.on_user_update(SimpleNamespace(id=1, display_name="Old"), SimpleNamespace(id=1, display_name="New"))
+    await cog.on_user_update(_user(1, name="Old"), _user(1, name="New"))
 
-    client.update_member.assert_awaited_once_with({"id": "1", "roles": ["7"], "name": "New"})
+    client.update_member.assert_awaited_once_with({"id": "1", "roles": ["7"], "name": "New", "avatar": None})
+
+
+async def test_global_avatar_change_pushes_guild_member():
+    member = _member(1, 7, avatar=HASH)
+    cog, client = _cog(FakeGuild([member]))
+
+    await cog.on_user_update(_user(1), _user(1, avatar=HASH))
+
+    client.update_member.assert_awaited_once_with({"id": "1", "roles": ["7"], "name": "Ghost", "avatar": HASH})
+
+
+async def test_unrelated_user_change_is_ignored():
+    cog, client = _cog(FakeGuild([_member(1)]))
+
+    await cog.on_user_update(_user(1, avatar=HASH), _user(1, avatar=HASH))
+
+    client.update_member.assert_not_awaited()
 
 
 async def test_user_change_outside_guild_is_ignored():
     cog, client = _cog(FakeGuild([]))
 
-    await cog.on_user_update(SimpleNamespace(id=1, display_name="Old"), SimpleNamespace(id=1, display_name="New"))
+    await cog.on_user_update(_user(1, name="Old"), _user(1, name="New"))
 
     client.update_member.assert_not_awaited()
 

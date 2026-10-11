@@ -36,13 +36,15 @@ async def client(site):
     await client.close()
 
 
-async def test_update_member_puts_roles_and_name(site, client):
+async def test_update_member_puts_roles_name_and_avatar(site, client):
     _, requests = site
 
-    updated = await client.update_member({"id": "42", "roles": ["7"], "name": "Ghost"})
+    updated = await client.update_member({"id": "42", "roles": ["7"], "name": "Ghost", "avatar": None})
 
     assert updated == 1
-    assert requests == [{"method": "PUT", "path": "/api/bot/members/42", "body": {"roles": ["7"], "name": "Ghost"}}]
+    assert requests == [
+        {"method": "PUT", "path": "/api/bot/members/42", "body": {"roles": ["7"], "name": "Ghost", "avatar": None}}
+    ]
 
 
 async def test_remove_member_deletes_by_id(site, client):
