@@ -211,6 +211,18 @@ DISCORD_TOKEN=your_discord_bot_token
 UEX_BEARER_TOKEN=your_uex_token
 ```
 
+#### Ghosts of Klescher site sync (optional)
+
+With these set, the bot keeps member and officer access on [ghostsofklescher.org](https://ghostsofklescher.org) in step with Discord. It pushes role, nickname and leave events from the guild to the site's bot API and resends the whole roster on startup and every 6 hours.
+
+```env
+GOK_SITE_URL=https://ghostsofklescher.org
+GOK_SITE_TOKEN=same_value_as_the_site_BOT_API_TOKEN
+GOK_GUILD_ID=1334671709076197461
+```
+
+This needs the **Server Members Intent** enabled for the bot in the Discord Developer Portal. The bot only requests the intent when all three variables are set.
+
 ### Running
 
 ```bash
@@ -227,7 +239,7 @@ When creating the application in the Discord Developer Portal:
 
 - **Scopes:** `applications.commands`, `bot`
 - **Bot permissions:** `Send Messages`, `Embed Links`, `Attach Files`, `Read Message History`, `Manage Messages`
-- No privileged intents required
+- No privileged intents required, except **Server Members Intent** when GOK site sync is configured
 
 ---
 
