@@ -76,6 +76,41 @@ def test_parse_schedule_day_with_three_items_then_another_day():
     assert not any("Freyja" in item or "Source" in item for item in all_items)
 
 
+NEWSLETTER_BLURB = (
+    "Pilot Vision quest truth Smuggling Origin 300 We offer this World to the Galaxy as a place to study "
+    "and a place to meet Known locally as Pinecone, this Poisonous Main Sequence Dwarf is situated on the "
+    "further edge of the green band"
+)
+
+SAMPLE_CONTENT_NO_SIGNOFF = (
+    "The Weekly Community Content Schedule\n\n\n"
+    "TUESDAY, NOVEMBER 3\nNovember Subscriber Comm-Link\n\n"
+    "November Subscriber Newsletter\n\n"
+    "FRIDAY, NOVEMBER 6\nRSI Weekly Newsletter\n\n"
+    f"{NEWSLETTER_BLURB}\n\n"
+    "Tell your stories: Community Hub\n\n"
+    "Check out his albums on the Community Hub!"
+)
+
+
+def test_parse_schedule_stops_at_prose_paragraph_without_signoff():
+    days = parse_schedule(SAMPLE_CONTENT_NO_SIGNOFF)
+    assert [d.heading for d in days] == ["TUESDAY, NOVEMBER 3", "FRIDAY, NOVEMBER 6"]
+    assert days[0].items == ("November Subscriber Comm-Link", "November Subscriber Newsletter")
+    assert days[1].items == ("RSI Weekly Newsletter",)
+
+
+def test_build_schedule_embed_keeps_field_values_within_discord_limit():
+    from src.commands.twisc import build_schedule_embed
+
+    items = tuple(f"Stream number {n} on twitch.tv/starcitizen" for n in range(60))
+    embed = build_schedule_embed(_comm_link(), [ScheduleDay(heading="FRIDAY, NOVEMBER 6", items=items)])
+    value = embed.fields[0].value
+    assert len(value) <= 1024
+    assert value.startswith("- Stream number 0 on twitch.tv/starcitizen\n")
+    assert all(line.startswith("- Stream number ") for line in value.split("\n"))
+
+
 SAMPLE_CONTENT_NO_YEAR = (
     "The Weekly Community Content Schedule\n\n\n"
     "MONDAY, AUGUST 17\nThis Week in Star Citizen\n\n"

@@ -23,6 +23,8 @@ POLL_INTERVAL = 1800  # seconds
 SCHEDULE_TITLE = "The Weekly Community Content Schedule"
 
 _DAY_HEADING = re.compile(r"^(?:MON|TUES|WEDNES|THURS|FRI|SATUR|SUN)DAY, [A-Z]+ \d{1,2}(?:, \d{4})?$")
+MAX_ITEM_LENGTH = 150
+FIELD_VALUE_LIMIT = 1024
 
 
 @dataclass(frozen=True)
@@ -38,12 +40,11 @@ def parse_schedule(content: str | None) -> list[ScheduleDay]:
     followed (no blank line) by that day's first item; each subsequent
     blank-line-separated single-line paragraph is another item for that
     day, however many there are. Parsing ends at the first paragraph
-    whose first line is not a day heading and that has more than one
-    line: this is the real shape of the community-manager sign-off in
-    the observed comm-link text, e.g. ``Freyja Vanadis\\nSenior
-    Community Manager`` as a single two-line paragraph. A sign-off
-    rendered any other way (for example as two separate single-line
-    paragraphs) is out of contract and not handled.
+    that is not a day heading and either has more than one line (the
+    community-manager sign-off, e.g. ``Freyja Vanadis\\nSenior Community
+    Manager``) or is longer than ``MAX_ITEM_LENGTH`` (the newsletter and
+    Community Hub prose that follows the schedule when there is no
+    sign-off; real items are short titles).
     Returns [] when the schedule marker is missing or the format has changed.
     """
     if not content or SCHEDULE_TITLE not in content:
@@ -61,7 +62,7 @@ def parse_schedule(content: str | None) -> list[ScheduleDay]:
                 days.append(ScheduleDay(heading=heading, items=tuple(items)))
             heading = lines[0]
             items = lines[1:]
-        elif len(lines) > 1 or heading is None:
+        elif len(lines) > 1 or len(paragraph) > MAX_ITEM_LENGTH or heading is None:
             break
         else:
             items.append(paragraph)
@@ -73,11 +74,22 @@ def parse_schedule(content: str | None) -> list[ScheduleDay]:
 _EMBED_COLOR = 0x0099D6
 
 
+def _field_value(items: tuple[str, ...]) -> str:
+    lines: list[str] = []
+    length = 0
+    for item in items:
+        line = f"- {item}"
+        length += len(line) + (1 if lines else 0)
+        if length > FIELD_VALUE_LIMIT:
+            break
+        lines.append(line)
+    return "\n".join(lines) or "​"
+
+
 def build_schedule_embed(comm_link: CommLink, days: list[ScheduleDay]) -> discord.Embed:
     embed = discord.Embed(title=SCHEDULE_TITLE, url=comm_link.rsi_url, color=_EMBED_COLOR)
     for day in days:
-        value = "\n".join(f"- {item}" for item in day.items) or "​"
-        embed.add_field(name=day.heading.title(), value=value, inline=False)
+        embed.add_field(name=day.heading.title(), value=_field_value(day.items), inline=False)
     if comm_link.rsi_url:
         embed.set_footer(text=comm_link.rsi_url)
     return embed
