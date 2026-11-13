@@ -184,6 +184,16 @@ The live status updates automatically as the hangar cycles through phases. Warni
 
 ---
 
+### Intergalactic Aerospace Expo (`/iae`)
+
+| Command | Description |
+|---|---|
+| `/iae countdown` | Post a live countdown to IAE 2956 in this channel |
+
+The countdown ticks in each viewer's own time zone. The message switches to a countdown to closing once the doors open, and to a closed notice when the show ends. Posting again in the same channel replaces the earlier countdown.
+
+---
+
 ### RSI Server Status (`/status`)
 
 | Command | Description |
